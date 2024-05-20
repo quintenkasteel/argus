@@ -1,0 +1,8 @@
+signatures:
+  - { from: LocationId, to: Key Location }
+  - { from: PageId, to: Key Page }
+
+variables:
+  - { type: Key Location, to: locationK }
+  - { type: LocationId, to: locationK }
+  - { type: Entity Page, from: Entity * *, to: Entity pK pV }

@@ -1,0 +1,56 @@
+---
+name: linter
+version: "0.0.0"
+
+dependencies:
+  - base >= 4.7 && < 5
+  - ghc-syntax-highlighter
+  - directory
+  - filepath
+  - text
+  - classy-prelude
+  - haskell-src-exts
+  - string-interpolate
+  - yaml
+  - hashmap
+  - containers
+  - vector
+  - aeson
+  - unordered-containers
+  - bytestring
+  - pretty-simple
+  - split
+
+executables:
+  linter:
+    main: Main.hs
+    source-dirs: src
+    ghc-options:
+      - -Wall
+    default-extensions:
+      - ConstraintKinds
+      - DataKinds
+      - DerivingStrategies
+      - DerivingVia
+      - DeriveFunctor
+      - DeriveGeneric
+      - DeriveDataTypeable
+      - DuplicateRecordFields
+      - FlexibleContexts
+      - FlexibleInstances
+      - GADTs
+      - KindSignatures
+      - LambdaCase
+      - MultiParamTypeClasses
+      - NamedFieldPuns
+      - NoImplicitPrelude
+      - OverloadedStrings
+      - PolyKinds
+      - RankNTypes
+      - ScopedTypeVariables
+      - StandaloneDeriving
+      - TypeApplications
+      - TypeFamilies
+      - TypeOperators
+      - ViewPatterns
+      - UndecidableInstances
