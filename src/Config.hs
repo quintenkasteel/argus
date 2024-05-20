@@ -49,6 +49,6 @@ instance FromJSON Variable where
     msg <- v .:? "msg"
     return $ Variable varType from to msg
 
-parse :: IO Config
-parse = do
-  Y.decodeFileThrow "config.yaml"
+parse :: FilePath -> IO Config
+parse file = do
+  Y.decodeFileThrow file

@@ -49,7 +49,7 @@ splitRespectingParens sep str = go str (0 :: Int) ""
       | otherwise = go cs depth (c : acc)
 
 splitFunctionArgs :: Text -> [Text]
-splitFunctionArgs = fmap pack . splitRespectingParens "->" . unpack
+splitFunctionArgs = fmap (Text.strip . pack) . splitRespectingParens "->" . unpack
 
 -- Function to match a string with wildcard and ignore characters
 matches :: String -> String -> Bool
@@ -140,13 +140,3 @@ replacerIgnoreUnderscore oldText newText line =
       | o == "_" = acc
       | "_" `isPrefixOf` o && not ("_" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
       | otherwise = Text.replace o n acc
-
--- -- Helper function to replace a substring within a string
--- replaceText :: String -> String -> String -> String
--- replaceText old new str = go str
---   where
---     oldLen = length old
---     go [] = []
---     go s@(x : xs)
---       | old `isPrefixOf` s = new ++ go (drop oldLen s)
---       | otherwise = x : go xs

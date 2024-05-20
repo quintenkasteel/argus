@@ -1,6 +1,9 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Lint (Lint (..), LintMap) where
 
 import ClassyPrelude
+import Data.String.Interpolate (i)
 
 data Lint = Lint
   { from :: Text,
@@ -10,6 +13,12 @@ data Lint = Lint
     functionName :: Text,
     filePath :: FilePath
   }
-  deriving (Show)
+
+instance Show Lint where
+  show (Lint {from, to, msg, lineNumber, functionName, filePath}) =
+    [i| #{filePath}:#{lineNumber} - #{msg}:
+        Found: #{from}
+        Perhaps: #{to}
+    |]
 
 type LintMap = Map Text [Lint]

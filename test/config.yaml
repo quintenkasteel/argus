@@ -1,0 +1,82 @@
+signatures:
+  - { from: LocationId, to: Key Location }
+  - { from: PageId, to: Key Page }
+  - { from: UserId, to: Key User }
+  - { from: PostId, to: Key Post }
+  - { from: CommentId, to: Key Comment }
+  - { from: ProductId, to: Key Product }
+  - { from: OrderId, to: Key Order }
+  - { from: SessionId, to: Key Session }
+  - { from: CategoryId, to: Key Category }
+  - { from: TagId, to: Key Tag }
+  - { from: ImageId, to: Key Image }
+  - { from: VideoId, to: Key Video }
+  - { from: ArticleId, to: Key Article }
+  - { from: AuthorId, to: Key Author }
+  - { from: ProjectId, to: Key Project }
+  - { from: TaskId, to: Key Task }
+  - { from: MemberId, to: Key Member }
+  - { from: FileId, to: Key File }
+  - { from: TeamId, to: Key Team }
+  - { from: GroupId, to: Key Group }
+
+variables:
+  - { type: Key Location, to: locationK }
+  - { type: LocationId, to: locationK }
+  - { type: Key Page, to: pageK }
+  - { type: PageId, to: pageK }
+  - { type: Key User, to: userK }
+  - { type: UserId, to: userK }
+  - { type: Key Post, to: postK }
+  - { type: PostId, to: postK }
+  - { type: Key Comment, to: commentK }
+  - { type: CommentId, to: commentK }
+  - { type: Key Product, to: productK }
+  - { type: ProductId, to: productK }
+  - { type: Key Order, to: orderK }
+  - { type: OrderId, to: orderK }
+  - { type: Key Session, to: sessionK }
+  - { type: SessionId, to: sessionK }
+  - { type: Key Category, to: categoryK }
+  - { type: CategoryId, to: categoryK }
+  - { type: Key Tag, to: tagK }
+  - { type: TagId, to: tagK }
+  - { type: Key Image, to: imageK }
+  - { type: ImageId, to: imageK }
+  - { type: Key Video, to: videoK }
+  - { type: VideoId, to: videoK }
+  - { type: Key Article, to: articleK }
+  - { type: ArticleId, to: articleK }
+  - { type: Key Author, to: authorK }
+  - { type: AuthorId, to: authorK }
+  - { type: Key Project, to: projectK }
+  - { type: ProjectId, to: projectK }
+  - { type: Key Task, to: taskK }
+  - { type: TaskId, to: taskK }
+  - { type: Key Member, to: memberK }
+  - { type: MemberId, to: memberK }
+  - { type: Key File, to: fileK }
+  - { type: FileId, to: fileK }
+  - { type: Key Team, to: teamK }
+  - { type: TeamId, to: teamK }
+  - { type: Key Group, to: groupK }
+  - { type: GroupId, to: groupK }
+  - { type: Entity Page, from: Entity * *, to: Entity pK pV }
+  - { type: Entity User, from: Entity * *, to: Entity uK uV }
+  - { type: Entity Post, from: Entity * *, to: Entity postK postV }
+  - { type: Entity Comment, from: Entity * *, to: Entity commentK commentV }
+  - { type: Entity Product, from: Entity * *, to: Entity productK productV }
+  - { type: Entity Order, from: Entity * *, to: Entity orderK orderV }
+  - { type: Entity Session, from: Entity * *, to: Entity sessionK sessionV }
+  - { type: Entity Category, from: Entity * *, to: Entity categoryK categoryV }
+  - { type: Entity Tag, from: Entity * *, to: Entity tagK tagV }
+  - { type: Entity Image, from: Entity * *, to: Entity imageK imageV }
+  - { type: Entity Video, from: Entity * *, to: Entity videoK videoV }
+  - { type: Entity Article, from: Entity * *, to: Entity articleK articleV }
+  - { type: Entity Author, from: Entity * *, to: Entity authorK authorV }
+  - { type: Entity Project, from: Entity * *, to: Entity projectK projectV }
+  - { type: Entity Task, from: Entity * *, to: Entity taskK taskV }
+  - { type: Entity Member, from: Entity * *, to: Entity memberK memberV }
+  - { type: Entity File, from: Entity * *, to: Entity fileK fileV }
+  - { type: Entity Team, from: Entity * *, to: Entity teamK teamV }
+  - { type: Entity Group, from: Entity * *, to: Entity groupK groupV }
