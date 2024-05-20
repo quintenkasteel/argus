@@ -20,39 +20,16 @@ import Util
 -- Check individual declarations for type signatures
 checkTypeSignature :: FilePath -> Config -> LintMap -> [Function] -> LintMap
 checkTypeSignature _ _ acc [] = acc
-checkTypeSignature filePath conf acc (Function {funcName, functionLineNumbers, functionArguments} : xs) =
-  checkTypeSignature
-    filePath
-    conf
-    ( foldr
-        ( \(Signature {from, to, msg}) newAcc ->
-            if from `elem` fmap type_ functionArguments
-              then
-                let toVal = Util.replacerIgnoreUnderscore from to from
-                    toMsg :: Text = fromMaybe [i|Change #{from} to #{toVal}|] msg
-                 in Map.insertWith
-                      ((++))
-                      funcName
-                      ( fmap
-                          ( \lineNumber ->
-                              Lint
-                                { from = from,
-                                  to = toVal,
-                                  msg = toMsg,
-                                  lineNumber = lineNumber,
-                                  functionName = funcName,
-                                  filePath = filePath
-                                }
-                          )
-                          functionLineNumbers
-                      )
-                      newAcc
-              else newAcc
-        )
-        acc
-        (signatures conf)
-    )
-    xs
+checkTypeSignature filePath conf acc (fn : fns) =
+  checkTypeSignature filePath conf updatedAcc fns
+  where
+    updatedAcc = foldr (processSignature filePath fn) acc (signatures conf)
+
+processSignature :: Function -> Signature -> LintMap -> LintMap
+processSignature filePath Function {funcName, functionLineNumbers, functionArguments} sig acc =
+  if from sig `elem` fmap type_ functionArguments
+    then insertLint filePath funcName arg (to sig) (msg sig) functionLineNumbers acc
+    else acc
 
 checkVariables :: FilePath -> Config -> LintMap -> [Function] -> LintMap
 checkVariables _ _ acc [] = acc
