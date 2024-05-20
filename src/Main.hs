@@ -54,13 +54,12 @@ checkTypeSignature filePath conf acc (Function {funcName, functionLineNumbers, f
     )
     xs
 
--- The cleaned-up `checkVariables` function
 checkVariables :: FilePath -> Config -> LintMap -> [Function] -> LintMap
 checkVariables _ _ acc [] = acc
 checkVariables filePath conf acc (fn : fns) =
   checkVariables filePath conf updatedAcc fns
   where
-    updatedAcc = foldr (processVariable fn) acc (variables conf)
+    updatedAcc = foldr (processVariable filePath fn) acc (variables conf)
 
 processVariable ::
   FilePath ->
@@ -80,20 +79,20 @@ processVariable
           else acc
       Nothing -> acc
 
-shouldInsertLint :: String -> Variable -> Bool
+shouldInsertLint :: Text -> Variable -> Bool
 shouldInsertLint arg Variable {varFrom, varTo} =
   not (arg == varTo) && maybe True (`match` trimParens arg) varFrom
 
-insertLint :: FilePath -> String -> String -> String -> Maybe Text -> [Int] -> LintMap -> LintMap
+insertLint :: FilePath -> Text -> Text -> Text -> Maybe Text -> [Int] -> LintMap -> LintMap
 insertLint filePath funcName arg to varMsg lineNumbers acc =
   Map.insertWith (++) funcName newLints acc
   where
     toText = Util.replacerIgnoreUnderscore arg to arg
     msg = fromMaybe [i|Change #{arg} to #{toText}|] varMsg
-    newLints = map (createLint filePath arg toText msg) lineNumbers
+    newLints = map (createLint filePath funcName arg toText msg) lineNumbers
 
-createLint :: FilePath -> String -> String -> Text -> Int -> Lint
-createLint filePath from to msg lineNumber =
+createLint :: FilePath -> Text -> Text -> Text -> Text -> Int -> Lint
+createLint filePath funcName from to msg lineNumber =
   Lint
     { from = from,
       to = to,
