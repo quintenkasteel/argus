@@ -1,15 +1,16 @@
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
+
 module Util
   ( trim,
     trimParens,
     splitRespectingParens,
-    splitFunctionArgs,
     matches,
     dropLast,
     match,
     listHaskellFiles,
-    checkLints,
     pPrint,
     replacerIgnoreUnderscore,
+    replaceInFile,
     writeToFile,
   )
 where
@@ -47,9 +48,6 @@ splitRespectingParens sep str = go str (0 :: Int) ""
       | c == '(' = go cs (depth + 1) (c : acc)
       | c == ')' = go cs (depth - 1) (c : acc)
       | otherwise = go cs depth (c : acc)
-
-splitFunctionArgs :: Text -> [Text]
-splitFunctionArgs = fmap (Text.strip . pack) . splitRespectingParens "->" . unpack
 
 -- Function to match a string with wildcard and ignore characters
 matches :: String -> String -> Bool
@@ -94,20 +92,6 @@ listHaskellFiles dir = do
         contents
   return files
 
--- Function to replace a specific part of a line in a file
-checkLints :: FilePath -> [Lint] -> IO (String, [Lint])
-checkLints filename lints = do
-  contents <- readFile filename
-  -- Util.pPrint lints
-  let (newContent, checkedLints) =
-        foldr
-          ( \l@(Lint {lineNumber, from, to}) acc ->
-              replaceInFile acc lineNumber from to l
-          )
-          (ByteString.unpack contents, [])
-          lints
-  pure (newContent, checkedLints)
-
 writeToFile :: Bool -> FilePath -> Text -> IO ()
 writeToFile printToCmd filename newContent =
   if printToCmd
@@ -116,17 +100,15 @@ writeToFile printToCmd filename newContent =
 
 replaceInFile :: (String, [Lint]) -> Int -> Text -> Text -> Lint -> (String, [Lint])
 replaceInFile (acc, lints) lineNumber oldText newText lint =
-  let linesOfFile = lines acc
-   in if (lineNumber > 0 && lineNumber <= length linesOfFile)
-        then
-          let (before, line : after) = splitAt (lineNumber - 1) linesOfFile
-           in if oldText `isInfixOf` (pack line)
-                then
-                  ( unlines (before ++ [unpack (replacerIgnoreUnderscore oldText newText (pack line))] ++ after),
-                    lint : lints
-                  )
-                else (acc, lints)
-        else (acc, lints)
+  if (lineNumber > 0 && lineNumber <= length linesOfFile && oldText `isInfixOf` (pack line))
+    then
+      ( unlines (before ++ [unpack (replacerIgnoreUnderscore oldText newText (pack line))] ++ after),
+        lint : lints
+      )
+    else (acc, lints)
+  where
+    linesOfFile = lines acc
+    (before, line : after) = splitAt (lineNumber - 1) linesOfFile
 
 replacerIgnoreUnderscore :: Text -> Text -> Text -> Text
 replacerIgnoreUnderscore oldText newText line =
@@ -138,5 +120,5 @@ replacerIgnoreUnderscore oldText newText line =
     nWords = Text.words (trimParens newText)
     replaceWord (o, n) acc
       | o == "_" = acc
-      | "_" `isPrefixOf` o && not ("_" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
+      | "_" `isPrefixOf` o && not (" _" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
       | otherwise = Text.replace o n acc

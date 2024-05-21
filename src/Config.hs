@@ -5,11 +5,7 @@ module Config (parse, Config (..), Variable (..), Signature (..)) where
 
 import ClassyPrelude
 import Data.Aeson
-import qualified Data.HashMap.Strict as Map
-import Data.Text (Text)
-import qualified Data.Vector as Vector
-import qualified Data.Yaml as Y
-import GHC.Generics
+import qualified Data.Yaml as Yaml
 
 data Config = Config
   { signatures :: [Signature],
@@ -51,4 +47,4 @@ instance FromJSON Variable where
 
 parse :: FilePath -> IO Config
 parse file = do
-  Y.decodeFileThrow file
+  Yaml.decodeFileThrow file

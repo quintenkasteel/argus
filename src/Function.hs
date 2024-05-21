@@ -13,6 +13,7 @@ data Function = Function
 
 data FunctionArgument = FunctionArgument
   { type_ :: Text,
-    arg :: Text
+    arg :: Text,
+    startPos :: Maybe Int
   }
   deriving (Show)

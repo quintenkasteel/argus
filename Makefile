@@ -10,7 +10,10 @@ help:
 
 
 build:
-	@stack install
+	@stack install --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+build-watch:
+	@stack install --file-watch --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
 
 run:
 	@linter

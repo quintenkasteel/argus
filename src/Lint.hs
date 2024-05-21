@@ -10,13 +10,14 @@ data Lint = Lint
     to :: Text,
     msg :: Text,
     lineNumber :: Int,
+    columnNumber :: Maybe Int,
     functionName :: Text,
     filePath :: FilePath
   }
 
 instance Show Lint where
-  show (Lint {from, to, msg, lineNumber, functionName, filePath}) =
-    [i| #{filePath}:#{lineNumber} - #{msg}:
+  show (Lint {from, to, msg, lineNumber, columnNumber, functionName, filePath}) =
+    [i| #{filePath}:#{lineNumber}:#{fromMaybe "" (fmap show columnNumber)} in #{functionName} - #{msg}:
         Found: #{from}
         Perhaps: #{to}
     |]

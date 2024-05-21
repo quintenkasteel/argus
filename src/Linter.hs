@@ -9,15 +9,13 @@ module Linter (checkFile, checkLints) where
 
 import ClassyPrelude
 import Config (Config (..), Signature (..), Variable (..))
-import qualified Config
+import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Map as Map
-import Data.String.Interpolate (i)
 import qualified Extra.Function as Function
 import Function (Function (..), FunctionArgument (..))
-import Language.Haskell.Exts
+import qualified Language.Haskell.Exts as Haskell
 import Lint (Lint (..), LintMap)
-import qualified System.Environment as Environment
-import Util
+import qualified Util
 
 -- Check individual declarations for type signatures
 checkTypeSignature :: FilePath -> Config -> LintMap -> [Function] -> LintMap
@@ -39,6 +37,7 @@ processSignature
           filePath
           funcName
           from
+          Nothing
           to
           ( fromMaybe
               "Found incorrect naming convention in type signature"
@@ -67,13 +66,14 @@ processVariable
   var
   acc =
     case Function.getArgByType (varType var) functionArguments of
-      Just FunctionArgument {arg} ->
-        if shouldInsertLint arg var
+      Just fArg@(FunctionArgument {arg, startPos}) ->
+        if shouldInsertLint fArg var
           then
             insertLint
               filePath
               funcName
               arg
+              startPos
               (varTo var)
               ( fromMaybe
                   "Found incorrect naming convention in variable"
@@ -84,34 +84,34 @@ processVariable
           else acc
       Nothing -> acc
 
-shouldInsertLint :: Text -> Variable -> Bool
-shouldInsertLint arg Variable {varFrom, varTo} =
-  not (arg == varTo) && maybe True (`match` trimParens arg) varFrom
+shouldInsertLint :: FunctionArgument -> Variable -> Bool
+shouldInsertLint FunctionArgument {arg} Variable {varFrom, varTo} =
+  not (arg == varTo) && maybe True (`Util.match` Util.trimParens arg) varFrom
 
-insertLint :: FilePath -> Text -> Text -> Text -> Text -> [Int] -> LintMap -> LintMap
-insertLint filePath funcName arg to msg lineNumbers acc =
+insertLint :: FilePath -> Text -> Text -> Maybe Int -> Text -> Text -> [Int] -> LintMap -> LintMap
+insertLint filePath funcName arg startPos to msg lineNumbers acc =
   Map.insertWith (++) funcName newLints acc
   where
     toText = Util.replacerIgnoreUnderscore arg to arg
-    newLints = map (createLint filePath funcName arg toText msg) lineNumbers
+    newLints = map (createLint filePath funcName arg startPos toText msg) lineNumbers
 
-createLint :: FilePath -> Text -> Text -> Text -> Text -> Int -> Lint
-createLint filePath funcName from to msg lineNumber =
+createLint :: FilePath -> Text -> Text -> Maybe Int -> Text -> Text -> Int -> Lint
+createLint filePath funcName arg startPos to msg lineNumber =
   Lint
-    { from = from,
+    { from = arg,
       to = to,
       msg = msg,
       lineNumber = lineNumber,
+      columnNumber = startPos,
       functionName = funcName,
       filePath = filePath
     }
 
 -- Check the type signatures in the Haskell files
 checkFile :: Config -> FilePath -> IO (Maybe (String, [Lint]))
-checkFile conf file = do
-  result <- parseFile file
-  case result of
-    ParseOk (Module _ _ _ _ decls) -> do
+checkFile conf file =
+  Haskell.parseFile file >>= \case
+    Haskell.ParseOk (Haskell.Module _ _ _ _ decls) -> do
       let functions = Function.extract file decls
           signatures = checkTypeSignature file conf mempty functions
           rules = checkVariables file conf signatures functions
@@ -119,3 +119,17 @@ checkFile conf file = do
       pure (Just res)
     _ ->
       pure Nothing
+
+-- Function to replace a specific part of a line in a file
+checkLints :: FilePath -> [Lint] -> IO (String, [Lint])
+checkLints filename lints = do
+  contents <- readFile filename
+  -- Util.pPrint lints
+  let (newContent, checkedLints) =
+        foldr
+          ( \l@(Lint {lineNumber, from, to}) acc ->
+              Util.replaceInFile acc lineNumber from to l
+          )
+          (ByteString.unpack contents, [])
+          lints
+  pure (newContent, checkedLints)
