@@ -115,6 +115,7 @@ checkFile conf file =
       let functions = Function.extract file decls
           signatures = checkTypeSignature file conf mempty functions
           rules = checkVariables file conf signatures functions
+      print $ show functions
       res <- checkLints file (concatMap snd (Map.toList rules))
       pure (Just res)
     _ ->

@@ -12,34 +12,33 @@ import qualified Language.Haskell.Exts as Haskell
 import Util
 
 extract :: FilePath -> [Decl SrcSpanInfo] -> [Function]
-extract f ((TypeSig srcSpan1 names ty) : (FunBind srcSpan2 funcBind) : xs) =
-  func ++ extract f xs
+extract file ((TypeSig srcSpan1 names ty) : f@(FunBind srcSpan2 funcBind) : xs) =
+  catMaybes (fmap (toFunction funcBind) names) ++ extract file xs
   where
-    func =
-      fmap
-        ( \n ->
-            Function
-              { funcName = pack (Haskell.prettyPrint n),
-                typeSignatureString = pack (Haskell.prettyPrint ty),
-                functionArguments =
-                  fmap (\(t, (i, v)) -> FunctionArgument t v i) $
-                    zip getFuncTypes (snd (getFunctionArguments funcBind)),
-                functionArgumentsString = fst (getFunctionArguments funcBind),
-                functionLineNumbers =
-                  [ (Haskell.srcSpanStartLine (Haskell.srcInfoSpan srcSpan1))
-                    .. Haskell.srcSpanEndLine (Haskell.srcInfoSpan srcSpan2)
-                  ]
-              }
-        )
-        names
     getFuncTypes :: [Text] =
       dropLast $ splitFunctionArgs (pack (Haskell.prettyPrint ty))
-    getFunctionArguments :: [Match SrcSpanInfo] -> (Text, [(Maybe Int, Text)])
-    getFunctionArguments (m@(Match _ _ vars _ _) : _) =
-      ( pack (Haskell.prettyPrint m),
-        fmap (\v -> (getPatStartPos v, pack (Haskell.prettyPrint v))) vars
-      )
-    getFunctionArguments _ = ("", [])
+    toFunction ((Match _ _ vars _ _) : _) n =
+      Just
+        ( Function
+            { funcName = pack (Haskell.prettyPrint n),
+              -- FIXME pass lineNumber from arg
+              typeSignatureString = pack (Haskell.prettyPrint ty),
+              -- FIXME pass lineNumber from arg + type
+              functionArguments =
+                fmap (\(t, (i, v)) -> FunctionArgument t v i) $
+                  zip getFuncTypes (fmap (\v -> (getPatStartPos v, pack (Haskell.prettyPrint v))) vars),
+              functionArgumentsString = Text.intercalate " " $ fmap (pack . Haskell.prettyPrint) vars,
+              functionLineNumbers =
+                [ (Haskell.srcSpanStartLine (Haskell.srcInfoSpan srcSpan1))
+                  .. Haskell.srcSpanEndLine (Haskell.srcInfoSpan srcSpan2)
+                ],
+              functionBodyLines =
+                Text.splitOn "\n" . Text.strip
+                  . drop 1
+                  $ snd (Text.breakOn "=" (pack (Haskell.prettyPrint f)))
+            }
+        )
+    toFunction _ _ = Nothing
 extract _ _ = []
 
 getArgByType :: Text -> [FunctionArgument] -> Maybe FunctionArgument

@@ -120,5 +120,5 @@ replacerIgnoreUnderscore oldText newText line =
     nWords = Text.words (trimParens newText)
     replaceWord (o, n) acc
       | o == "_" = acc
-      | "_" `isPrefixOf` o && not (" _" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
+      | "_" `isPrefixOf` o && not ("_" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
       | otherwise = Text.replace o n acc
