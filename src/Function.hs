@@ -1,24 +1,20 @@
+{-# OPTIONS_GHC -fplugin=RecordDotPreprocessor #-}
+
 module Function (Function (..), FunctionArgument (..)) where
 
 import ClassyPrelude
 
 data Function = Function
-  { funcName :: Text,
-    typeSignatureString :: Text,
-    functionArguments :: [FunctionArgument],
-    functionArgumentsString :: Text,
-    -- FIXME add in arguments type
-    functionLineNumbers :: [Int],
-    -- FIXME add lineNumber
-    functionBodyLines :: [Text]
+  { name :: Text,
+    arguments :: [FunctionArgument],
+    body :: [(Int, Text)]
   }
   deriving (Show)
 
 data FunctionArgument = FunctionArgument
-  --FIXME add line / column number per argument
   { type_ :: Text,
+    typeStartPos :: (Int, Int),
     arg :: Text,
-    -- This is the column number of arg
-    startPos :: Maybe Int
+    argStartPos :: (Int, Int)
   }
   deriving (Show)

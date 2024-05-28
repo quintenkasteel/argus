@@ -16,4 +16,4 @@ build-watch:
 	@stack install --file-watch --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
 
 run:
-	@linter
+	@code-conventions data --in-place

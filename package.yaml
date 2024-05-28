@@ -1,5 +1,5 @@
 ---
-name: linter
+name: code-conventions
 version: "0.0.0"
 
 dependencies:
@@ -20,6 +20,9 @@ dependencies:
   - bytestring
   - pretty-simple
   - split
+  - record-hasfield
+  - record-dot-preprocessor
+  - optparse-applicative
 
 default-extensions:
   - ConstraintKinds
@@ -51,25 +54,21 @@ default-extensions:
 
 library:
   source-dirs: src
-  ghc-options:
-    - -Wall
-    - -fwarn-tabs
-    - -O2
 
 executables:
-  linter:
+  code-conventions:
     main: Main.hs
-    source-dirs: src
+    source-dirs: app
     ghc-options:
       - -optP-Wno-nonportable-include-path
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - linter
+      - code-conventions
 
 tests:
-  linter-test:
+  code-conventions-test:
     main: Main.hs
     source-dirs: test
     ghc-options:
@@ -77,17 +76,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - linter
+      - code-conventions
       - hspec
       - text
       - bytestring
-# # Define flags used by "yesod devel" to make compilation faster
-# flags:
-#   library-only:
-#     description: Build for use with "yesod devel"
-#     manual: false
-#     default: false
-#   dev:
-#     description: Turn on development settings, like auto-reload templates.
-#     manual: false
-#     default: false

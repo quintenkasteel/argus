@@ -4,17 +4,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fplugin=RecordDotPreprocessor #-}
 
 module Linter (checkFile, checkLints) where
 
 import ClassyPrelude
-import Config (Config (..), Signature (..), Variable (..))
+import Config (Config (..), Signature, Variable)
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Map as Map
 import qualified Extra.Function as Function
 import Function (Function (..), FunctionArgument (..))
 import qualified Language.Haskell.Exts as Haskell
-import Lint (Lint (..), LintMap)
+import Lint (Lint, LintMap)
+import qualified Lint
 import qualified Util
 
 -- Check individual declarations for type signatures
@@ -28,24 +31,32 @@ checkTypeSignature filePath conf acc (fn : fns) =
 processSignature :: FilePath -> Function -> Signature -> LintMap -> LintMap
 processSignature
   filePath
-  Function {funcName, functionLineNumbers, functionArguments}
-  Signature {msg, to, from}
+  function
+  signature
   acc =
-    if from `elem` fmap type_ functionArguments
-      then
-        insertLint
-          filePath
-          funcName
-          from
-          Nothing
-          to
-          ( fromMaybe
-              "Found incorrect naming convention in type signature"
-              msg
-          )
-          functionLineNumbers
+    case Function.getArgByType signature.from function.arguments of
+      Just functionArg ->
+        Map.insertWith (++) function.name
+          [ Lint.Lint
+              { Lint.type_ =
+                  Lint.TypeSignature
+                    ( Lint.Signature
+                        { Lint.from = signature.from,
+                          Lint.to = signature.to
+                        }
+                    ),
+                Lint.msg =
+                  fromMaybe
+                    "Found incorrect naming convention in type signature"
+                    signature.msg,
+                Lint.lineNumber = fst functionArg.typeStartPos,
+                Lint.columnNumber = snd functionArg.typeStartPos,
+                Lint.functionName = function.name,
+                Lint.filePath = filePath
+              }
+          ]
           acc
-      else acc
+      Nothing -> acc
 
 checkVariables :: FilePath -> Config -> LintMap -> [Function] -> LintMap
 checkVariables _ _ acc [] = acc
@@ -62,50 +73,46 @@ processVariable ::
   LintMap
 processVariable
   filePath
-  Function {funcName, functionLineNumbers, functionArguments}
-  var
+  function
+  variable
   acc =
-    case Function.getArgByType (varType var) functionArguments of
-      Just fArg@(FunctionArgument {arg, startPos}) ->
-        if shouldInsertLint fArg var
+    case Function.getArgByType variable.type_ function.arguments of
+      Just functionArg ->
+        if shouldInsertLint functionArg variable
           then
-            insertLint
-              filePath
-              funcName
-              arg
-              startPos
-              (varTo var)
-              ( fromMaybe
-                  "Found incorrect naming convention in variable"
-                  (varMsg var)
-              )
-              functionLineNumbers
+            Map.insertWith (++) function.name
+              [ Lint.Lint
+                  { Lint.type_ =
+                      Lint.Variable
+                        ( Lint.Var
+                            { Lint.from = functionArg.arg,
+                              Lint.to = variable.to,
+                              Lint.usedAt =
+                                filter
+                                  ( \(_, v) ->
+                                      Util.replacerIgnoreUnderscore functionArg.arg variable.to v /= v
+                                  )
+                                  function.body
+                            }
+                        ),
+                    Lint.msg =
+                      fromMaybe
+                        "Found incorrect naming convention in variable"
+                        variable.msg,
+                    Lint.lineNumber = fst functionArg.argStartPos,
+                    Lint.columnNumber = snd functionArg.argStartPos,
+                    Lint.functionName = function.name,
+                    Lint.filePath = filePath
+                  }
+              ]
               acc
           else acc
       Nothing -> acc
 
 shouldInsertLint :: FunctionArgument -> Variable -> Bool
-shouldInsertLint FunctionArgument {arg} Variable {varFrom, varTo} =
-  not (arg == varTo) && maybe True (`Util.match` Util.trimParens arg) varFrom
-
-insertLint :: FilePath -> Text -> Text -> Maybe Int -> Text -> Text -> [Int] -> LintMap -> LintMap
-insertLint filePath funcName arg startPos to msg lineNumbers acc =
-  Map.insertWith (++) funcName newLints acc
-  where
-    toText = Util.replacerIgnoreUnderscore arg to arg
-    newLints = map (createLint filePath funcName arg startPos toText msg) lineNumbers
-
-createLint :: FilePath -> Text -> Text -> Maybe Int -> Text -> Text -> Int -> Lint
-createLint filePath funcName arg startPos to msg lineNumber =
-  Lint
-    { from = arg,
-      to = to,
-      msg = msg,
-      lineNumber = lineNumber,
-      columnNumber = startPos,
-      functionName = funcName,
-      filePath = filePath
-    }
+shouldInsertLint functionArg variable =
+  not (functionArg.arg == variable.to)
+    && maybe True (`Util.match` Util.trimParens functionArg.arg) variable.from
 
 -- Check the type signatures in the Haskell files
 checkFile :: Config -> FilePath -> IO (Maybe (String, [Lint]))
@@ -115,8 +122,8 @@ checkFile conf file =
       let functions = Function.extract file decls
           signatures = checkTypeSignature file conf mempty functions
           rules = checkVariables file conf signatures functions
-      print $ show functions
-      res <- checkLints file (concatMap snd (Map.toList rules))
+          lints = concatMap snd (Map.toList rules)
+      res <- checkLints file lints
       pure (Just res)
     _ ->
       pure Nothing
@@ -125,12 +132,27 @@ checkFile conf file =
 checkLints :: FilePath -> [Lint] -> IO (String, [Lint])
 checkLints filename lints = do
   contents <- readFile filename
-  -- Util.pPrint lints
-  let (newContent, checkedLints) =
-        foldr
-          ( \l@(Lint {lineNumber, from, to}) acc ->
-              Util.replaceInFile acc lineNumber from to l
-          )
-          (ByteString.unpack contents, [])
-          lints
-  pure (newContent, checkedLints)
+  pure (foldr lintReplacer (ByteString.unpack contents) lints, lints)
+
+lintReplacer :: Lint -> String -> String
+lintReplacer lint content =
+  case lint.type_ of
+    Lint.Variable variable ->
+      let newContent = replaceLintInContent variable.from variable.to lint.lineNumber lint.columnNumber content
+       in foldr (\(i, _) acc -> replaceLintInContent variable.from variable.to i 0 acc) newContent variable.usedAt
+    Lint.TypeSignature signature ->
+      replaceLintInContent
+        signature.from
+        signature.to
+        lint.lineNumber
+        lint.columnNumber
+        content
+
+replaceLintInContent :: Text -> Text -> Int -> Int -> String -> String
+replaceLintInContent from to lineNumber columnNumber acc =
+  let linesOfFile = lines acc
+      (before, line : after) = splitAt (lineNumber - 1) linesOfFile
+      (beforeArg, argRest) = splitAt (columnNumber - 1) line
+      newLine = beforeArg ++ unpack (Util.replacerIgnoreUnderscore from to (pack argRest))
+      modifiedLines = before ++ [newLine] ++ after
+   in unlines modifiedLines

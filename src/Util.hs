@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fplugin=RecordDotPreprocessor #-}
 
 module Util
   ( trim,
@@ -10,18 +10,21 @@ module Util
     listHaskellFiles,
     pPrint,
     replacerIgnoreUnderscore,
-    replaceInFile,
     writeToFile,
+    debug,
   )
 where
 
 import ClassyPrelude
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Text as Text
-import Lint (Lint (..))
+import Debug.Trace as Trace
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension)
 import qualified Text.Pretty.Simple as Print
+
+debug :: String -> a -> a
+debug = Trace.trace
 
 pPrint :: Show a => a -> IO ()
 pPrint = Print.pPrint
@@ -98,26 +101,14 @@ writeToFile printToCmd filename newContent =
     then Util.pPrint newContent
     else writeFile filename (ByteString.pack (unpack newContent))
 
-replaceInFile :: (String, [Lint]) -> Int -> Text -> Text -> Lint -> (String, [Lint])
-replaceInFile (acc, lints) lineNumber oldText newText lint =
-  if (lineNumber > 0 && lineNumber <= length linesOfFile && oldText `isInfixOf` (pack line))
-    then
-      ( unlines (before ++ [unpack (replacerIgnoreUnderscore oldText newText (pack line))] ++ after),
-        lint : lints
-      )
-    else (acc, lints)
-  where
-    linesOfFile = lines acc
-    (before, line : after) = splitAt (lineNumber - 1) linesOfFile
-
 replacerIgnoreUnderscore :: Text -> Text -> Text -> Text
-replacerIgnoreUnderscore oldText newText line =
+replacerIgnoreUnderscore from to line =
   if length oWords == length nWords
     then foldr replaceWord line (zip oWords nWords)
-    else Text.replace oldText newText line
+    else Text.replace from to line
   where
-    oWords = Text.words (trimParens oldText)
-    nWords = Text.words (trimParens newText)
+    oWords = Text.words (trimParens from)
+    nWords = Text.words (trimParens to)
     replaceWord (o, n) acc
       | o == "_" = acc
       | "_" `isPrefixOf` o && not ("_" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
