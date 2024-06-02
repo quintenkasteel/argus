@@ -25,7 +25,9 @@ data Config = Config
   { signatures :: [Signature],
     variables :: [Variable],
     inPlace :: Bool,
-    directory :: FilePath
+    directory :: FilePath,
+    configFile :: FilePath,
+    improve :: Bool
   }
   deriving (Show, Generic)
 
@@ -35,11 +37,15 @@ instance FromJSON Config where
     variables <- o .:? "variables" .!= []
     inPlace <- o .:? "in-place" .!= False
     directory <- o .:? "directory" .!= ""
+    configFile <- pure ""
+    improve <- o .:? "improve" .!= False
     pure (Config {..})
 
 data Args = Args
   { inPlace :: Bool,
-    directory :: FilePath
+    directory :: FilePath,
+    configFile :: FilePath,
+    improve :: Bool
   }
   deriving (FromJSON, Show, Generic)
 
@@ -54,7 +60,25 @@ argParser = do
               <> short 'i'
               <> help "Flag to indicate if operation should be in place"
           )
-      directory <- argument str (metavar "FILE")
+      directory <-
+        argument
+          str
+          ( metavar "DIRECTORY"
+              <> help "Pass a directory or filePath"
+          )
+      configFile <-
+        option
+          str
+          ( long "config"
+              <> short 'i'
+              <> help "A config file path default:./config.yaml"
+              <> value "./config.yaml"
+          )
+      improve <-
+        switch
+          ( long "improve"
+              <> help "Allow AI to improve your code. Takes a looooonggg time"
+          )
       pure (Args {..})
     opts =
       info
@@ -102,11 +126,13 @@ merge (Config {..}) args =
     { signatures = signatures,
       variables = variables,
       inPlace = if not inPlace then args.inPlace else inPlace,
-      directory = if null directory then args.directory else directory
+      directory = if null directory then args.directory else directory,
+      configFile = configFile,
+      improve = if not improve then args.improve else improve
     }
 
-parse :: FilePath -> IO Config
-parse file = do
+parse :: IO Config
+parse = do
   args <- argParser
-  config <- Yaml.decodeFileThrow file
+  config <- Yaml.decodeFileThrow args.configFile
   pure (merge config args)

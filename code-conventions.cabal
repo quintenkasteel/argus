@@ -12,9 +12,11 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Api
       Config
       Extra.Function
       Function
+      Improve
       Lint
       Linter
       Util
@@ -60,6 +62,7 @@ library
     , ghc-syntax-highlighter
     , hashmap
     , haskell-src-exts
+    , http-conduit
     , optparse-applicative
     , pretty-simple
     , record-dot-preprocessor
@@ -118,6 +121,7 @@ executable code-conventions
     , ghc-syntax-highlighter
     , hashmap
     , haskell-src-exts
+    , http-conduit
     , optparse-applicative
     , pretty-simple
     , record-dot-preprocessor
@@ -179,6 +183,7 @@ test-suite code-conventions-test
     , hashmap
     , haskell-src-exts
     , hspec
+    , http-conduit
     , optparse-applicative
     , pretty-simple
     , record-dot-preprocessor

@@ -23,6 +23,7 @@ dependencies:
   - record-hasfield
   - record-dot-preprocessor
   - optparse-applicative
+  - http-conduit
 
 default-extensions:
   - ConstraintKinds

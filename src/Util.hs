@@ -12,15 +12,19 @@ module Util
     replacerIgnoreUnderscore,
     writeToFile,
     debug,
+    findIndex,
+    runWithTimeouts,
   )
 where
 
 import ClassyPrelude
+import Control.Concurrent (forkIO, killThread, threadDelay)
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Text as Text
 import Debug.Trace as Trace
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath (takeExtension)
+import System.IO (hPutStrLn)
 import qualified Text.Pretty.Simple as Print
 
 debug :: String -> a -> a
@@ -95,11 +99,9 @@ listHaskellFiles dir = do
         contents
   return files
 
-writeToFile :: Bool -> FilePath -> Text -> IO ()
-writeToFile printToCmd filename newContent =
-  if printToCmd
-    then Util.pPrint newContent
-    else writeFile filename (ByteString.pack (unpack newContent))
+writeToFile :: FilePath -> Text -> IO ()
+writeToFile filename newContent =
+  writeFile filename (ByteString.pack (unpack newContent))
 
 replacerIgnoreUnderscore :: Text -> Text -> Text -> Text
 replacerIgnoreUnderscore from to line =
@@ -113,3 +115,39 @@ replacerIgnoreUnderscore from to line =
       | o == "_" = acc
       | "_" `isPrefixOf` o && not ("_" `isPrefixOf` n) = Text.replace o ("_" <> n) acc
       | otherwise = Text.replace o n acc
+
+-- | Find the index of the first occurrence of an element in a list
+findIndex :: (a -> Bool) -> [a] -> Maybe Int
+findIndex p xs = case filter (p . snd) (zip [0 ..] xs) of
+  ((i, _) : _) -> Just i
+  [] -> Nothing
+
+-- | Run an IO action with timeout notifications
+runWithTimeouts :: IO a -> [(Int, Text)] -> IO a
+runWithTimeouts action timeouts = do
+  done <- newEmptyMVar
+  -- Create a channel for timeout messages
+  chan <- newChan
+  -- Start a separate thread for each timeout message
+  threads <- forM timeouts $ \(seconds, message) -> forkIO $ do
+    threadDelay (seconds * 1000000) -- Convert seconds to microseconds
+    writeChan chan message
+  -- Start a thread to read from the channel and print messages
+  loggerThread <-
+    forkIO $
+      let loop = do
+            message <- readChan chan
+            notDone <- tryPutMVar done ()
+            if notDone
+              then hPutStrLn stderr (unpack message) >> loop
+              else return ()
+       in loop
+  -- Perform the main action
+  result <- action
+  -- Signal that the action is complete
+  putMVar done ()
+  -- Cleanup all timeout threads
+  forM_ threads killThread
+  -- Kill the logger thread
+  killThread loggerThread
+  return result

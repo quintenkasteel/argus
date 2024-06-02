@@ -10,10 +10,10 @@ help:
 
 
 build:
-	@stack install --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
+	@stack build --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS" --copy-bins
 
 build-watch:
 	@stack install --file-watch --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
 
 run:
-	@code-conventions data --in-place
+	@code-conventions data --in-place --improve
