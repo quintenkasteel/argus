@@ -3,7 +3,6 @@
 import ClassyPrelude hiding (head)
 import Config (Config)
 import qualified Config
-import qualified Improve
 import qualified Linter
 import qualified Util
 
@@ -19,8 +18,8 @@ lintAndImproveFile config file =
     >>= maybe
       (pure ())
       ( \(newContent, lints) ->
-          outPutLints lints >> maybeImproveContent newContent
-            >>= Util.writeToFile file . pack
+          outPutLints lints
+            >> Util.writeToFile file (pack newContent)
       )
   where
     outPutLints =
