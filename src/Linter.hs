@@ -10,9 +10,9 @@
 module Linter (checkFile, checkLints) where
 
 import ClassyPrelude
-import Data.Char (isAlphaNum)
 import Config (Config (..), Signature, Variable)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.Char (isAlphaNum)
 import qualified Data.Map as Map
 import qualified Extra.Function as Function
 import Function (Function (..), FunctionArgument (..))
@@ -20,6 +20,7 @@ import qualified Language.Haskell.Exts as Haskell
 import Lint (Lint, LintMap)
 import qualified Lint
 import qualified Util
+import qualified Prelude
 
 -- Check individual declarations for type signatures
 checkTypeSignature :: FilePath -> Config -> LintMap -> [Function] -> LintMap
@@ -152,15 +153,16 @@ lintReplacer lint content =
 replaceLintInContent :: Text -> Text -> Int -> Int -> String -> String
 replaceLintInContent from to lineNumber columnNumber acc =
   let ls = lines acc
-      (before, line:after) = splitAt (lineNumber - 1) ls
+      (before, line : after) = splitAt (lineNumber - 1) ls
       (beforeArg, argRest) = splitAt (columnNumber - 1) line
       candidate = unpack from
       candidateLength = length candidate
       (matchText, restText) = splitAt candidateLength argRest
       isWordChar c = isAlphaNum c || c == '_'
       validReplacement = matchText == candidate && (null restText || not (isWordChar (Prelude.head restText)))
-      newLine = if validReplacement
-                then beforeArg ++ unpack to ++ restText
-                else line
+      newLine =
+        if validReplacement
+          then beforeArg ++ unpack to ++ restText
+          else line
       modifiedLines = before ++ [newLine] ++ after
    in unlines modifiedLines
