@@ -10,6 +10,7 @@
 module Linter (checkFile, checkLints) where
 
 import ClassyPrelude
+import Data.Char (isAlphaNum)
 import Config (Config (..), Signature, Variable)
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Map as Map
@@ -150,9 +151,16 @@ lintReplacer lint content =
 
 replaceLintInContent :: Text -> Text -> Int -> Int -> String -> String
 replaceLintInContent from to lineNumber columnNumber acc =
-  let linesOfFile = lines acc
-      (before, line : after) = splitAt (lineNumber - 1) linesOfFile
+  let ls = lines acc
+      (before, line:after) = splitAt (lineNumber - 1) ls
       (beforeArg, argRest) = splitAt (columnNumber - 1) line
-      newLine = beforeArg ++ unpack (Util.replacerIgnoreUnderscore from to (pack argRest))
+      candidate = unpack from
+      candidateLength = length candidate
+      (matchText, restText) = splitAt candidateLength argRest
+      isWordChar c = isAlphaNum c || c == '_'
+      validReplacement = matchText == candidate && (null restText || not (isWordChar (head restText)))
+      newLine = if validReplacement
+                then beforeArg ++ unpack to ++ restText
+                else line
       modifiedLines = before ++ [newLine] ++ after
    in unlines modifiedLines
