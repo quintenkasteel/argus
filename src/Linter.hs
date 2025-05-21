@@ -158,7 +158,7 @@ replaceLintInContent from to lineNumber columnNumber acc =
       candidateLength = length candidate
       (matchText, restText) = splitAt candidateLength argRest
       isWordChar c = isAlphaNum c || c == '_'
-      validReplacement = matchText == candidate && (null restText || not (isWordChar (head restText)))
+      validReplacement = matchText == candidate && (null restText || not (isWordChar (Prelude.head restText)))
       newLine = if validReplacement
                 then beforeArg ++ unpack to ++ restText
                 else line
