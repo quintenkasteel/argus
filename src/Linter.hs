@@ -88,7 +88,7 @@ processVariable
                       Lint.Variable
                         ( Lint.Var
                             { Lint.from = functionArg.arg,
-                              Lint.to = variable.to,
+                              Lint.to = Util.addParentheses functionArg.arg variable.to,
                               Lint.usedAt =
                                 filter
                                   ( \(_, v) ->
