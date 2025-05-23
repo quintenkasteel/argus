@@ -114,7 +114,9 @@ processVariable
 shouldInsertLint :: FunctionArgument -> Variable -> Bool
 shouldInsertLint functionArg variable =
   not (functionArg.arg == variable.to)
-    && maybe True (`Util.match` Util.trimParens functionArg.arg) variable.from
+    && case variable.from of
+         Nothing   -> True
+         Just pat  -> (pat == "*" || Util.match pat (Util.trimParens functionArg.arg))
 
 -- Check the type signatures in the Haskell files
 checkFile :: Config -> FilePath -> IO (Maybe (String, [Lint]))
