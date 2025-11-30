@@ -1,0 +1,80 @@
+
+# 2025-05-21 14:58:48.054659
++n
+
+# 2025-05-21 14:59:06.898756
++/add src/Linter.hs
+
+# 2025-05-21 15:00:19.516496
++i have the problem in lintReplacer that when i see pageKey it replaces it for pV (this is correct). But if i see pageKeyValueFunction it replaces it for pVValueFunction. I dont want to replace those values. So we need to check somehow if the text to replace is part of a word.
+
+# 2025-05-21 15:01:56.330562
++/run stack install
+
+# 2025-05-21 15:02:03.964489
++y
+
+# 2025-05-21 15:02:23.374005
++What's wrong? Fix. The head function in ClassyPrelude is NonNull function. You should use head from Prelude
+
+# 2025-05-21 15:02:33.500580
++y
+
+# 2025-05-21 15:02:33.512777
++/run stack install
+
+# 2025-05-21 15:02:33.516769
++/run stack install
+
+# 2025-05-21 15:09:15.286697
++this now works. The next problem that i have is that the brackets are removed arond my variables. It should keep the brackets. So if i find (Entity _ page) it should be (Entity _ pV) not Entity _ pV
+
+# 2025-05-21 15:10:06.234540
++n
+
+# 2025-05-21 15:10:11.155966
++/undo
+
+# 2025-05-21 15:10:35.662392
++n
+
+# 2025-05-21 15:10:56.412609
++this is my lint output:  src/Render/Component/Breadcrumbs.hs:50:3 in renderBreadcrumbsVacancy - Found incorrect naming convention in variable:
++           Found: ( Entity _ page )
++          Perhaps: Entity pK pV
++          Used at lines: 57
++note the Found has parenteces and the Perhaps does not. This should be fixed.
+
+# 2025-05-21 15:11:18.169368
++/add src/Linter.hs
+
+# 2025-05-21 15:11:22.524536
++/add src/Lint.hs
+
+# 2025-05-21 15:12:48.246073
++this is my lint output:  src/Render/Component/Breadcrumbs.hs:50:3 in renderBreadcrumbsVacancy - Found incorrect naming convention in variable:
++           Found: ( Entity _ page )
++          Perhaps: Entity pK pV
++          Used at lines: 57
++note the Found has parenteces and the Perhaps does not. This should be fixed. possible the code is in Extra/Functions.hs
+
+# 2025-05-21 15:13:27.577497
++y
+
+# 2025-05-21 15:14:19.933767
++n
+
+# 2025-05-21 15:15:52.982759
++/undo
+
+# 2025-05-23 16:36:23.712119
++n
+
+# 2025-05-23 16:36:28.608150
++/add config.yaml
+
+# 2025-05-23 16:36:35.946826
++/add src/Linter.hs
+
+# 2025-05-23 16:37:51.670152
++i have 2 rules for Entity Page. i want (Entity pageKey page) to match the rule for Entity * *. i want to match pageEntity with the other pageEntity rule. Both should work, they have the same types. The only differene is the deconstruction of the type (in haskell). Fix my linter code so this config works. 

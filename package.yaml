@@ -1,75 +1,172 @@
----
-name: code-conventions
-version: "0.0.0"
+name: haskell-linter
+version: "1.0.0"
+synopsis: Comprehensive Haskell static analysis and refactoring tool
+description: |
+  A powerful Haskell linter that handles Template Haskell, detects unused code,
+  enforces naming conventions, and provides format-preserving auto-fixes.
+license: MIT
+author: Quinten
+maintainer: quinten@example.com
+category: Development
+github: quinten/haskell-linter
 
 dependencies:
-  - base >= 4.7 && < 5
-  - ghc-syntax-highlighter
-  - directory
-  - filepath
-  - text
-  - classy-prelude
-  - haskell-src-exts
-  - string-interpolate
-  - yaml
-  - hashmap
-  - containers
-  - vector
-  - aeson
-  - unordered-containers
-  - bytestring
-  - pretty-simple
-  - split
-  - record-hasfield
-  - record-dot-preprocessor
-  - optparse-applicative
-  - http-conduit
+  - base >= 4.17 && < 5
+
+  # Text and data structures
+  - text >= 2.0
+  - bytestring >= 0.11
+  - containers >= 0.6
+  - unordered-containers >= 0.2
+  - vector >= 0.13
+  - hashable >= 1.4
+
+  # GHC parsing (replaces haskell-src-exts)
+  - ghc-lib-parser >= 9.6
+  - ghc-lib-parser-ex >= 9.6
+
+  # Format-preserving transformations
+  - ghc-exactprint >= 1.8
+
+  # Configuration
+  - tomland >= 1.3
+  - yaml >= 0.11
+  - aeson >= 2.1
+
+  # CLI and output
+  - optparse-applicative >= 0.18
+  - prettyprinter >= 1.7
+  - prettyprinter-ansi-terminal >= 1.1
+  - ansi-terminal >= 1.0
+
+  # File system
+  - directory >= 1.3
+  - filepath >= 1.4
+  - Glob >= 0.10
+
+  # Utilities
+  - mtl >= 2.3
+  - transformers >= 0.6
+  - extra >= 1.7
+  - safe >= 0.3
+  - time >= 1.12
+
+  # Graph algorithms for dependency analysis
+  - algebraic-graphs >= 0.7
+
+  # Regex for pattern matching
+  - regex-tdfa >= 1.3
+
+  # JSON output (for SARIF, etc.)
+  - aeson-pretty >= 0.8
+
+  # HIE file analysis for semantic features
+  - hiedb >= 0.6
+  - ghc
+  - ghc-paths
+  - sqlite-simple
 
 default-extensions:
+  - BangPatterns
   - ConstraintKinds
   - DataKinds
-  - DerivingStrategies
-  - DerivingVia
+  - DeriveAnyClass
+  - DeriveFoldable
   - DeriveFunctor
   - DeriveGeneric
-  - DeriveDataTypeable
+  - DeriveTraversable
+  - DerivingStrategies
+  - DerivingVia
   - DuplicateRecordFields
   - FlexibleContexts
   - FlexibleInstances
   - GADTs
+  - GeneralizedNewtypeDeriving
+  - ImportQualifiedPost
   - KindSignatures
   - LambdaCase
   - MultiParamTypeClasses
+  - MultiWayIf
   - NamedFieldPuns
-  - NoImplicitPrelude
+  - NumericUnderscores
+  - OverloadedRecordDot
   - OverloadedStrings
+  - PatternSynonyms
   - PolyKinds
   - RankNTypes
+  - RecordWildCards
   - ScopedTypeVariables
   - StandaloneDeriving
+  - StrictData
+  - TupleSections
   - TypeApplications
   - TypeFamilies
   - TypeOperators
   - ViewPatterns
-  - UndecidableInstances
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wmissing-deriving-strategies
+  - -Wpartial-fields
+  - -Wredundant-constraints
+  - -Wunused-packages
+  - -fwrite-ide-info
+  - -hiedir=.hie
 
 library:
   source-dirs: src
+  exposed-modules:
+    # Core types and utilities
+    - Linter.Types
+    - Linter.Utils
+    - Linter.Config
+
+    # Analysis modules
+    - Linter.Analysis.Syntactic
+    - Linter.Analysis.Semantic
+    - Linter.Analysis.DepGraph
+    - Linter.Analysis.Unused
+
+    # Rule system
+    - Linter.Rules.Types
+    - Linter.Rules.Naming
+    - Linter.Rules.Patterns
+    - Linter.Rules.Imports
+    - Linter.Rules.Parser
+
+    # Refactoring engine
+    - Linter.Refactor.Engine
+    - Linter.Refactor.ExactPrint
+    - Linter.Refactor.Substitution
+
+    # Output formatting
+    - Linter.Output.Types
+    - Linter.Output.Terminal
+    - Linter.Output.Json
+    - Linter.Output.Sarif
+    - Linter.Output.Html
+
+    # Main orchestration
+    - Linter.Core
+    - Linter.CLI
 
 executables:
-  code-conventions:
+  haskell-linter:
     main: Main.hs
     source-dirs: app
     ghc-options:
-      - -optP-Wno-nonportable-include-path
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - code-conventions
+      - haskell-linter
 
 tests:
-  code-conventions-test:
+  haskell-linter-test:
     main: Main.hs
     source-dirs: test
     ghc-options:
@@ -77,7 +174,21 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - code-conventions
-      - hspec
-      - text
-      - bytestring
+      - haskell-linter
+      - hspec >= 2.11
+      - hspec-discover >= 2.11
+      - QuickCheck >= 2.14
+      - silently >= 1.2
+
+benchmarks:
+  haskell-linter-bench:
+    main: Main.hs
+    source-dirs: bench
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -O2
+    dependencies:
+      - haskell-linter
+      - criterion >= 1.6

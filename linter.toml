@@ -1,0 +1,109 @@
+# Haskell Linter Configuration
+# See documentation for full options
+
+[general]
+directories = ["src", "app"]
+exclude = ["Generated/**", "*.gen.hs"]
+mode = "quick"
+hie-dir = ".hie"
+
+[output]
+format = "terminal"
+color = true
+group-by = "file"
+show-context = true
+context-lines = 2
+
+[unused]
+enabled = true
+check-functions = true
+check-types = true
+check-imports = true
+check-exports = true
+roots = ["^Main.main$", "^Paths_.*"]
+th-roots = ["parseJSON", "toJSON", "makeLenses", "share"]
+
+[naming]
+enabled = true
+
+# Type signature rules
+[[naming.types]]
+pattern = "LocationId"
+replacement = "Key Location"
+severity = "warning"
+
+[[naming.types]]
+pattern = "PageId"
+replacement = "Key Page"
+severity = "warning"
+
+[[naming.types]]
+pattern = "UserId"
+replacement = "Key User"
+severity = "warning"
+
+# Variable naming rules
+[[naming.variables]]
+type = "Key Location"
+from = "*"
+to = "locationK"
+severity = "warning"
+
+[[naming.variables]]
+type = "Key Page"
+from = "*"
+to = "pageK"
+severity = "warning"
+
+[[naming.variables]]
+type = "Entity Page"
+from = "Entity * *"
+to = "Entity pK pV"
+severity = "warning"
+
+[[naming.variables]]
+type = "Entity Page"
+from = "*"
+to = "pE"
+severity = "warning"
+
+[[naming.variables]]
+type = "Entity User"
+from = "Entity * *"
+to = "Entity uK uV"
+severity = "warning"
+
+[patterns]
+enabled = true
+
+[[patterns.rules]]
+name = "avoid-head"
+match = "head"
+fix = "headMay"
+severity = "warning"
+message = "Use headMay instead of partial head"
+
+[[patterns.rules]]
+name = "avoid-fromJust"
+match = "fromJust"
+severity = "warning"
+message = "fromJust is partial - consider pattern matching"
+
+[[patterns.rules]]
+name = "prefer-foldl-prime"
+match = "foldl "
+fix = "foldl' "
+severity = "suggestion"
+message = "Use foldl' (strict) instead of foldl"
+
+[imports]
+remove-unused = true
+suggest-qualified = ["Data.Map", "Data.Set", "Data.Text", "Data.ByteString"]
+require-explicit = false
+combine = true
+
+[fix]
+enabled = true
+safe-only = true
+preview = true
+backup = true

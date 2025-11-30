@@ -1,36 +1,10 @@
-{-# OPTIONS_GHC -fplugin=RecordDotPreprocessor #-}
+-- |
+-- Module      : Main
+-- Description : Entry point for the Haskell linter
+-- Copyright   : (c) 2024
+-- License     : MIT
+--
+-- This is the main entry point for the haskell-linter tool.
+module Main (main) where
 
-import ClassyPrelude hiding (head)
-import Config (Config)
-import qualified Config
-import qualified Linter
-import qualified Util
-
-main :: IO ()
-main = do
-  config <- Config.parse
-  files <- Util.listHaskellFiles config.directory
-  traverse_ (lintAndImproveFile config) files
-
-lintAndImproveFile :: Config -> FilePath -> IO ()
-lintAndImproveFile config file =
-  Linter.checkFile config file
-    >>= maybe
-      (pure ())
-      ( \(newContent, lints) ->
-          outPutLints lints
-            >> Util.writeToFile file (pack newContent)
-      )
-  where
-    outPutLints =
-      traverse_ Util.pPrint
-    maybeImproveContent newContent =
-      if config.improve
-        then do
-          improvedContent <-
-            Util.runWithTimeouts
-              (Improve.run (pack newContent))
-              [(0, "Starting..."), (5, "Still busy?")]
-          print $ show improvedContent
-          pure newContent
-        else pure (pack newContent)
+import Linter.CLI (main)

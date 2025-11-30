@@ -1,6 +1,1 @@
-import ClassyPrelude
-import Spec
-import Test.Hspec
-
-main :: IO ()
-main = hspec spec
+{-# OPTIONS_GHC -F -pgmF hspec-discover #-}

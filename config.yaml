@@ -5,3 +5,4 @@ signatures:
 variables:
   - { type: Key Location, to: locationK }
   - { type: Entity Page, from: Entity * *, to: Entity pK pV }
+  - { type: Entity Page, from: "*", to: pE }
