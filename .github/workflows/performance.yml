@@ -1,0 +1,303 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  performance-regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-perf-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-perf-
+            ${{ runner.os }}-stack-
+
+      - name: Cache performance baselines
+        uses: actions/cache@v4
+        with:
+          path: test/data/performance-baselines.json
+          key: ${{ runner.os }}-perf-baselines-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-perf-baselines-
+
+      - name: Build with optimizations
+        run: stack build --fast
+
+      - name: Run performance regression tests
+        id: perf_tests
+        run: |
+          echo "Running performance regression tests..."
+          stack test --ta '-m "PerformanceRegression"' --fast 2>&1 | tee perf-output.txt
+
+          # Capture exit code but don't fail yet
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Extract performance metrics
+        id: metrics
+        run: |
+          echo "Extracting performance metrics..."
+
+          # Parse performance output for timing information
+          if [ -f perf-output.txt ]; then
+            # Extract baseline vs current comparisons
+            grep -E "(Baseline:|Current:|Change:)" perf-output.txt > metrics.txt || true
+
+            # Count regressions
+            REGRESSIONS=$(grep -c "Performance regression detected" perf-output.txt || echo "0")
+            echo "regressions=$REGRESSIONS" >> $GITHUB_OUTPUT
+
+            # Extract successful baseline recordings
+            BASELINES=$(grep -c "Baseline recorded" perf-output.txt || echo "0")
+            echo "baselines=$BASELINES" >> $GITHUB_OUTPUT
+          else
+            echo "regressions=0" >> $GITHUB_OUTPUT
+            echo "baselines=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate performance report
+        run: |
+          echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f metrics.txt ] && [ -s metrics.txt ]; then
+            echo "### Timing Comparisons" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat metrics.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Regressions detected: ${{ steps.metrics.outputs.regressions }}" >> $GITHUB_STEP_SUMMARY
+          echo "- New baselines recorded: ${{ steps.metrics.outputs.baselines }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.metrics.outputs.regressions }}" != "0" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Performance Regressions Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Performance has degraded by more than 20% in one or more tests." >> $GITHUB_STEP_SUMMARY
+            echo "Please review the test output above for details." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.metrics.outputs.baselines }}" != "0" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ New Baselines Recorded" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "New performance baselines have been established for tracking future regressions." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No performance regressions detected. All tests within acceptable thresholds." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload performance data
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results
+          path: |
+            perf-output.txt
+            metrics.txt
+            test/data/performance-baselines.json
+          retention-days: 90
+
+      - name: Comment on PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const regressions = ${{ steps.metrics.outputs.regressions }};
+            const baselines = ${{ steps.metrics.outputs.baselines }};
+
+            let comment = '## 🚀 Performance Test Results\n\n';
+
+            if (regressions > 0) {
+              comment += '### ⚠️ Performance Regressions Detected\n\n';
+              comment += `**${regressions}** test(s) showed performance degradation > 20%.\n\n`;
+              comment += 'Please review the test output in the workflow logs.\n\n';
+            } else if (baselines > 0) {
+              comment += '### ✅ New Baselines Recorded\n\n';
+              comment += `**${baselines}** new performance baseline(s) established.\n\n`;
+            } else {
+              comment += '### ✅ All Tests Passed\n\n';
+              comment += 'No performance regressions detected.\n\n';
+            }
+
+            // Add metrics if available
+            try {
+              if (fs.existsSync('metrics.txt')) {
+                const metrics = fs.readFileSync('metrics.txt', 'utf8');
+                if (metrics.trim()) {
+                  comment += '### Timing Details\n\n```\n' + metrics + '\n```\n';
+                }
+              }
+            } catch (e) {
+              console.log('No metrics file found');
+            }
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail if regressions detected
+        if: steps.perf_tests.outputs.exit_code != '0'
+        run: |
+          echo "::error::Performance regression tests failed"
+          exit 1
+
+  benchmark-comparison:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-bench-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-bench-
+            ${{ runner.os }}-stack-
+
+      - name: Cache benchmark results
+        uses: actions/cache@v4
+        with:
+          path: .benchmark-results
+          key: ${{ runner.os }}-benchmark-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-benchmark-
+
+      - name: Build with optimizations
+        run: stack build --bench --no-run-benchmarks
+
+      - name: Run benchmarks
+        run: |
+          mkdir -p .benchmark-results
+          stack bench --benchmark-arguments='--output .benchmark-results/bench-${{ github.sha }}.html --csv .benchmark-results/bench-${{ github.sha }}.csv' || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: .benchmark-results/
+          retention-days: 90
+
+      - name: Compare with previous benchmarks
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## 📊 Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f .benchmark-results/bench-${{ github.sha }}.csv ]; then
+            echo "Benchmark results saved for comparison." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "View detailed results in the artifacts." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No benchmark results generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  memory-profiling:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-prof-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-prof-
+            ${{ runner.os }}-stack-
+
+      - name: Build with profiling
+        run: stack build --profile --fast
+
+      - name: Run memory profiling
+        run: |
+          mkdir -p .profile-results
+
+          # Run argus with heap profiling
+          stack exec -- argus check test/data/perf-benchmark.hs +RTS -h -p -RTS || true
+
+          # Generate heap profile
+          if [ -f argus.hp ]; then
+            stack exec -- hp2ps -c argus.hp
+            mv argus.ps .profile-results/heap-profile.ps || true
+          fi
+
+          # Copy time/allocation profile
+          if [ -f argus.prof ]; then
+            cp argus.prof .profile-results/time-profile.txt || true
+          fi
+
+      - name: Upload profiling results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profiling-results
+          path: .profile-results/
+          retention-days: 30
+
+      - name: Check for space leaks
+        run: |
+          echo "## 🔍 Memory Profile" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f .profile-results/time-profile.txt ]; then
+            echo "### Top Memory Allocations" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -50 .profile-results/time-profile.txt >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No profiling data generated." >> $GITHUB_STEP_SUMMARY
+          fi

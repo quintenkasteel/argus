@@ -1,0 +1,31 @@
+{
+  "id": "overview/key-features",
+  "title": "Key Features",
+  "description": "Comprehensive overview of Argus's analysis capabilities",
+  "source": "@site/docs/overview/key-features.md",
+  "sourceDirName": "overview",
+  "slug": "/overview/key-features",
+  "permalink": "/docs/overview/key-features",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/overview/key-features.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Key Features",
+    "description": "Comprehensive overview of Argus's analysis capabilities"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/docs/overview/introduction"
+  },
+  "next": {
+    "title": "Quickstart",
+    "permalink": "/docs/overview/quickstart"
+  }
+}

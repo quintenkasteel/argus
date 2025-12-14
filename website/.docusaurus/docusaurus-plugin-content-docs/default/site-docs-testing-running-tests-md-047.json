@@ -1,0 +1,31 @@
+{
+  "id": "testing/running-tests",
+  "title": "Running Tests",
+  "description": "How to run Argus test suite",
+  "source": "@site/docs/testing/running-tests.md",
+  "sourceDirName": "testing",
+  "slug": "/testing/running-tests",
+  "permalink": "/docs/testing/running-tests",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/testing/running-tests.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Running Tests",
+    "description": "How to run Argus test suite"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Plugin Mode",
+    "permalink": "/docs/architecture/plugin-mode"
+  },
+  "next": {
+    "title": "Writing Tests",
+    "permalink": "/docs/testing/writing-tests"
+  }
+}

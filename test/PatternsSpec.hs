@@ -13,8 +13,9 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
-import Linter.Config (PatternRule (..), RuleSeverity (..))
-import Linter.Rules.Patterns
+import Argus.Config (PatternRule (..), RuleSeverity (..), patternRuleToRule)
+import Argus.Rules.Patterns
+import Argus.Rules.Types qualified as RT
 
 --------------------------------------------------------------------------------
 -- Generators
@@ -53,7 +54,7 @@ genTextWithEmbeddedIdent ident = do
 
 spec :: Spec
 spec = do
-  describe "Linter.Rules.Patterns" $ do
+  describe "Argus.Rules.Patterns" $ do
     matchPatternSpec
     matchIdentifierSpec
     wildcardPatternSpec
@@ -218,7 +219,8 @@ wildcardPatternSpec = describe "wildcard pattern matching" $ do
 
 applyPatternRuleSpec :: Spec
 applyPatternRuleSpec = describe "applyPatternRule" $ do
-  let mkRule name pat fix = PatternRule
+  let mkRule :: Text -> Text -> Maybe Text -> RT.Rule
+      mkRule name pat fix = patternRuleToRule PatternRule
         { prName = name
         , prMatch = pat
         , prFix = fix
@@ -248,16 +250,16 @@ applyPatternRuleSpec = describe "applyPatternRule" $ do
 defaultPatternsSpec :: Spec
 defaultPatternsSpec = describe "defaultPatterns" $ do
   it "contains avoid-head rule" $
-    any (\r -> prName r == "avoid-head") defaultPatterns `shouldBe` True
+    any (\r -> RT.ruleId r == "pattern/avoid-head") defaultPatterns `shouldBe` True
 
   it "contains avoid-tail rule" $
-    any (\r -> prName r == "avoid-tail") defaultPatterns `shouldBe` True
+    any (\r -> RT.ruleId r == "pattern/avoid-tail") defaultPatterns `shouldBe` True
 
   it "contains avoid-fromJust rule" $
-    any (\r -> prName r == "avoid-fromJust") defaultPatterns `shouldBe` True
+    any (\r -> RT.ruleId r == "pattern/avoid-fromJust") defaultPatterns `shouldBe` True
 
   it "all rules have non-empty patterns" $
-    all (\r -> not (T.null (prMatch r))) defaultPatterns `shouldBe` True
+    all (\r -> not (T.null (RT.rulePatternToText (RT.rulePattern r)))) defaultPatterns `shouldBe` True
 
   it "all rules have non-empty messages" $
-    all (\r -> not (T.null (prMessage r))) defaultPatterns `shouldBe` True
+    all (\r -> not (T.null (RT.ruleMessage r))) defaultPatterns `shouldBe` True

@@ -1,0 +1,10 @@
+
+
+──────────────────────────────────────────────────
+Summary
+──────────────────────────────────────────────────
+  Files analyzed: 0
+  Files with issues: 0
+  Diagnostics: 0
+  Fixes available: 0
+

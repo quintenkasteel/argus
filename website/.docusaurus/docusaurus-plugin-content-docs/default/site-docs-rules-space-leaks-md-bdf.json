@@ -1,0 +1,31 @@
+{
+  "id": "rules/space-leaks",
+  "title": "Space Leak Rules",
+  "description": "Detect patterns that cause memory leaks in Haskell",
+  "source": "@site/docs/rules/space-leaks.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/space-leaks",
+  "permalink": "/docs/rules/space-leaks",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/space-leaks.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Space Leak Rules",
+    "description": "Detect patterns that cause memory leaks in Haskell"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Performance Rules",
+    "permalink": "/docs/rules/performance"
+  },
+  "next": {
+    "title": "Complexity Rules",
+    "permalink": "/docs/rules/complexity"
+  }
+}

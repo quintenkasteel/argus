@@ -1,0 +1,31 @@
+{
+  "id": "configuration/output-section",
+  "title": "Output Configuration",
+  "description": "Configure output format, colors, and display options",
+  "source": "@site/docs/configuration/output-section.md",
+  "sourceDirName": "configuration",
+  "slug": "/configuration/output-section",
+  "permalink": "/docs/configuration/output-section",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/configuration/output-section.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Output Configuration",
+    "description": "Configure output format, colors, and display options"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Complexity Configuration",
+    "permalink": "/docs/configuration/complexity-section"
+  },
+  "next": {
+    "title": "Fix Configuration",
+    "permalink": "/docs/configuration/fix-section"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "rules/custom-rules",
+  "title": "Custom Rules",
+  "description": "Define project-specific rules with the Argus DSL",
+  "source": "@site/docs/rules/custom-rules.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/custom-rules",
+  "permalink": "/docs/rules/custom-rules",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/custom-rules.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 13,
+  "frontMatter": {
+    "sidebar_position": 13,
+    "title": "Custom Rules",
+    "description": "Define project-specific rules with the Argus DSL"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Redundant Code Rules",
+    "permalink": "/docs/rules/redundant"
+  },
+  "next": {
+    "title": "CLI Overview",
+    "permalink": "/docs/cli-reference/"
+  }
+}

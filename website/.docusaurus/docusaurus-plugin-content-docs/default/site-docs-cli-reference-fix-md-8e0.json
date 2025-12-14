@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/fix",
+  "title": "argus fix",
+  "description": "Automatically fix detected issues in Haskell code",
+  "source": "@site/docs/cli-reference/fix.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/fix",
+  "permalink": "/docs/cli-reference/fix",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/fix.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "argus fix",
+    "description": "Automatically fix detected issues in Haskell code"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus check",
+    "permalink": "/docs/cli-reference/check"
+  },
+  "next": {
+    "title": "argus unused",
+    "permalink": "/docs/cli-reference/unused"
+  }
+}

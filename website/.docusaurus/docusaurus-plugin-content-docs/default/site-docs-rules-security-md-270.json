@@ -1,0 +1,31 @@
+{
+  "id": "rules/security",
+  "title": "Security Rules",
+  "description": "Detect security vulnerabilities in Haskell code",
+  "source": "@site/docs/rules/security.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/security",
+  "permalink": "/docs/rules/security",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/security.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Security Rules",
+    "description": "Detect security vulnerabilities in Haskell code"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Partial Functions",
+    "permalink": "/docs/rules/partial-functions"
+  },
+  "next": {
+    "title": "Performance Rules",
+    "permalink": "/docs/rules/performance"
+  }
+}

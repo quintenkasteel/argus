@@ -1,0 +1,31 @@
+{
+  "id": "rules/performance",
+  "title": "Performance Rules",
+  "description": "Detect performance anti-patterns and inefficiencies",
+  "source": "@site/docs/rules/performance.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/performance",
+  "permalink": "/docs/rules/performance",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/performance.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Performance Rules",
+    "description": "Detect performance anti-patterns and inefficiencies"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Security Rules",
+    "permalink": "/docs/rules/security"
+  },
+  "next": {
+    "title": "Space Leak Rules",
+    "permalink": "/docs/rules/space-leaks"
+  }
+}

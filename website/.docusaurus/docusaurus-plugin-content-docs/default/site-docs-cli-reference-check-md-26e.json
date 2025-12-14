@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/check",
+  "title": "argus check",
+  "description": "Run static analysis on Haskell source files",
+  "source": "@site/docs/cli-reference/check.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/check",
+  "permalink": "/docs/cli-reference/check",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/check.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "argus check",
+    "description": "Run static analysis on Haskell source files"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "CLI Overview",
+    "permalink": "/docs/cli-reference/"
+  },
+  "next": {
+    "title": "argus fix",
+    "permalink": "/docs/cli-reference/fix"
+  }
+}

@@ -14,7 +14,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
-import Linter.Utils
+import Argus.Utils
 
 --------------------------------------------------------------------------------
 -- Generators
@@ -60,7 +60,7 @@ genTextWithEmbeddedIdent ident = do
 
 spec :: Spec
 spec = do
-  describe "Linter.Utils" $ do
+  describe "Argus.Utils" $ do
     identCharSpec
     wordBoundarySpec
     safeListSpec

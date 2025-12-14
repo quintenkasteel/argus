@@ -1,0 +1,31 @@
+{
+  "id": "getting-started/basic-usage",
+  "title": "Basic Usage",
+  "description": "Learn the fundamental Argus commands",
+  "source": "@site/docs/getting-started/basic-usage.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/basic-usage",
+  "permalink": "/docs/getting-started/basic-usage",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/getting-started/basic-usage.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Basic Usage",
+    "description": "Learn the fundamental Argus commands"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Installation",
+    "permalink": "/docs/getting-started/installation"
+  },
+  "next": {
+    "title": "Configuration",
+    "permalink": "/docs/getting-started/configuration"
+  }
+}

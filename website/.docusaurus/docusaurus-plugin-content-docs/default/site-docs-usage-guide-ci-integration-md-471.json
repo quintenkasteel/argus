@@ -1,0 +1,31 @@
+{
+  "id": "usage-guide/ci-integration",
+  "title": "CI Integration",
+  "description": "Integrate Argus into your CI/CD pipeline",
+  "source": "@site/docs/usage-guide/ci-integration.md",
+  "sourceDirName": "usage-guide",
+  "slug": "/usage-guide/ci-integration",
+  "permalink": "/docs/usage-guide/ci-integration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/usage-guide/ci-integration.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "CI Integration",
+    "description": "Integrate Argus into your CI/CD pipeline"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Auto-Fix System",
+    "permalink": "/docs/usage-guide/auto-fix"
+  },
+  "next": {
+    "title": "IDE Integration",
+    "permalink": "/docs/usage-guide/ide-integration"
+  }
+}

@@ -1,0 +1,1 @@
+[{"code":"extension/redundant","hasFix":false,"message":"Extension KindSignatures is implied by another enabled extension","severity":"Suggestion"},{"code":"space-leak/lazy-data","hasFix":false,"message":"Non-strict data fields can accumulate thunks. Add {-# LANGUAGE StrictData #-} or use bang patterns (!)","severity":"Suggestion"}]

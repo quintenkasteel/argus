@@ -1,0 +1,6 @@
+--command="stack ghci --ghci-options='-fno-code -fwrite-interface -fdefer-type-errors'"
+--warnings
+--reload=src
+--reload=app
+--restart=package.yaml
+--restart=stack.yaml

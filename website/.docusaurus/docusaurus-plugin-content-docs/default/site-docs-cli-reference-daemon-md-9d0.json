@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/daemon",
+  "title": "argus daemon",
+  "description": "Run Argus as a background service",
+  "source": "@site/docs/cli-reference/daemon.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/daemon",
+  "permalink": "/docs/cli-reference/daemon",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/daemon.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "argus daemon",
+    "description": "Run Argus as a background service"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus watch",
+    "permalink": "/docs/cli-reference/watch"
+  },
+  "next": {
+    "title": "argus lsp",
+    "permalink": "/docs/cli-reference/lsp"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "architecture/plugin-mode",
+  "title": "Plugin Mode",
+  "description": "GHC plugin integration for deepest analysis",
+  "source": "@site/docs/architecture/plugin-mode.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/plugin-mode",
+  "permalink": "/docs/architecture/plugin-mode",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/architecture/plugin-mode.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Plugin Mode",
+    "description": "GHC plugin integration for deepest analysis"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Analysis Passes",
+    "permalink": "/docs/architecture/analysis-passes"
+  },
+  "next": {
+    "title": "Running Tests",
+    "permalink": "/docs/testing/running-tests"
+  }
+}

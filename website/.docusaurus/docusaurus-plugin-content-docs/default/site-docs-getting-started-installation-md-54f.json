@@ -1,0 +1,31 @@
+{
+  "id": "getting-started/installation",
+  "title": "Installation",
+  "description": "Install Argus using Stack",
+  "source": "@site/docs/getting-started/installation.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/installation",
+  "permalink": "/docs/getting-started/installation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/getting-started/installation.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Installation",
+    "description": "Install Argus using Stack"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Quickstart",
+    "permalink": "/docs/overview/quickstart"
+  },
+  "next": {
+    "title": "Basic Usage",
+    "permalink": "/docs/getting-started/basic-usage"
+  }
+}

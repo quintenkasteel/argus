@@ -1,0 +1,1 @@
+[{"code":"pattern/avoid-fromJust","hasFix":false,"message":"fromJust is partial, consider pattern matching","severity":"Warning"},{"code":"pattern/avoid-head","hasFix":true,"message":"Use listToMaybe instead of partial head","severity":"Warning"}]

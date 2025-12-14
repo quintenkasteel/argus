@@ -1,0 +1,31 @@
+{
+  "id": "rules/complexity",
+  "title": "Complexity Rules",
+  "description": "Track and enforce code complexity metrics",
+  "source": "@site/docs/rules/complexity.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/complexity",
+  "permalink": "/docs/rules/complexity",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/complexity.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Complexity Rules",
+    "description": "Track and enforce code complexity metrics"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Space Leak Rules",
+    "permalink": "/docs/rules/space-leaks"
+  },
+  "next": {
+    "title": "Architecture Rules",
+    "permalink": "/docs/rules/architecture"
+  }
+}

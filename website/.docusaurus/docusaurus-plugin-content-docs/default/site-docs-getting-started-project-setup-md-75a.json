@@ -1,0 +1,31 @@
+{
+  "id": "getting-started/project-setup",
+  "title": "Project Setup",
+  "description": "Set up your project for Argus analysis",
+  "source": "@site/docs/getting-started/project-setup.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/project-setup",
+  "permalink": "/docs/getting-started/project-setup",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/getting-started/project-setup.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Project Setup",
+    "description": "Set up your project for Argus analysis"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Configuration",
+    "permalink": "/docs/getting-started/configuration"
+  },
+  "next": {
+    "title": "Analysis Modes",
+    "permalink": "/docs/usage-guide/analysis-modes"
+  }
+}

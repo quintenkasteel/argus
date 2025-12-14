@@ -1,0 +1,317 @@
+{
+  "/__docusaurus/debug-5ff": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/config-5ba": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/content-a2b": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    },
+    "__props": "__props---docusaurus-debug-content-3-c-0-be2"
+  },
+  "/__docusaurus/debug/globalData-c3c": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/metadata-156": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/registry-88c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/routes-000": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/docs-b81": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---docsaba-d7c"
+    }
+  },
+  "/docs-adc": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---docs-005-788"
+  },
+  "/docs-ee0": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+  },
+  "/docs/architecture/analysis-passes-bf6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-analysis-passesd-3-b-53f"
+  },
+  "/docs/architecture/fix-system-a6d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-fix-systema-0-c-2e1"
+  },
+  "/docs/architecture/hie-integration-4ae": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-hie-integration-126-743"
+  },
+  "/docs/architecture/overview-dc8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-overview-0-b-1-a4c"
+  },
+  "/docs/architecture/plugin-mode-807": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-plugin-mode-754-a82"
+  },
+  "/docs/architecture/rule-engine-d57": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-rule-engineea-5-b80"
+  },
+  "/docs/cli-reference/-5e8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-1-a-7-716"
+  },
+  "/docs/cli-reference/check-ba8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-check-26-e-b0e"
+  },
+  "/docs/cli-reference/daemon-219": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-daemon-9-d-0-407"
+  },
+  "/docs/cli-reference/fix-647": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-fix-8-e-0-60f"
+  },
+  "/docs/cli-reference/index-cmd-ddd": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-index-cmd-6-c-4-1c5"
+  },
+  "/docs/cli-reference/init-999": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-initafa-325"
+  },
+  "/docs/cli-reference/lsp-3a3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-lspa-69-865"
+  },
+  "/docs/cli-reference/output-formats-573": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-output-formats-9-d-2-4c1"
+  },
+  "/docs/cli-reference/unused-e34": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-unusedf-46-a78"
+  },
+  "/docs/cli-reference/watch-37f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-cli-reference-watchec-0-2ce"
+  },
+  "/docs/configuration/complexity-section-386": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-complexity-section-58-d-0a8"
+  },
+  "/docs/configuration/extensions-section-013": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-extensions-section-6-de-5ad"
+  },
+  "/docs/configuration/file-format-04e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-file-format-3-d-3-17d"
+  },
+  "/docs/configuration/fix-section-3eb": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-fix-sectionebe-c47"
+  },
+  "/docs/configuration/naming-section-4be": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-naming-section-374-6cb"
+  },
+  "/docs/configuration/output-section-dfc": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-output-section-6-a-1-7a1"
+  },
+  "/docs/configuration/rules-section-245": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-rules-section-7-cb-e00"
+  },
+  "/docs/configuration/scopes-section-c55": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-configuration-scopes-sectionf-85-bfc"
+  },
+  "/docs/contributing/-051": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-234-597"
+  },
+  "/docs/contributing/adding-rules-8c9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-adding-rules-5-dc-387"
+  },
+  "/docs/contributing/code-style-78f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-code-style-0-d-2-08d"
+  },
+  "/docs/contributing/development-setup-989": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-development-setup-8-d-1-643"
+  },
+  "/docs/contributing/pull-requests-d55": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-pull-requests-84-e-ac2"
+  },
+  "/docs/contributing/testing-guide-540": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-contributing-testing-guideeb-1-544"
+  },
+  "/docs/faq/-b20": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-faq-fe-6-404"
+  },
+  "/docs/faq/error-messages-651": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-faq-error-messagesc-3-a-02e"
+  },
+  "/docs/faq/general-9be": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-faq-generald-8-c-3e3"
+  },
+  "/docs/faq/troubleshooting-54a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-faq-troubleshooting-5-c-5-1e1"
+  },
+  "/docs/getting-started/basic-usage-62e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-getting-started-basic-usage-4-ee-ef6"
+  },
+  "/docs/getting-started/configuration-a00": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-getting-started-configuration-009-150"
+  },
+  "/docs/getting-started/installation-c16": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-getting-started-installation-54-f-18d"
+  },
+  "/docs/getting-started/project-setup-cd9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-getting-started-project-setup-75-a-e79"
+  },
+  "/docs/overview/introduction-9c2": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-overview-introduction-8-d-7-789"
+  },
+  "/docs/overview/key-features-d0c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-overview-key-featuresf-18-b6a"
+  },
+  "/docs/overview/quickstart-3ec": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-overview-quickstart-273-154"
+  },
+  "/docs/rules/architecture-4fc": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-architecture-4-b-0-333"
+  },
+  "/docs/rules/complexity-872": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-complexity-388-9cf"
+  },
+  "/docs/rules/custom-rules-83e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-custom-rulescd-1-89c"
+  },
+  "/docs/rules/imports-7b3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-importscc-5-31e"
+  },
+  "/docs/rules/modernize-ab9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-modernizef-34-11b"
+  },
+  "/docs/rules/naming-436": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-naming-0-e-5-838"
+  },
+  "/docs/rules/overview-de7": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-overvieweb-5-50f"
+  },
+  "/docs/rules/partial-functions-ac6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-partial-functions-138-970"
+  },
+  "/docs/rules/performance-9e2": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-performancea-8-a-096"
+  },
+  "/docs/rules/pragmas-af2": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-pragmas-4-b-1-983"
+  },
+  "/docs/rules/redundant-17d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-redundantd-7-e-5ac"
+  },
+  "/docs/rules/security-74b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-security-270-3ca"
+  },
+  "/docs/rules/space-leaks-a61": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-rules-space-leaksbdf-880"
+  },
+  "/docs/testing/golden-tests-4df": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-testing-golden-tests-64-e-6a3"
+  },
+  "/docs/testing/running-tests-5b4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-testing-running-tests-047-54d"
+  },
+  "/docs/testing/test-fixtures-0f3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-testing-test-fixturesada-026"
+  },
+  "/docs/testing/writing-tests-19d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-testing-writing-tests-363-95b"
+  },
+  "/docs/usage-guide/analysis-modes-28c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-usage-guide-analysis-modes-892-caa"
+  },
+  "/docs/usage-guide/auto-fix-745": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-usage-guide-auto-fix-0-b-4-7a2"
+  },
+  "/docs/usage-guide/ci-integration-4b5": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-usage-guide-ci-integration-471-5ca"
+  },
+  "/docs/usage-guide/ide-integration-51a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-usage-guide-ide-integration-546-210"
+  },
+  "/docs/usage-guide/working-with-hie-d84": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-usage-guide-working-with-hie-2-e-2-d88"
+  },
+  "/-e5f": {
+    "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",
+    "__context": {
+      "plugin": "plugin---a-74-9d6"
+    },
+    "config": "config---5-e-9-4f3"
+  }
+}

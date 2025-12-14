@@ -1,0 +1,31 @@
+{
+  "id": "faq/troubleshooting",
+  "title": "Troubleshooting",
+  "description": "Solutions to common Argus problems",
+  "source": "@site/docs/faq/troubleshooting.md",
+  "sourceDirName": "faq",
+  "slug": "/faq/troubleshooting",
+  "permalink": "/docs/faq/troubleshooting",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/faq/troubleshooting.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Troubleshooting",
+    "description": "Solutions to common Argus problems"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "General FAQ",
+    "permalink": "/docs/faq/general"
+  },
+  "next": {
+    "title": "Error Messages",
+    "permalink": "/docs/faq/error-messages"
+  }
+}

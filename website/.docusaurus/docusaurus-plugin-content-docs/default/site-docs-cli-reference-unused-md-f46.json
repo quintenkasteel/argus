@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/unused",
+  "title": "argus unused",
+  "description": "Detect unused code, exports, and dependencies",
+  "source": "@site/docs/cli-reference/unused.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/unused",
+  "permalink": "/docs/cli-reference/unused",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/unused.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "argus unused",
+    "description": "Detect unused code, exports, and dependencies"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus fix",
+    "permalink": "/docs/cli-reference/fix"
+  },
+  "next": {
+    "title": "argus init",
+    "permalink": "/docs/cli-reference/init"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/index-cmd",
+  "title": "argus index",
+  "description": "Build and manage HIE file index for semantic analysis",
+  "source": "@site/docs/cli-reference/index-cmd.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/index-cmd",
+  "permalink": "/docs/cli-reference/index-cmd",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/index-cmd.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "argus index",
+    "description": "Build and manage HIE file index for semantic analysis"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus init",
+    "permalink": "/docs/cli-reference/init"
+  },
+  "next": {
+    "title": "argus watch",
+    "permalink": "/docs/cli-reference/watch"
+  }
+}

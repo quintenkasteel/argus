@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/watch",
+  "title": "argus watch",
+  "description": "Watch files and analyze on changes",
+  "source": "@site/docs/cli-reference/watch.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/watch",
+  "permalink": "/docs/cli-reference/watch",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/watch.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 7,
+  "frontMatter": {
+    "sidebar_position": 7,
+    "title": "argus watch",
+    "description": "Watch files and analyze on changes"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus index",
+    "permalink": "/docs/cli-reference/index-cmd"
+  },
+  "next": {
+    "title": "argus daemon",
+    "permalink": "/docs/cli-reference/daemon"
+  }
+}

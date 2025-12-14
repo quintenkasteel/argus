@@ -1,0 +1,31 @@
+{
+  "id": "testing/test-fixtures",
+  "title": "Test Fixtures",
+  "description": "Managing test data and fixtures",
+  "source": "@site/docs/testing/test-fixtures.md",
+  "sourceDirName": "testing",
+  "slug": "/testing/test-fixtures",
+  "permalink": "/docs/testing/test-fixtures",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/testing/test-fixtures.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Test Fixtures",
+    "description": "Managing test data and fixtures"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Writing Tests",
+    "permalink": "/docs/testing/writing-tests"
+  },
+  "next": {
+    "title": "Golden Tests",
+    "permalink": "/docs/testing/golden-tests"
+  }
+}

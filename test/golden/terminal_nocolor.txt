@@ -1,0 +1,21 @@
+src/Example.hs:42:5: warning: [partial/head]
+    Use of partial function 'head': consider using 'headMay' from Data.Maybe or pattern matching
+
+
+src/Security.hs:15:1: error: [security/sql-injection]
+    Potential SQL injection: use parameterized queries instead of string concatenation
+
+
+src/Utils.hs:100:10: suggestion: [performance/foldl]
+    Consider using 'foldl'' instead of 'foldl' for better performance with strict accumulator
+
+
+
+──────────────────────────────────────────────────
+Summary
+──────────────────────────────────────────────────
+  Files analyzed: 3
+  Files with issues: 3
+  Diagnostics: 3
+  Fixes available: 1
+

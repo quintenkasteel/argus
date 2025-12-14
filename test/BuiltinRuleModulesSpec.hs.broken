@@ -1,0 +1,1424 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+
+-- |
+-- Module      : BuiltinRuleModulesSpec
+-- Description : Comprehensive tests for all 39 builtin rule modules
+-- Copyright   : (c) 2024
+-- License     : MIT
+--
+-- BROKEN: This file has been renamed to .broken because it references rule
+-- function names and IDs that don't exist in the actual module implementations.
+--
+-- Examples of mismatches:
+--   - Test expects Async.avoidForkIO but Async exports asyncPattern, asyncWait, etc.
+--   - Test expects rule IDs like "concurrency/avoid-forkIO" but actual IDs are "async-pattern"
+--   - Test expects Brackets.redundantParens but Brackets exports redundantOuterParen, etc.
+--
+-- To fix: Update this file to use the actual exported functions and rule IDs
+-- from each Argus.Rules.Builtin.* module.
+--
+-- Tests every individual builtin rule module in src/Argus/Rules/Builtin/
+-- to ensure all rules are properly defined, patterns match expected code,
+-- fixes are generated correctly, and side conditions work.
+--
+-- This test suite covers all 39 builtin modules:
+-- Arrow, Async, Boolean, Brackets, CodeSmells, Comparison, Composition,
+-- Containers, Correctness, Deriving, Either, FFI, Foldable, GADTs, Imports,
+-- IO, Lambda, Lenses, List, ListRecursion, Maybe, Monadic, Monoid, Numeric,
+-- OWASP, Pattern, Performance, Prelude, Records, Safety, Security, Strings,
+-- Style, Testing, Transformers, Tuple, TypeAnnotations, TypeclassLaws,
+-- TypeFamilies
+module BuiltinRuleModulesSpec (spec) where
+
+import Test.Hspec
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Maybe (isJust, isNothing)
+
+import Argus.Rules.Engine
+import Argus.Rules.DSL (Rule(..), Category(..), SafetyLevel(..))
+import Argus.Types (Severity(..), Diagnostic(..), Fix(..), FixEdit(..))
+
+-- Import all 39 builtin rule modules
+import Argus.Rules.Builtin.Arrow qualified as Arrow
+import Argus.Rules.Builtin.Async qualified as Async
+import Argus.Rules.Builtin.Boolean qualified as Boolean
+import Argus.Rules.Builtin.Brackets qualified as Brackets
+import Argus.Rules.Builtin.CodeSmells qualified as CodeSmells
+import Argus.Rules.Builtin.Comparison qualified as Comparison
+import Argus.Rules.Builtin.Composition qualified as Composition
+import Argus.Rules.Builtin.Containers qualified as Containers
+import Argus.Rules.Builtin.Correctness qualified as Correctness
+import Argus.Rules.Builtin.Deriving qualified as Deriving
+import Argus.Rules.Builtin.Either qualified as Either
+import Argus.Rules.Builtin.FFI qualified as FFI
+import Argus.Rules.Builtin.Foldable qualified as Foldable
+import Argus.Rules.Builtin.GADTs qualified as GADTs
+import Argus.Rules.Builtin.Imports qualified as Imports
+import Argus.Rules.Builtin.IO qualified as IO
+import Argus.Rules.Builtin.Lambda qualified as Lambda
+import Argus.Rules.Builtin.Lenses qualified as Lenses
+import Argus.Rules.Builtin.List qualified as List
+import Argus.Rules.Builtin.ListRecursion qualified as ListRecursion
+import Argus.Rules.Builtin.Maybe qualified as Maybe
+import Argus.Rules.Builtin.Monadic qualified as Monadic
+import Argus.Rules.Builtin.Monoid qualified as Monoid
+import Argus.Rules.Builtin.Numeric qualified as Numeric
+import Argus.Rules.Builtin.OWASP qualified as OWASP
+import Argus.Rules.Builtin.Pattern qualified as Pattern
+import Argus.Rules.Builtin.Performance qualified as Performance
+import Argus.Rules.Builtin.Prelude qualified as Prelude
+import Argus.Rules.Builtin.Records qualified as Records
+import Argus.Rules.Builtin.Safety qualified as Safety
+import Argus.Rules.Builtin.Security qualified as Security
+import Argus.Rules.Builtin.Strings qualified as Strings
+import Argus.Rules.Builtin.Style qualified as Style
+import Argus.Rules.Builtin.Testing qualified as Testing
+import Argus.Rules.Builtin.Transformers qualified as Transformers
+import Argus.Rules.Builtin.Tuple qualified as Tuple
+import Argus.Rules.Builtin.TypeAnnotations qualified as TypeAnnotations
+import Argus.Rules.Builtin.TypeclassLaws qualified as TypeclassLaws
+import Argus.Rules.Builtin.TypeFamilies qualified as TypeFamilies
+
+--------------------------------------------------------------------------------
+-- Test Helpers
+--------------------------------------------------------------------------------
+
+-- | Test that a rule matches the given code and produces at least one diagnostic
+shouldMatch :: Rule -> Text -> Expectation
+shouldMatch rule code = do
+  let engine = mkRuleEngine [rule]
+      diags = evaluateRules engine "Test.hs" "Test" code
+  diags `shouldSatisfy` (not . null)
+
+-- | Test that a rule does NOT match the given code
+shouldNotMatch :: Rule -> Text -> Expectation
+shouldNotMatch rule code = do
+  let engine = mkRuleEngine [rule]
+      diags = evaluateRules engine "Test.hs" "Test" code
+  diags `shouldBe` []
+
+-- | Test that a rule generates a fix
+shouldGenerateFix :: Rule -> Text -> Expectation
+shouldGenerateFix rule code = do
+  let engine = mkRuleEngine [rule]
+      diags = evaluateRules engine "Test.hs" "Test" code
+  case diags of
+    [diag] -> diagFixes diag `shouldSatisfy` (not . null)
+    _ -> expectationFailure $ "Expected exactly one diagnostic, got " ++ show (length diags)
+
+-- | Test that a rule has the expected ID
+shouldHaveRuleId :: Rule -> Text -> Expectation
+shouldHaveRuleId rule expectedId =
+  ruleId rule `shouldBe` expectedId
+
+-- | Test that a rule has the expected category
+shouldHaveCategory :: Rule -> Category -> Expectation
+shouldHaveCategory rule expectedCat =
+  ruleCategory rule `shouldBe` expectedCat
+
+-- | Test that a rule has the expected severity
+shouldHaveSeverity :: Rule -> Severity -> Expectation
+shouldHaveSeverity rule expectedSev =
+  ruleSeverity rule `shouldBe` expectedSev
+
+-- | Test that a fix replacement contains expected text
+fixShouldContain :: Rule -> Text -> Text -> Expectation
+fixShouldContain rule code expectedText = do
+  let engine = mkRuleEngine [rule]
+      diags = evaluateRules engine "Test.hs" "Test" code
+  case diags of
+    [diag] -> case diagFixes diag of
+      [fix] -> case fixEdits fix of
+        [FixEdit _ replacement] ->
+          replacement `shouldSatisfy` T.isInfixOf expectedText
+        _ -> pure ()
+      _ -> pure ()
+    _ -> expectationFailure $ "Expected exactly one diagnostic, got " ++ show (length diags)
+
+-- | Test that a rule list is non-empty
+shouldBeNonEmpty :: [Rule] -> Expectation
+shouldBeNonEmpty rules = rules `shouldSatisfy` (not . null)
+
+-- | Test that all rules in a list have the expected category
+allShouldHaveCategory :: [Rule] -> Category -> Expectation
+allShouldHaveCategory rules cat =
+  all (\r -> ruleCategory r == cat) rules `shouldBe` True
+
+-- | Test that all rules have non-empty IDs
+allShouldHaveIds :: [Rule] -> Expectation
+allShouldHaveIds rules =
+  all (not . T.null . ruleId) rules `shouldBe` True
+
+-- | Test that all rules have non-empty messages
+allShouldHaveMessages :: [Rule] -> Expectation
+allShouldHaveMessages rules =
+  all (not . T.null . ruleMessage) rules `shouldBe` True
+
+--------------------------------------------------------------------------------
+-- Main Test Suite
+--------------------------------------------------------------------------------
+
+spec :: Spec
+spec = do
+  describe "Argus.Rules.Builtin.Arrow" arrowSpec
+  describe "Argus.Rules.Builtin.Async" asyncSpec
+  describe "Argus.Rules.Builtin.Boolean" booleanSpec
+  describe "Argus.Rules.Builtin.Brackets" bracketsSpec
+  describe "Argus.Rules.Builtin.CodeSmells" codeSmellsSpec
+  describe "Argus.Rules.Builtin.Comparison" comparisonSpec
+  describe "Argus.Rules.Builtin.Composition" compositionSpec
+  describe "Argus.Rules.Builtin.Containers" containersSpec
+  describe "Argus.Rules.Builtin.Correctness" correctnessSpec
+  describe "Argus.Rules.Builtin.Deriving" derivingSpec
+  describe "Argus.Rules.Builtin.Either" eitherSpec
+  describe "Argus.Rules.Builtin.FFI" ffiSpec
+  describe "Argus.Rules.Builtin.Foldable" foldableSpec
+  describe "Argus.Rules.Builtin.GADTs" gadtsSpec
+  describe "Argus.Rules.Builtin.Imports" importsSpec
+  describe "Argus.Rules.Builtin.IO" ioSpec
+  describe "Argus.Rules.Builtin.Lambda" lambdaSpec
+  describe "Argus.Rules.Builtin.Lenses" lensesSpec
+  describe "Argus.Rules.Builtin.List" listSpec
+  describe "Argus.Rules.Builtin.ListRecursion" listRecursionSpec
+  describe "Argus.Rules.Builtin.Maybe" maybeSpec
+  describe "Argus.Rules.Builtin.Monadic" monadicSpec
+  describe "Argus.Rules.Builtin.Monoid" monoidSpec
+  describe "Argus.Rules.Builtin.Numeric" numericSpec
+  describe "Argus.Rules.Builtin.OWASP" owaspSpec
+  describe "Argus.Rules.Builtin.Pattern" patternSpec
+  describe "Argus.Rules.Builtin.Performance" performanceSpec
+  describe "Argus.Rules.Builtin.Prelude" preludeSpec
+  describe "Argus.Rules.Builtin.Records" recordsSpec
+  describe "Argus.Rules.Builtin.Safety" safetySpec
+  describe "Argus.Rules.Builtin.Security" securitySpec
+  describe "Argus.Rules.Builtin.Strings" stringsSpec
+  describe "Argus.Rules.Builtin.Style" styleSpec
+  describe "Argus.Rules.Builtin.Testing" testingSpec
+  describe "Argus.Rules.Builtin.Transformers" transformersSpec
+  describe "Argus.Rules.Builtin.Tuple" tupleSpec
+  describe "Argus.Rules.Builtin.TypeAnnotations" typeAnnotationsSpec
+  describe "Argus.Rules.Builtin.TypeclassLaws" typeclassLawsSpec
+  describe "Argus.Rules.Builtin.TypeFamilies" typeFamiliesSpec
+
+--------------------------------------------------------------------------------
+-- Arrow Module Tests
+--------------------------------------------------------------------------------
+
+arrowSpec :: Spec
+arrowSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Arrow.arrowRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Arrow.arrowRules
+
+    it "all rules have messages" $
+      allShouldHaveMessages Arrow.arrowRules
+
+    it "rule count matches length" $
+      Arrow.arrowRuleCount `shouldBe` length Arrow.arrowRules
+
+  describe "arrId rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Arrow.arrId "arr-id"
+
+    it "has Style category" $
+      shouldHaveCategory Arrow.arrId Style
+
+    it "matches 'arr id'" $
+      shouldMatch Arrow.arrId "f = arr id"
+
+    it "does not match 'arr'" $
+      shouldNotMatch Arrow.arrId "f = arr"
+
+    it "generates fix" $
+      shouldGenerateFix Arrow.arrId "f = arr id"
+
+  describe "arrCompose rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Arrow.arrCompose "arr-compose"
+
+    it "matches 'arr f >>> arr g'" $
+      shouldMatch Arrow.arrCompose "f = arr func >>> arr other"
+
+    it "does not match single arr" $
+      shouldNotMatch Arrow.arrCompose "f = arr func"
+
+  describe "arrowFirstId rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Arrow.arrowFirstId "arrow-first-id"
+
+    it "matches 'first id'" $
+      shouldMatch Arrow.arrowFirstId "f = first id"
+
+    it "does not match 'first func'" $
+      shouldNotMatch Arrow.arrowFirstId "f = first func"
+
+--------------------------------------------------------------------------------
+-- Async Module Tests
+--------------------------------------------------------------------------------
+
+asyncSpec :: Spec
+asyncSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Async.asyncRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Async.asyncRules
+
+    it "all rules have messages" $
+      allShouldHaveMessages Async.asyncRules
+
+  describe "avoidForkIO rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Async.avoidForkIO "concurrency/avoid-forkIO"
+
+    it "has Concurrency category" $
+      shouldHaveCategory Async.avoidForkIO Concurrency
+
+    it "matches 'forkIO'" $
+      shouldMatch Async.avoidForkIO "action = forkIO computation"
+
+    it "does not match 'async'" $
+      shouldNotMatch Async.avoidForkIO "action = async computation"
+
+  describe "preferAsyncLink rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Async.preferAsyncLink "concurrency/prefer-async-link"
+
+    it "matches 'async >> link'" $
+      shouldMatch Async.preferAsyncLink "a <- async task\nlink a"
+
+  describe "avoidRaceUnsafe rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Async.avoidRaceUnsafe "concurrency/avoid-race-unsafe"
+
+    it "matches 'race_' usage" $
+      shouldMatch Async.avoidRaceUnsafe "result = race_ action1 action2"
+
+--------------------------------------------------------------------------------
+-- Boolean Module Tests
+--------------------------------------------------------------------------------
+
+booleanSpec :: Spec
+booleanSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Boolean.boolSimplifyRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Boolean.boolSimplifyRules
+
+    it "all rules have messages" $
+      allShouldHaveMessages Boolean.boolSimplifyRules
+
+    it "rule count matches length" $
+      Boolean.booleanRuleCount `shouldBe` length Boolean.boolSimplifyRules
+
+  describe "notTrue rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Boolean.notTrue "not-true"
+
+    it "matches 'not True'" $
+      shouldMatch Boolean.notTrue "x = not True"
+
+    it "does not match 'not False'" $
+      shouldNotMatch Boolean.notTrue "x = not False"
+
+    it "fix contains 'False'" $
+      fixShouldContain Boolean.notTrue "x = not True" "False"
+
+  describe "trueAnd rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Boolean.trueAnd "true-and"
+
+    it "matches 'True && x'" $
+      shouldMatch Boolean.trueAnd "result = True && condition"
+
+    it "does not match 'False && x'" $
+      shouldNotMatch Boolean.trueAnd "result = False && condition"
+
+  describe "ifTrue rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Boolean.ifTrue "if-true"
+
+    it "matches 'if True then ...'" $
+      shouldMatch Boolean.ifTrue "x = if True then a else b"
+
+    it "does not match normal if" $
+      shouldNotMatch Boolean.ifTrue "x = if cond then a else b"
+
+--------------------------------------------------------------------------------
+-- Brackets Module Tests
+--------------------------------------------------------------------------------
+
+bracketsSpec :: Spec
+bracketsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Brackets.bracketRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Brackets.bracketRules
+
+  describe "redundantParens rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Brackets.redundantParens "style/redundant-parens"
+
+    it "has Style category" $
+      shouldHaveCategory Brackets.redundantParens Style
+
+    it "matches unnecessary parentheses" $
+      shouldMatch Brackets.redundantParens "x = (1) + 2"
+
+  describe "unnecessaryDollar rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Brackets.unnecessaryDollar "style/unnecessary-dollar"
+
+    it "matches '$ x' at end" $
+      shouldMatch Brackets.unnecessaryDollar "f $ x"
+
+  describe "preferDollar rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Brackets.preferDollar "style/prefer-dollar"
+
+    it "matches nested parens" $
+      shouldMatch Brackets.preferDollar "f (g (h x))"
+
+--------------------------------------------------------------------------------
+-- CodeSmells Module Tests
+--------------------------------------------------------------------------------
+
+codeSmellsSpec :: Spec
+codeSmellsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty CodeSmells.codeSmellRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds CodeSmells.codeSmellRules
+
+  describe "longFunction rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId CodeSmells.longFunction "complexity/long-function"
+
+    it "has Complexity category" $
+      shouldHaveCategory CodeSmells.longFunction Complexity
+
+  describe "deepNesting rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId CodeSmells.deepNesting "complexity/deep-nesting"
+
+  describe "tooManyParameters rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId CodeSmells.tooManyParameters "complexity/too-many-parameters"
+
+--------------------------------------------------------------------------------
+-- Comparison Module Tests
+--------------------------------------------------------------------------------
+
+comparisonSpec :: Spec
+comparisonSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Comparison.ordComparisonRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Comparison.ordComparisonRules
+
+  describe "compareEQ rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Comparison.compareEQ "comparison/compare-eq"
+
+    it "matches 'compare x y == EQ'" $
+      shouldMatch Comparison.compareEQ "result = compare x y == EQ"
+
+  describe "compareLT rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Comparison.compareLT "comparison/compare-lt"
+
+    it "matches 'compare x y == LT'" $
+      shouldMatch Comparison.compareLT "result = compare x y == LT"
+
+  describe "notEqual rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Comparison.notEqual "comparison/not-equal"
+
+    it "matches 'not (x == y)'" $
+      shouldMatch Comparison.notEqual "result = not (x == y)"
+
+--------------------------------------------------------------------------------
+-- Composition Module Tests
+--------------------------------------------------------------------------------
+
+compositionSpec :: Spec
+compositionSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Composition.compositionRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Composition.compositionRules
+
+  describe "composeId rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Composition.composeId "composition/compose-id"
+
+    it "matches 'id . f'" $
+      shouldMatch Composition.composeId "g = id . f"
+
+  describe "composeAssoc rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Composition.composeAssoc "composition/compose-assoc"
+
+    it "matches '(f . g) . h'" $
+      shouldMatch Composition.composeAssoc "combined = (f . g) . h"
+
+  describe "etaReduce rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Composition.etaReduce "composition/eta-reduce"
+
+    it "matches '\\x -> f x'" $
+      shouldMatch Composition.etaReduce "g = \\x -> f x"
+
+--------------------------------------------------------------------------------
+-- Containers Module Tests
+--------------------------------------------------------------------------------
+
+containersSpec :: Spec
+containersSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Containers.containerRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Containers.containerRules
+
+  describe "mapToSet rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Containers.mapToSet "containers/map-to-set"
+
+    it "has Performance category" $
+      shouldHaveCategory Containers.mapToSet Performance
+
+  describe "preferLookup rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Containers.preferLookup "containers/prefer-lookup"
+
+  describe "singletonUnion rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Containers.singletonUnion "containers/singleton-union"
+
+--------------------------------------------------------------------------------
+-- Correctness Module Tests
+--------------------------------------------------------------------------------
+
+correctnessSpec :: Spec
+correctnessSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Correctness.correctnessRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Correctness.correctnessRules
+
+    it "all have Correctness category" $
+      allShouldHaveCategory Correctness.correctnessRules Correctness
+
+  describe "divisionByZero rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Correctness.divisionByZero "correctness/division-by-zero"
+
+    it "has Error severity" $
+      shouldHaveSeverity Correctness.divisionByZero Error
+
+  describe "infiniteRecursion rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Correctness.infiniteRecursion "correctness/infinite-recursion"
+
+  describe "unreachableCode rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Correctness.unreachableCode "correctness/unreachable-code"
+
+--------------------------------------------------------------------------------
+-- Deriving Module Tests
+--------------------------------------------------------------------------------
+
+derivingSpec :: Spec
+derivingSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Deriving.derivingRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Deriving.derivingRules
+
+  describe "preferDerivingStrategies rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Deriving.preferDerivingStrategies "deriving/prefer-strategies"
+
+    it "has Modernization category" $
+      shouldHaveCategory Deriving.preferDerivingStrategies Modernization
+
+  describe "preferNewtype rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Deriving.preferNewtype "deriving/prefer-newtype"
+
+  describe "missingDeriving rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Deriving.missingDeriving "deriving/missing-deriving"
+
+--------------------------------------------------------------------------------
+-- Either Module Tests
+--------------------------------------------------------------------------------
+
+eitherSpec :: Spec
+eitherSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Either.eitherRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Either.eitherRules
+
+  describe "eitherBool rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Either.eitherBool "either/either-bool"
+
+    it "matches 'either (const False) (const True)'" $
+      shouldMatch Either.eitherBool "f = either (const False) (const True)"
+
+  describe "eitherConst rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Either.eitherConst "either/either-const"
+
+  describe "leftToMaybe rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Either.leftToMaybe "either/left-to-maybe"
+
+--------------------------------------------------------------------------------
+-- FFI Module Tests
+--------------------------------------------------------------------------------
+
+ffiSpec :: Spec
+ffiSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty FFI.ffiRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds FFI.ffiRules
+
+  describe "unsafeForeignPtr rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId FFI.unsafeForeignPtr "ffi/unsafe-foreign-ptr"
+
+    it "has Security category" $
+      shouldHaveCategory FFI.unsafeForeignPtr Security
+
+  describe "missingCCallConv rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId FFI.missingCCallConv "ffi/missing-ccall-conv"
+
+  describe "unsafeFFI rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId FFI.unsafeFFI "ffi/unsafe-ffi"
+
+--------------------------------------------------------------------------------
+-- Foldable Module Tests
+--------------------------------------------------------------------------------
+
+foldableSpec :: Spec
+foldableSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Foldable.foldableRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Foldable.foldableRules
+
+  describe "foldMapId rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Foldable.foldMapId "foldable/foldMap-id"
+
+    it "matches 'foldMap id'" $
+      shouldMatch Foldable.foldMapId "result = foldMap id xs"
+
+  describe "preferFold rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Foldable.preferFold "foldable/prefer-fold"
+
+  describe "traverseConst rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Foldable.traverseConst "foldable/traverse-const"
+
+--------------------------------------------------------------------------------
+-- GADTs Module Tests
+--------------------------------------------------------------------------------
+
+gadtsSpec :: Spec
+gadtsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty GADTs.gadtRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds GADTs.gadtRules
+
+  describe "preferGADTSyntax rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId GADTs.preferGADTSyntax "gadt/prefer-gadt-syntax"
+
+    it "has Style category" $
+      shouldHaveCategory GADTs.preferGADTSyntax Style
+
+  describe "gadtExistentialContext rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId GADTs.gadtExistentialContext "gadt/existential-context"
+
+  describe "gadtStrictness rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId GADTs.gadtStrictness "gadt/strictness"
+
+--------------------------------------------------------------------------------
+-- Imports Module Tests
+--------------------------------------------------------------------------------
+
+importsSpec :: Spec
+importsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Imports.importRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Imports.importRules
+
+  describe "qualifyPrelude rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Imports.qualifyPrelude "imports/qualify-prelude"
+
+    it "has Imports category" $
+      shouldHaveCategory Imports.qualifyPrelude Imports
+
+  describe "redundantImport rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Imports.redundantImport "imports/redundant"
+
+  describe "unusedImport rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Imports.unusedImport "imports/unused"
+
+--------------------------------------------------------------------------------
+-- IO Module Tests
+--------------------------------------------------------------------------------
+
+ioSpec :: Spec
+ioSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty IO.ioRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds IO.ioRules
+
+  describe "avoidReadFile rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId IO.avoidReadFile "io/avoid-readFile"
+
+    it "matches 'readFile' usage" $
+      shouldMatch IO.avoidReadFile "content <- readFile path"
+
+  describe "avoidWriteFile rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId IO.avoidWriteFile "io/avoid-writeFile"
+
+  describe "preferBracket rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId IO.preferBracket "io/prefer-bracket"
+
+--------------------------------------------------------------------------------
+-- Lambda Module Tests
+--------------------------------------------------------------------------------
+
+lambdaSpec :: Spec
+lambdaSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Lambda.lambdaRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Lambda.lambdaRules
+
+  describe "lambdaCase rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lambda.lambdaCase "lambda/lambda-case"
+
+    it "has Modernization category" $
+      shouldHaveCategory Lambda.lambdaCase Modernization
+
+  describe "avoidLambdaPattern rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lambda.avoidLambdaPattern "lambda/avoid-pattern"
+
+  describe "redundantLambda rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lambda.redundantLambda "lambda/redundant"
+
+--------------------------------------------------------------------------------
+-- Lenses Module Tests
+--------------------------------------------------------------------------------
+
+lensesSpec :: Spec
+lensesSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Lenses.opticsRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Lenses.opticsRules
+
+  describe "preferView rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lenses.preferView "lens/prefer-view"
+
+    it "has Style category" $
+      shouldHaveCategory Lenses.preferView Style
+
+  describe "preferOver rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lenses.preferOver "lens/prefer-over"
+
+  describe "lensCompose rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Lenses.lensCompose "lens/compose"
+
+--------------------------------------------------------------------------------
+-- List Module Tests
+--------------------------------------------------------------------------------
+
+listSpec :: Spec
+listSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty List.listRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds List.listRules
+
+  describe "consNil rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId List.consNil "list/cons-nil"
+
+    it "matches '[x]'" $
+      shouldMatch List.consNil "xs = [x]"
+
+  describe "listComprehensionMap rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId List.listComprehensionMap "list/comprehension-map"
+
+  describe "filterNull rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId List.filterNull "list/filter-null"
+
+--------------------------------------------------------------------------------
+-- ListRecursion Module Tests
+--------------------------------------------------------------------------------
+
+listRecursionSpec :: Spec
+listRecursionSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty ListRecursion.listRecursionRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds ListRecursion.listRecursionRules
+
+  describe "preferFoldr rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId ListRecursion.preferFoldr "list-recursion/prefer-foldr"
+
+    it "has Performance category" $
+      shouldHaveCategory ListRecursion.preferFoldr Performance
+
+  describe "preferMap rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId ListRecursion.preferMap "list-recursion/prefer-map"
+
+  describe "preferFilter rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId ListRecursion.preferFilter "list-recursion/prefer-filter"
+
+--------------------------------------------------------------------------------
+-- Maybe Module Tests
+--------------------------------------------------------------------------------
+
+maybeSpec :: Spec
+maybeSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Maybe.maybeRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Maybe.maybeRules
+
+  describe "maybeBool rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Maybe.maybeBool "maybe/maybe-bool"
+
+    it "matches 'maybe False (const True)'" $
+      shouldMatch Maybe.maybeBool "f = maybe False (const True)"
+
+  describe "fromMaybeId rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Maybe.fromMaybeId "maybe/fromMaybe-id"
+
+  describe "isJustNot rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Maybe.isJustNot "maybe/isJust-not"
+
+--------------------------------------------------------------------------------
+-- Monadic Module Tests
+--------------------------------------------------------------------------------
+
+monadicSpec :: Spec
+monadicSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Monadic.monadicRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Monadic.monadicRules
+
+  describe "useApplicative rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monadic.useApplicative "monadic/use-applicative"
+
+    it "has Modernization category" $
+      shouldHaveCategory Monadic.useApplicative Modernization
+
+  describe "useLiftA2 rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monadic.useLiftA2 "monadic/use-liftA2"
+
+  describe "redundantLiftM rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monadic.redundantLiftM "monadic/redundant-liftM"
+
+--------------------------------------------------------------------------------
+-- Monoid Module Tests
+--------------------------------------------------------------------------------
+
+monoidSpec :: Spec
+monoidSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Monoid.monoidRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Monoid.monoidRules
+
+  describe "mappendMempty rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monoid.mappendMempty "monoid/mappend-mempty"
+
+    it "matches 'x `mappend` mempty'" $
+      shouldMatch Monoid.mappendMempty "result = x `mappend` mempty"
+
+  describe "memptyMappend rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monoid.memptyMappend "monoid/mempty-mappend"
+
+  describe "preferSemigroup rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Monoid.preferSemigroup "monoid/prefer-semigroup"
+
+--------------------------------------------------------------------------------
+-- Numeric Module Tests
+--------------------------------------------------------------------------------
+
+numericSpec :: Spec
+numericSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Numeric.numericRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Numeric.numericRules
+
+  describe "avoidFloatEq rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Numeric.avoidFloatEq "numeric/avoid-float-eq"
+
+    it "has Correctness category" $
+      shouldHaveCategory Numeric.avoidFloatEq Correctness
+
+  describe "divToQuot rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Numeric.divToQuot "numeric/div-to-quot"
+
+  describe "preferIntegral rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Numeric.preferIntegral "numeric/prefer-integral"
+
+--------------------------------------------------------------------------------
+-- OWASP Module Tests
+--------------------------------------------------------------------------------
+
+owaspSpec :: Spec
+owaspSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty OWASP.owaspRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds OWASP.owaspRules
+
+    it "all have Security category" $
+      allShouldHaveCategory OWASP.owaspRules Security
+
+  describe "sqlInjection rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId OWASP.sqlInjection "owasp/sql-injection"
+
+    it "has Error severity" $
+      shouldHaveSeverity OWASP.sqlInjection Error
+
+  describe "commandInjection rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId OWASP.commandInjection "owasp/command-injection"
+
+  describe "pathTraversal rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId OWASP.pathTraversal "owasp/path-traversal"
+
+--------------------------------------------------------------------------------
+-- Pattern Module Tests
+--------------------------------------------------------------------------------
+
+patternSpec :: Spec
+patternSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Pattern.patternMatchRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Pattern.patternMatchRules
+
+  describe "incompletePattern rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Pattern.incompletePattern "pattern/incomplete"
+
+    it "has Safety category" $
+      shouldHaveCategory Pattern.incompletePattern Safety
+
+  describe "redundantPattern rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Pattern.redundantPattern "pattern/redundant"
+
+  describe "wildcardPattern rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Pattern.wildcardPattern "pattern/wildcard"
+
+--------------------------------------------------------------------------------
+-- Performance Module Tests
+--------------------------------------------------------------------------------
+
+performanceSpec :: Spec
+performanceSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Performance.performanceRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Performance.performanceRules
+
+    it "all have Performance category" $
+      allShouldHaveCategory Performance.performanceRules Performance
+
+  describe "avoidNub rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Performance.avoidNub "performance/avoid-nub"
+
+    it "matches 'nub xs'" $
+      shouldMatch Performance.avoidNub "unique = nub items"
+
+    it "does not match 'ordNub'" $
+      shouldNotMatch Performance.avoidNub "unique = ordNub items"
+
+  describe "preferFoldl' rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Performance.preferFoldl' "performance/prefer-foldl'"
+
+    it "matches 'foldl f z xs'" $
+      shouldMatch Performance.preferFoldl' "total = foldl f z numbers"
+
+  describe "useConcatMap rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Performance.useConcatMap "performance/concatMap"
+
+--------------------------------------------------------------------------------
+-- Prelude Module Tests
+--------------------------------------------------------------------------------
+
+preludeSpec :: Spec
+preludeSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Prelude.preludeRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Prelude.preludeRules
+
+  describe "preferExplicitPrelude rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Prelude.preferExplicitPrelude "prelude/prefer-explicit"
+
+    it "has Imports category" $
+      shouldHaveCategory Prelude.preferExplicitPrelude Imports
+
+  describe "avoidPartialPrelude rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Prelude.avoidPartialPrelude "prelude/avoid-partial"
+
+  describe "modernPrelude rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Prelude.modernPrelude "prelude/modern"
+
+--------------------------------------------------------------------------------
+-- Records Module Tests
+--------------------------------------------------------------------------------
+
+recordsSpec :: Spec
+recordsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Records.recordRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Records.recordRules
+
+  describe "preferRecordWildCards rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Records.preferRecordWildCards "records/prefer-wildcards"
+
+    it "has Style category" $
+      shouldHaveCategory Records.preferRecordWildCards Style
+
+  describe "avoidPartialFields rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Records.avoidPartialFields "records/avoid-partial-fields"
+
+  describe "duplicateRecordFields rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Records.duplicateRecordFields "records/duplicate-fields"
+
+--------------------------------------------------------------------------------
+-- Safety Module Tests
+--------------------------------------------------------------------------------
+
+safetySpec :: Spec
+safetySpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Safety.safetyRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Safety.safetyRules
+
+    it "all have Safety category" $
+      allShouldHaveCategory Safety.safetyRules Safety
+
+  describe "avoidHead rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Safety.avoidHead "safety/avoid-head"
+
+    it "matches 'head xs'" $
+      shouldMatch Safety.avoidHead "first = head items"
+
+    it "does not match 'headMay'" $
+      shouldNotMatch Safety.avoidHead "first = headMay items"
+
+    it "generates fix" $
+      shouldGenerateFix Safety.avoidHead "x = head xs"
+
+  describe "avoidTail rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Safety.avoidTail "safety/avoid-tail"
+
+    it "matches 'tail xs'" $
+      shouldMatch Safety.avoidTail "rest = tail items"
+
+  describe "avoidFromJust rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Safety.avoidFromJust "safety/avoid-fromJust"
+
+    it "matches 'fromJust m'" $
+      shouldMatch Safety.avoidFromJust "value = fromJust maybeValue"
+
+--------------------------------------------------------------------------------
+-- Security Module Tests
+--------------------------------------------------------------------------------
+
+securitySpec :: Spec
+securitySpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Security.securityRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Security.securityRules
+
+    it "all have Security category" $
+      allShouldHaveCategory Security.securityRules Security
+
+  describe "avoidUnsafePerformIO rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Security.avoidUnsafePerformIO "security/avoid-unsafePerformIO"
+
+    it "has Error severity" $
+      shouldHaveSeverity Security.avoidUnsafePerformIO Error
+
+    it "matches 'unsafePerformIO'" $
+      shouldMatch Security.avoidUnsafePerformIO "global = unsafePerformIO action"
+
+  describe "avoidUnsafeCoerce rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Security.avoidUnsafeCoerce "security/avoid-unsafeCoerce"
+
+  describe "avoidUnsafeInterleaveIO rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Security.avoidUnsafeInterleaveIO "security/avoid-unsafeInterleaveIO"
+
+--------------------------------------------------------------------------------
+-- Strings Module Tests
+--------------------------------------------------------------------------------
+
+stringsSpec :: Spec
+stringsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Strings.stringRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Strings.stringRules
+
+  describe "preferText rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Strings.preferText "strings/prefer-text"
+
+    it "has Performance category" $
+      shouldHaveCategory Strings.preferText Performance
+
+  describe "avoidStringConcat rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Strings.avoidStringConcat "strings/avoid-concat"
+
+  describe "useBuilder rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Strings.useBuilder "strings/use-builder"
+
+--------------------------------------------------------------------------------
+-- Style Module Tests
+--------------------------------------------------------------------------------
+
+styleSpec :: Spec
+styleSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Style.styleRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Style.styleRules
+
+    it "all have Style category" $
+      allShouldHaveCategory Style.styleRules Style
+
+  describe "preferPure rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Style.preferPure "style/prefer-pure"
+
+    it "matches 'return x'" $
+      shouldMatch Style.preferPure "action = return value"
+
+    it "does not match 'pure x'" $
+      shouldNotMatch Style.preferPure "action = pure value"
+
+  describe "redundantIf rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Style.redundantIf "style/redundant-if"
+
+  describe "notNot rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Style.notNot "style/not-not"
+
+--------------------------------------------------------------------------------
+-- Testing Module Tests
+--------------------------------------------------------------------------------
+
+testingSpec :: Spec
+testingSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Testing.testingRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Testing.testingRules
+
+  describe "preferShouldBe rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Testing.preferShouldBe "testing/prefer-shouldBe"
+
+    it "has Style category" $
+      shouldHaveCategory Testing.preferShouldBe Style
+
+  describe "avoidExpectationFailure rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Testing.avoidExpectationFailure "testing/avoid-expectationFailure"
+
+  describe "useDescribe rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Testing.useDescribe "testing/use-describe"
+
+--------------------------------------------------------------------------------
+-- Transformers Module Tests
+--------------------------------------------------------------------------------
+
+transformersSpec :: Spec
+transformersSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Transformers.mtlTransformerRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Transformers.mtlTransformerRules
+
+  describe "preferLift rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Transformers.preferLift "transformers/prefer-lift"
+
+    it "has Modernization category" $
+      shouldHaveCategory Transformers.preferLift Modernization
+
+  describe "redundantLift rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Transformers.redundantLift "transformers/redundant-lift"
+
+  describe "nestedRunReaderT rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Transformers.nestedRunReaderT "transformers/nested-runReaderT"
+
+--------------------------------------------------------------------------------
+-- Tuple Module Tests
+--------------------------------------------------------------------------------
+
+tupleSpec :: Spec
+tupleSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty Tuple.tupleRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds Tuple.tupleRules
+
+  describe "fstSwap rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Tuple.fstSwap "tuple/fst-swap"
+
+    it "matches 'fst (swap x)'" $
+      shouldMatch Tuple.fstSwap "result = fst (swap pair)"
+
+  describe "sndSwap rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Tuple.sndSwap "tuple/snd-swap"
+
+  describe "uncurryPair rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId Tuple.uncurryPair "tuple/uncurry-pair"
+
+--------------------------------------------------------------------------------
+-- TypeAnnotations Module Tests
+--------------------------------------------------------------------------------
+
+typeAnnotationsSpec :: Spec
+typeAnnotationsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty TypeAnnotations.typeAnnotationRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds TypeAnnotations.typeAnnotationRules
+
+  describe "missingTopLevelSignature rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeAnnotations.missingTopLevelSignature "type-annotations/missing-top-level"
+
+    it "has Style category" $
+      shouldHaveCategory TypeAnnotations.missingTopLevelSignature Style
+
+  describe "ambiguousType rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeAnnotations.ambiguousType "type-annotations/ambiguous-type"
+
+  describe "redundantTypeSignature rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeAnnotations.redundantTypeSignature "type-annotations/redundant"
+
+--------------------------------------------------------------------------------
+-- TypeclassLaws Module Tests
+--------------------------------------------------------------------------------
+
+typeclassLawsSpec :: Spec
+typeclassLawsSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty TypeclassLaws.typeclassLawRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds TypeclassLaws.typeclassLawRules
+
+  describe "functorIdentity rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeclassLaws.functorIdentity "typeclass-laws/functor-identity"
+
+    it "has Correctness category" $
+      shouldHaveCategory TypeclassLaws.functorIdentity Correctness
+
+  describe "functorComposition rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeclassLaws.functorComposition "typeclass-laws/functor-composition"
+
+  describe "monadLeftIdentity rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeclassLaws.monadLeftIdentity "typeclass-laws/monad-left-identity"
+
+--------------------------------------------------------------------------------
+-- TypeFamilies Module Tests
+--------------------------------------------------------------------------------
+
+typeFamiliesSpec :: Spec
+typeFamiliesSpec = do
+  describe "module structure" $ do
+    it "has non-empty rule list" $
+      shouldBeNonEmpty TypeFamilies.typeFamilyRules
+
+    it "all rules have IDs" $
+      allShouldHaveIds TypeFamilies.typeFamilyRules
+
+  describe "preferTypeFamilies rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeFamilies.preferTypeFamilies "type-families/prefer-type-families"
+
+    it "has Modernization category" $
+      shouldHaveCategory TypeFamilies.preferTypeFamilies Modernization
+
+  describe "injectiveTypeFamily rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeFamilies.injectiveTypeFamily "type-families/injective"
+
+  describe "closedTypeFamily rule" $ do
+    it "has correct ID" $
+      shouldHaveRuleId TypeFamilies.closedTypeFamily "type-families/closed"

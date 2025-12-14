@@ -1,0 +1,31 @@
+{
+  "id": "rules/imports",
+  "title": "Import Rules",
+  "description": "Maintain clean and organized imports",
+  "source": "@site/docs/rules/imports.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/imports",
+  "permalink": "/docs/rules/imports",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/imports.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "Import Rules",
+    "description": "Maintain clean and organized imports"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture Rules",
+    "permalink": "/docs/rules/architecture"
+  },
+  "next": {
+    "title": "Naming Rules",
+    "permalink": "/docs/rules/naming"
+  }
+}

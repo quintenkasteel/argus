@@ -1,0 +1,31 @@
+{
+  "id": "configuration/rules-section",
+  "title": "Rules Configuration",
+  "description": "Configure rule enabling, severity, and behavior",
+  "source": "@site/docs/configuration/rules-section.md",
+  "sourceDirName": "configuration",
+  "slug": "/configuration/rules-section",
+  "permalink": "/docs/configuration/rules-section",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/configuration/rules-section.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Rules Configuration",
+    "description": "Configure rule enabling, severity, and behavior"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Configuration File Format",
+    "permalink": "/docs/configuration/file-format"
+  },
+  "next": {
+    "title": "Naming Configuration",
+    "permalink": "/docs/configuration/naming-section"
+  }
+}

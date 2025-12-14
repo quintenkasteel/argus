@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/output-formats",
+  "title": "Output Formats",
+  "description": "All supported output formats for Argus results",
+  "source": "@site/docs/cli-reference/output-formats.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/output-formats",
+  "permalink": "/docs/cli-reference/output-formats",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/output-formats.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 10,
+  "frontMatter": {
+    "sidebar_position": 10,
+    "title": "Output Formats",
+    "description": "All supported output formats for Argus results"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus lsp",
+    "permalink": "/docs/cli-reference/lsp"
+  },
+  "next": {
+    "title": "Configuration File Format",
+    "permalink": "/docs/configuration/file-format"
+  }
+}

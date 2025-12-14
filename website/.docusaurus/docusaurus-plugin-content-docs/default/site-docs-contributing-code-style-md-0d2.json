@@ -1,0 +1,31 @@
+{
+  "id": "contributing/code-style",
+  "title": "Code Style",
+  "description": "Coding conventions for Argus",
+  "source": "@site/docs/contributing/code-style.md",
+  "sourceDirName": "contributing",
+  "slug": "/contributing/code-style",
+  "permalink": "/docs/contributing/code-style",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/contributing/code-style.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Code Style",
+    "description": "Coding conventions for Argus"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Development Setup",
+    "permalink": "/docs/contributing/development-setup"
+  },
+  "next": {
+    "title": "Adding Rules",
+    "permalink": "/docs/contributing/adding-rules"
+  }
+}

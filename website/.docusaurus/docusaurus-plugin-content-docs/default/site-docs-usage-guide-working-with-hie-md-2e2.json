@@ -1,0 +1,31 @@
+{
+  "id": "usage-guide/working-with-hie",
+  "title": "Working with HIE Files",
+  "description": "Deep semantic analysis using GHC's HIE files",
+  "source": "@site/docs/usage-guide/working-with-hie.md",
+  "sourceDirName": "usage-guide",
+  "slug": "/usage-guide/working-with-hie",
+  "permalink": "/docs/usage-guide/working-with-hie",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/usage-guide/working-with-hie.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Working with HIE Files",
+    "description": "Deep semantic analysis using GHC's HIE files"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "IDE Integration",
+    "permalink": "/docs/usage-guide/ide-integration"
+  },
+  "next": {
+    "title": "Rules Overview",
+    "permalink": "/docs/rules/overview"
+  }
+}

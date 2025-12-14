@@ -1,0 +1,478 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_version: ${{ steps.version.outputs.tag_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version info
+        id: version
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+
+          # Extract version from package.yaml
+          PACKAGE_VERSION=$(grep '^version:' package.yaml | sed 's/version: *"\?\([^"]*\)"\?/\1/')
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Tag version: $TAG_VERSION"
+          echo "Package version: $PACKAGE_VERSION"
+
+      - name: Validate version match
+        run: |
+          TAG_VERSION="${{ steps.version.outputs.tag_version }}"
+          PACKAGE_VERSION="${{ steps.version.outputs.version }}"
+
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::Version mismatch! Tag: v$TAG_VERSION, package.yaml: $PACKAGE_VERSION"
+            exit 1
+          fi
+
+          echo "Version validated: $PACKAGE_VERSION"
+
+  test:
+    name: Full Test Suite
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Build and test
+        run: |
+          stack build --fast
+          stack test --fast
+
+  build-binaries:
+    name: Build Binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [validate, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: argus
+            asset_name: argus-linux-x86_64
+          - os: macos-latest
+            artifact_name: argus
+            asset_name: argus-macos-x86_64
+          - os: macos-14
+            artifact_name: argus
+            asset_name: argus-macos-aarch64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-${{ runner.arch }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-${{ runner.arch }}-stack-work-release-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-stack-work-release-
+            ${{ runner.os }}-${{ runner.arch }}-stack-work-
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev upx-ucl
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sqlite3 upx
+
+      - name: Build optimized binary
+        run: |
+          stack build \
+            --copy-bins \
+            --local-bin-path ./dist \
+            --ghc-options="-O2 -fllvm" 2>/dev/null || \
+          stack build \
+            --copy-bins \
+            --local-bin-path ./dist \
+            --ghc-options="-O2"
+
+      - name: Strip binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          strip ./dist/${{ matrix.artifact_name }}
+          upx --best ./dist/${{ matrix.artifact_name }} || true
+
+      - name: Strip binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          strip ./dist/${{ matrix.artifact_name }}
+          upx --best ./dist/${{ matrix.artifact_name }} || true
+
+      - name: Create release archive
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          ARCHIVE_NAME="${{ matrix.asset_name }}-${VERSION}"
+
+          mkdir -p "${ARCHIVE_NAME}"
+          cp ./dist/${{ matrix.artifact_name }} "${ARCHIVE_NAME}/"
+          cp README.md "${ARCHIVE_NAME}/" || true
+          cp LICENSE "${ARCHIVE_NAME}/" || true
+          mkdir -p "${ARCHIVE_NAME}/data"
+          cp data/default-rules.toml "${ARCHIVE_NAME}/data/" || true
+
+          tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
+
+          # Also create a zip for Windows users downloading macOS/Linux binaries
+          zip -r "${ARCHIVE_NAME}.zip" "${ARCHIVE_NAME}"
+
+          echo "Created archives:"
+          ls -la "${ARCHIVE_NAME}."*
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: |
+            ${{ matrix.asset_name }}-${{ needs.validate.outputs.version }}.tar.gz
+            ${{ matrix.asset_name }}-${{ needs.validate.outputs.version }}.zip
+          retention-days: 30
+
+  build-sdist:
+    name: Build Source Distribution
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Build source distribution
+        run: |
+          stack sdist
+          mkdir -p sdist
+          cp .stack-work/dist/*/*.tar.gz sdist/ || \
+          cp .stack-work/dist/*/*/*.tar.gz sdist/ || \
+          find .stack-work -name "*.tar.gz" -exec cp {} sdist/ \;
+
+          echo "Source distributions:"
+          ls -la sdist/
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: sdist/*.tar.gz
+          retention-days: 30
+
+  publish-hackage:
+    name: Publish to Hackage
+    runs-on: ubuntu-latest
+    needs: [validate, test, build-sdist]
+    environment: hackage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Download sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: sdist
+
+      - name: Configure Hackage credentials
+        run: |
+          mkdir -p ~/.stack
+          cat > ~/.stack/upload-config.yaml << EOF
+          username: ${{ secrets.HACKAGE_USERNAME }}
+          password: ${{ secrets.HACKAGE_PASSWORD }}
+          EOF
+          chmod 600 ~/.stack/upload-config.yaml
+
+      - name: Upload to Hackage
+        env:
+          HACKAGE_USERNAME: ${{ secrets.HACKAGE_USERNAME }}
+          HACKAGE_PASSWORD: ${{ secrets.HACKAGE_PASSWORD }}
+        run: |
+          if [ -z "$HACKAGE_USERNAME" ] || [ -z "$HACKAGE_PASSWORD" ]; then
+            echo "::warning::Hackage credentials not configured. Skipping Hackage upload."
+            echo "To enable Hackage publishing, add HACKAGE_USERNAME and HACKAGE_PASSWORD secrets."
+            exit 0
+          fi
+
+          # Find the sdist tarball
+          SDIST_FILE=$(ls sdist/*.tar.gz | head -1)
+
+          if [ -z "$SDIST_FILE" ]; then
+            echo "::error::No source distribution found"
+            exit 1
+          fi
+
+          echo "Uploading $SDIST_FILE to Hackage..."
+
+          # Upload using curl (more reliable than stack upload in CI)
+          curl --fail --show-error \
+            -u "${HACKAGE_USERNAME}:${HACKAGE_PASSWORD}" \
+            -F "package=@${SDIST_FILE}" \
+            https://hackage.haskell.org/packages/
+
+          echo "Successfully uploaded to Hackage!"
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.stack/upload-config.yaml
+
+  publish-hackage-docs:
+    name: Publish Hackage Documentation
+    runs-on: ubuntu-latest
+    needs: [validate, publish-hackage]
+    environment: hackage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Build Haddock documentation
+        run: |
+          stack haddock --fast --no-haddock-deps
+          DOC_DIR=$(stack path --local-doc-root)
+          echo "Documentation built at: $DOC_DIR"
+
+      - name: Package documentation
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          DOC_DIR=$(stack path --local-doc-root)
+
+          # Create documentation tarball in Hackage-expected format
+          mkdir -p docs-upload
+          if [ -d "${DOC_DIR}/argus-${VERSION}" ]; then
+            tar -czvf "docs-upload/argus-${VERSION}-docs.tar.gz" \
+              -C "${DOC_DIR}" "argus-${VERSION}"
+          else
+            echo "::warning::Could not find documentation directory"
+          fi
+
+      - name: Upload documentation to Hackage
+        env:
+          HACKAGE_USERNAME: ${{ secrets.HACKAGE_USERNAME }}
+          HACKAGE_PASSWORD: ${{ secrets.HACKAGE_PASSWORD }}
+        run: |
+          if [ -z "$HACKAGE_USERNAME" ] || [ -z "$HACKAGE_PASSWORD" ]; then
+            echo "::warning::Hackage credentials not configured. Skipping docs upload."
+            exit 0
+          fi
+
+          VERSION="${{ needs.validate.outputs.version }}"
+          DOCS_FILE="docs-upload/argus-${VERSION}-docs.tar.gz"
+
+          if [ ! -f "$DOCS_FILE" ]; then
+            echo "::warning::Documentation tarball not found. Skipping docs upload."
+            exit 0
+          fi
+
+          echo "Uploading documentation to Hackage..."
+
+          curl --fail --show-error \
+            -u "${HACKAGE_USERNAME}:${HACKAGE_PASSWORD}" \
+            -X PUT \
+            -H "Content-Type: application/x-tar" \
+            -H "Content-Encoding: gzip" \
+            --data-binary "@${DOCS_FILE}" \
+            "https://hackage.haskell.org/package/argus-${VERSION}/docs" || \
+          echo "::warning::Documentation upload failed (this is normal for first release)"
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, build-binaries, build-sdist]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # Collect all artifacts
+          find artifacts -name "*.tar.gz" -exec cp {} release-assets/ \;
+          find artifacts -name "*.zip" -exec cp {} release-assets/ \;
+
+          echo "Release assets:"
+          ls -la release-assets/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          echo "## What's Changed" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "Changes since ${PREV_TAG}:" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+
+            # Generate commit list
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" >> RELEASE_NOTES.md
+          else
+            echo "Initial release of Argus v${VERSION}" >> RELEASE_NOTES.md
+          fi
+
+          echo "" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "## Installation" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### From Hackage" >> RELEASE_NOTES.md
+          echo '```bash' >> RELEASE_NOTES.md
+          echo "cabal install argus" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### From Binary" >> RELEASE_NOTES.md
+          echo "Download the appropriate binary for your platform from the assets below." >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### From Source" >> RELEASE_NOTES.md
+          echo '```bash' >> RELEASE_NOTES.md
+          echo "git clone https://github.com/quintenkasteel/argus.git" >> RELEASE_NOTES.md
+          echo "cd argus" >> RELEASE_NOTES.md
+          echo "stack install" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Argus v${{ needs.validate.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ contains(needs.validate.outputs.version, '-') }}
+          files: release-assets/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

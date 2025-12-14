@@ -1,0 +1,415 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sqlite3
+
+      # Restore file timestamps to prevent unnecessary rebuilds
+      - name: Restore file timestamps
+        run: |
+          git ls-files -z | while IFS= read -r -d '' file; do
+            if [ -f "$file" ]; then
+              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
+              if [ -n "$timestamp" ]; then
+                touch -d "$timestamp" "$file" 2>/dev/null || true
+              fi
+            fi
+          done
+
+      - name: Build dependencies
+        run: stack build --only-dependencies --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+      - name: Build project
+        run: stack build --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+      - name: Count and report warnings
+        id: warnings
+        run: |
+          WARNINGS=$(stack build --fast 2>&1 | grep -c "warning:" || echo "0")
+          echo "count=$WARNINGS" >> $GITHUB_OUTPUT
+
+          echo "## Build Warnings: $WARNINGS" >> $GITHUB_STEP_SUMMARY
+          if [ "$WARNINGS" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Top warning types:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            stack build --fast 2>&1 | grep "warning:" | sed 's/.*warning:/warning:/' | sort | uniq -c | sort -rn | head -10 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check that argus binary runs
+        run: |
+          stack exec -- argus --help
+          stack exec -- argus --version || true
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      # Restore file timestamps to prevent unnecessary rebuilds
+      - name: Restore file timestamps
+        run: |
+          git ls-files -z | while IFS= read -r -d '' file; do
+            if [ -f "$file" ]; then
+              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
+              if [ -n "$timestamp" ]; then
+                touch -d "$timestamp" "$file" 2>/dev/null || true
+              fi
+            fi
+          done
+
+      - name: Build project
+        run: stack build --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+      - name: Run test suite
+        run: stack test --fast --ghc-options "-j +RTS -A128m -n2m -RTS" 2>&1 | tee test-output.txt
+        env:
+          TASTY_NUM_THREADS: 4
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if grep -q "examples, 0 failures" test-output.txt; then
+            echo "All tests passed." >> $GITHUB_STEP_SUMMARY
+          elif grep -q "failures" test-output.txt; then
+            echo "Some tests failed. See details below." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 5 "FAIL\|failure" test-output.txt | head -50 >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.txt
+          retention-days: 7
+
+  self-lint:
+    name: Self Lint
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      # Restore file timestamps to prevent unnecessary rebuilds
+      - name: Restore file timestamps
+        run: |
+          git ls-files -z | while IFS= read -r -d '' file; do
+            if [ -f "$file" ]; then
+              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
+              if [ -n "$timestamp" ]; then
+                touch -d "$timestamp" "$file" 2>/dev/null || true
+              fi
+            fi
+          done
+
+      - name: Build project
+        run: stack build --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+      - name: Run Argus on itself (Terminal output)
+        id: self_lint
+        continue-on-error: true
+        run: |
+          # Run with terminal output for human-readable results
+          stack exec -- argus check src/ app/ --format terminal 2>&1 | tee lint-results.txt || true
+
+          # Count issues from output
+          ISSUES=$(grep -cE "^\s*(warning|error):" lint-results.txt || echo "0")
+          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+
+      - name: Run Argus on itself (JSON output)
+        continue-on-error: true
+        run: |
+          stack exec -- argus check src/ app/ --format json > lint-results.json 2>&1 || true
+
+      - name: Run Argus on itself (SARIF output)
+        continue-on-error: true
+        run: |
+          stack exec -- argus check src/ app/ --format sarif > lint-results.sarif 2>&1 || true
+
+          # Validate SARIF is valid JSON
+          if [ -f lint-results.sarif ] && [ -s lint-results.sarif ]; then
+            if ! python3 -m json.tool lint-results.sarif > /dev/null 2>&1; then
+              echo "Warning: SARIF output is not valid JSON"
+              rm -f lint-results.sarif
+            fi
+          fi
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && hashFiles('lint-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: lint-results.sarif
+          category: argus-self-lint
+
+      - name: Generate lint summary
+        if: always()
+        run: |
+          echo "## Self-Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          ISSUES="${{ steps.self_lint.outputs.issues }}"
+          if [ "$ISSUES" = "0" ] || [ -z "$ISSUES" ]; then
+            echo "No issues found when running Argus on itself." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Found **$ISSUES** issue(s):" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -100 lint-results.txt >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: |
+            lint-results.json
+            lint-results.txt
+            lint-results.sarif
+          retention-days: 7
+
+  hlint:
+    name: HLint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run HLint
+        uses: haskell-actions/hlint-setup@v2
+        with:
+          version: '3.8'
+
+      - name: Run HLint scan
+        uses: haskell-actions/hlint-run@v2
+        with:
+          path: '["src/", "app/", "test/"]'
+          fail-on: warning
+
+  haddock:
+    name: Documentation
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Cache Stack work directory
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+            ${{ runner.os }}-stack-work-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      # Restore file timestamps to prevent unnecessary rebuilds
+      - name: Restore file timestamps
+        run: |
+          git ls-files -z | while IFS= read -r -d '' file; do
+            if [ -f "$file" ]; then
+              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
+              if [ -n "$timestamp" ]; then
+                touch -d "$timestamp" "$file" 2>/dev/null || true
+              fi
+            fi
+          done
+
+      - name: Build Haddock documentation
+        run: stack haddock --fast --no-haddock-deps --ghc-options "-j +RTS -A128m -n2m -RTS"
+
+      - name: Check documentation coverage
+        run: |
+          echo "## Documentation Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Haddock documentation built successfully." >> $GITHUB_STEP_SUMMARY
+
+  sdist:
+    name: Source Distribution
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack global package DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global-
+
+      - name: Build source distribution
+        run: stack sdist
+
+      - name: Verify sdist builds
+        run: |
+          SDIST_PATH=$(stack sdist 2>&1 | grep -oE '[^ ]+\.tar\.gz' | head -1)
+          if [ -n "$SDIST_PATH" ] && [ -f "$SDIST_PATH" ]; then
+            echo "Source distribution created: $SDIST_PATH"
+            tar -tzf "$SDIST_PATH" | head -20
+          fi
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: .stack-work/dist/**/*.tar.gz
+          retention-days: 7

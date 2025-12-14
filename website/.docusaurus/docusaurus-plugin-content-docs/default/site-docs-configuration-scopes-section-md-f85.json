@@ -1,0 +1,31 @@
+{
+  "id": "configuration/scopes-section",
+  "title": "Scopes Configuration",
+  "description": "Apply different rules to different parts of your codebase",
+  "source": "@site/docs/configuration/scopes-section.md",
+  "sourceDirName": "configuration",
+  "slug": "/configuration/scopes-section",
+  "permalink": "/docs/configuration/scopes-section",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/configuration/scopes-section.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 7,
+  "frontMatter": {
+    "sidebar_position": 7,
+    "title": "Scopes Configuration",
+    "description": "Apply different rules to different parts of your codebase"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Fix Configuration",
+    "permalink": "/docs/configuration/fix-section"
+  },
+  "next": {
+    "title": "Extensions Configuration",
+    "permalink": "/docs/configuration/extensions-section"
+  }
+}

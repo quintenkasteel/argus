@@ -1,0 +1,31 @@
+{
+  "id": "contributing/adding-rules",
+  "title": "Adding Rules",
+  "description": "How to create new lint rules for Argus",
+  "source": "@site/docs/contributing/adding-rules.md",
+  "sourceDirName": "contributing",
+  "slug": "/contributing/adding-rules",
+  "permalink": "/docs/contributing/adding-rules",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/contributing/adding-rules.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Adding Rules",
+    "description": "How to create new lint rules for Argus"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Code Style",
+    "permalink": "/docs/contributing/code-style"
+  },
+  "next": {
+    "title": "Testing Guide",
+    "permalink": "/docs/contributing/testing-guide"
+  }
+}

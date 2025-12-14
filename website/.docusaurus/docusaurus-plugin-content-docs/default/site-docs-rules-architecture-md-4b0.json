@@ -1,0 +1,31 @@
+{
+  "id": "rules/architecture",
+  "title": "Architecture Rules",
+  "description": "Enforce module boundaries and detect architectural issues",
+  "source": "@site/docs/rules/architecture.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/architecture",
+  "permalink": "/docs/rules/architecture",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/architecture.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 7,
+  "frontMatter": {
+    "sidebar_position": 7,
+    "title": "Architecture Rules",
+    "description": "Enforce module boundaries and detect architectural issues"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Complexity Rules",
+    "permalink": "/docs/rules/complexity"
+  },
+  "next": {
+    "title": "Import Rules",
+    "permalink": "/docs/rules/imports"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "faq/error-messages",
+  "title": "Error Messages",
+  "description": "Understanding Argus error messages",
+  "source": "@site/docs/faq/error-messages.md",
+  "sourceDirName": "faq",
+  "slug": "/faq/error-messages",
+  "permalink": "/docs/faq/error-messages",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/faq/error-messages.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Error Messages",
+    "description": "Understanding Argus error messages"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Troubleshooting",
+    "permalink": "/docs/faq/troubleshooting"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "contributing/testing-guide",
+  "title": "Testing Guide",
+  "description": "How to write and run tests for Argus",
+  "source": "@site/docs/contributing/testing-guide.md",
+  "sourceDirName": "contributing",
+  "slug": "/contributing/testing-guide",
+  "permalink": "/docs/contributing/testing-guide",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/contributing/testing-guide.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Testing Guide",
+    "description": "How to write and run tests for Argus"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Adding Rules",
+    "permalink": "/docs/contributing/adding-rules"
+  },
+  "next": {
+    "title": "Pull Requests",
+    "permalink": "/docs/contributing/pull-requests"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/init",
+  "title": "argus init",
+  "description": "Initialize Argus configuration for your project",
+  "source": "@site/docs/cli-reference/init.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/init",
+  "permalink": "/docs/cli-reference/init",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/init.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "argus init",
+    "description": "Initialize Argus configuration for your project"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus unused",
+    "permalink": "/docs/cli-reference/unused"
+  },
+  "next": {
+    "title": "argus index",
+    "permalink": "/docs/cli-reference/index-cmd"
+  }
+}

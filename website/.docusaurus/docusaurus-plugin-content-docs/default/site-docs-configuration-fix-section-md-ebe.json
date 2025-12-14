@@ -1,0 +1,31 @@
+{
+  "id": "configuration/fix-section",
+  "title": "Fix Configuration",
+  "description": "Configure auto-fix behavior, safety, and imports",
+  "source": "@site/docs/configuration/fix-section.md",
+  "sourceDirName": "configuration",
+  "slug": "/configuration/fix-section",
+  "permalink": "/docs/configuration/fix-section",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/configuration/fix-section.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Fix Configuration",
+    "description": "Configure auto-fix behavior, safety, and imports"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Output Configuration",
+    "permalink": "/docs/configuration/output-section"
+  },
+  "next": {
+    "title": "Scopes Configuration",
+    "permalink": "/docs/configuration/scopes-section"
+  }
+}

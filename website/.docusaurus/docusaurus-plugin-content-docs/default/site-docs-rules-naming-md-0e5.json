@@ -1,0 +1,31 @@
+{
+  "id": "rules/naming",
+  "title": "Naming Rules",
+  "description": "Enforce consistent naming conventions",
+  "source": "@site/docs/rules/naming.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/naming",
+  "permalink": "/docs/rules/naming",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/naming.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 9,
+  "frontMatter": {
+    "sidebar_position": 9,
+    "title": "Naming Rules",
+    "description": "Enforce consistent naming conventions"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Import Rules",
+    "permalink": "/docs/rules/imports"
+  },
+  "next": {
+    "title": "Pragma Rules",
+    "permalink": "/docs/rules/pragmas"
+  }
+}

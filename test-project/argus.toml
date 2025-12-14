@@ -1,0 +1,214 @@
+# Argus Configuration for Test Project
+# This configuration enables all features to demonstrate Argus capabilities
+
+[general]
+directories = ["src"]
+exclude = [
+  ".stack-work/**",
+  "dist-newstyle/**",
+  "**/autogen/**",
+]
+mode = "full"
+hie-dir = ".hie"
+
+[output]
+format = "terminal"
+color = true
+group-by = "file"
+show-context = true
+context-lines = 2
+
+# =============================================================================
+# Unused Code Detection
+# =============================================================================
+[unused]
+enabled = true
+check-functions = true
+check-types = true
+check-imports = true
+check-exports = true
+roots = ["^Main.main$", "^Paths_.*"]
+th-roots = []
+
+# =============================================================================
+# Naming Conventions
+# =============================================================================
+[naming]
+enabled = true
+
+# Type signature rules
+[[naming.types]]
+pattern = "String"
+replacement = "Text"
+severity = "suggestion"
+
+# Variable naming conventions
+[[naming.variables]]
+type = "User"
+from = "*"
+to = "user"
+severity = "suggestion"
+
+# =============================================================================
+# Pattern Rules (Partial Functions, Modernization, etc.)
+# =============================================================================
+[patterns]
+enabled = true
+
+# Partial function warnings
+[[patterns.rules]]
+name = "avoid-head"
+match = "head"
+fix = "headMay"
+severity = "warning"
+message = "Use headMay instead of partial head"
+
+[[patterns.rules]]
+name = "avoid-tail"
+match = "tail"
+severity = "warning"
+message = "tail is partial - consider pattern matching"
+
+[[patterns.rules]]
+name = "avoid-fromJust"
+match = "fromJust"
+severity = "warning"
+message = "fromJust is partial - consider pattern matching or maybe"
+
+[[patterns.rules]]
+name = "avoid-read"
+match = "read "
+fix = "readMaybe "
+severity = "warning"
+message = "Use readMaybe instead of partial read"
+
+[[patterns.rules]]
+name = "avoid-error"
+match = "error "
+severity = "error"
+message = "Explicit error calls can crash at runtime"
+
+[[patterns.rules]]
+name = "avoid-undefined"
+match = "undefined"
+severity = "error"
+message = "undefined will crash at runtime"
+
+# Space leak patterns
+[[patterns.rules]]
+name = "prefer-foldl-prime"
+match = "foldl "
+fix = "foldl' "
+severity = "warning"
+message = "Use foldl' (strict) instead of foldl to avoid space leaks"
+
+# Performance patterns
+[[patterns.rules]]
+name = "length-eq-zero"
+match = "length .* == 0"
+fix = "null"
+severity = "suggestion"
+message = "Use null instead of length == 0 for O(1) check"
+
+[[patterns.rules]]
+name = "concat-map"
+match = "concat.*map"
+fix = "concatMap"
+severity = "suggestion"
+message = "Use concatMap instead of concat . map"
+
+[[patterns.rules]]
+name = "head-sort"
+match = "head.*sort"
+fix = "minimum"
+severity = "suggestion"
+message = "Use minimum instead of head . sort"
+
+# Modernization
+[[patterns.rules]]
+name = "prefer-fmap-over-liftM"
+match = "liftM "
+fix = "fmap "
+severity = "suggestion"
+message = "Use fmap instead of liftM"
+
+[[patterns.rules]]
+name = "prefer-traverse-over-mapM"
+match = "mapM "
+fix = "traverse "
+severity = "suggestion"
+message = "Consider using traverse instead of mapM"
+
+# Debug/Security
+[[patterns.rules]]
+name = "remove-trace"
+match = "trace "
+severity = "warning"
+message = "Remove debug trace before production"
+
+[[patterns.rules]]
+name = "remove-traceShow"
+match = "traceShow"
+severity = "warning"
+message = "Remove debug traceShow before production"
+
+[[patterns.rules]]
+name = "avoid-unsafePerformIO"
+match = "unsafePerformIO"
+severity = "error"
+message = "unsafePerformIO breaks referential transparency"
+
+[[patterns.rules]]
+name = "avoid-system-call"
+match = "system "
+severity = "warning"
+message = "system calls can be security risks - validate inputs"
+
+# =============================================================================
+# Import Analysis
+# =============================================================================
+[imports]
+remove-unused = true
+suggest-qualified = ["Data.Map", "Data.Set", "Data.Text", "Data.ByteString"]
+require-explicit = true
+combine = true
+
+# =============================================================================
+# Complexity Metrics
+# =============================================================================
+[complexity]
+enabled = true
+cyclomatic-warning = 10
+cyclomatic-error = 20
+cognitive-warning = 15
+cognitive-error = 25
+line-length-warning = 40
+nesting-warning = 4
+parameter-warning = 5
+pattern-branch-warning = 8
+
+# =============================================================================
+# Auto-fix Settings
+# =============================================================================
+[fix]
+enabled = true
+safe-only = true
+preview = true
+backup = true
+
+[fix.auto-imports]
+enabled = true
+add-missing = true
+remove-unused = true
+organize = false
+use-explicit = true
+qualify-new = false
+
+# =============================================================================
+# Resource Limits
+# =============================================================================
+[resource]
+timeout-seconds = 60
+max-retries = 3
+kill-on-timeout = true
+track-per-file = true

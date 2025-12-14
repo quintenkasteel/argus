@@ -1,0 +1,31 @@
+{
+  "id": "cli-reference/lsp",
+  "title": "argus lsp",
+  "description": "Start the Language Server Protocol server",
+  "source": "@site/docs/cli-reference/lsp.md",
+  "sourceDirName": "cli-reference",
+  "slug": "/cli-reference/lsp",
+  "permalink": "/docs/cli-reference/lsp",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/cli-reference/lsp.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 9,
+  "frontMatter": {
+    "sidebar_position": 9,
+    "title": "argus lsp",
+    "description": "Start the Language Server Protocol server"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "argus daemon",
+    "permalink": "/docs/cli-reference/daemon"
+  },
+  "next": {
+    "title": "Output Formats",
+    "permalink": "/docs/cli-reference/output-formats"
+  }
+}

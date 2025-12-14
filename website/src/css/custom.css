@@ -1,0 +1,280 @@
+/**
+ * Argus Documentation Custom Styles
+ * Based on Docusaurus Classic theme
+ */
+
+/* Primary color scheme - deep blue/purple for "all-seeing" theme */
+:root {
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4338ca;
+  --ifm-color-primary-darker: #3730a3;
+  --ifm-color-primary-darkest: #312e81;
+  --ifm-color-primary-light: #6366f1;
+  --ifm-color-primary-lighter: #818cf8;
+  --ifm-color-primary-lightest: #a5b4fc;
+
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(79, 70, 229, 0.1);
+
+  --ifm-font-family-base: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, Monaco, 'Courier New', monospace;
+}
+
+/* Dark mode colors */
+[data-theme='dark'] {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6366f1;
+  --ifm-color-primary-darker: #4f46e5;
+  --ifm-color-primary-darkest: #4338ca;
+  --ifm-color-primary-light: #a5b4fc;
+  --ifm-color-primary-lighter: #c7d2fe;
+  --ifm-color-primary-lightest: #e0e7ff;
+
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.2);
+}
+
+/* Haskell code blocks - special styling */
+.language-haskell {
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+}
+
+[data-theme='light'] .language-haskell {
+  background: linear-gradient(135deg, #f8f9fc 0%, #eef2f7 100%);
+}
+
+/* CLI command styling */
+.language-bash code {
+  font-weight: 500;
+}
+
+/* TOML config styling */
+.language-toml .token.key {
+  color: #e879f9;
+}
+
+[data-theme='dark'] .language-toml .token.key {
+  color: #f0abfc;
+}
+
+/* Admonition customization for Argus-specific notes */
+.admonition.admonition-haskell {
+  border-left-color: #5e5086;
+  background-color: rgba(94, 80, 134, 0.1);
+}
+
+/* Feature cards on landing page */
+.feature-card {
+  padding: 1.5rem;
+  border-radius: 8px;
+  background: var(--ifm-card-background-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Rule category badges */
+.rule-category {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rule-category--security {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.rule-category--performance {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.rule-category--safety {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.rule-category--style {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+}
+
+[data-theme='dark'] .rule-category--security {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+}
+
+[data-theme='dark'] .rule-category--performance {
+  background-color: rgba(217, 119, 6, 0.2);
+  color: #fcd34d;
+}
+
+[data-theme='dark'] .rule-category--safety {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .rule-category--style {
+  background-color: rgba(79, 70, 229, 0.2);
+  color: #a5b4fc;
+}
+
+/* Severity indicators */
+.severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.severity--error {
+  color: #dc2626;
+}
+
+.severity--warning {
+  color: #d97706;
+}
+
+.severity--suggestion {
+  color: #2563eb;
+}
+
+.severity--info {
+  color: #6b7280;
+}
+
+/* CLI output simulation */
+.cli-output {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  padding: 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+.cli-output .file-path {
+  color: #89b4fa;
+}
+
+.cli-output .line-col {
+  color: #94e2d5;
+}
+
+.cli-output .warning {
+  color: #f9e2af;
+}
+
+.cli-output .error {
+  color: #f38ba8;
+}
+
+.cli-output .rule-id {
+  color: #cba6f7;
+}
+
+/* Table improvements */
+table {
+  display: table;
+  width: 100%;
+}
+
+table th {
+  background-color: var(--ifm-color-primary-lightest);
+  font-weight: 600;
+}
+
+[data-theme='dark'] table th {
+  background-color: rgba(79, 70, 229, 0.3);
+}
+
+/* Code comparison (before/after) */
+.code-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.code-comparison__before,
+.code-comparison__after {
+  position: relative;
+}
+
+.code-comparison__before::before,
+.code-comparison__after::before {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.code-comparison__before::before {
+  content: 'Before';
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.code-comparison__after::before {
+  content: 'After';
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+[data-theme='dark'] .code-comparison__before::before {
+  background-color: rgba(220, 38, 38, 0.3);
+  color: #fca5a5;
+}
+
+[data-theme='dark'] .code-comparison__after::before {
+  background-color: rgba(22, 163, 74, 0.3);
+  color: #86efac;
+}
+
+@media (max-width: 768px) {
+  .code-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Landing page hero */
+.hero--argus {
+  background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%);
+}
+
+[data-theme='dark'] .hero--argus {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
+}
+
+/* Navbar improvements */
+.navbar__title {
+  font-weight: 700;
+}
+
+/* Footer link improvements */
+.footer__link-item:hover {
+  text-decoration: none;
+  color: var(--ifm-color-primary-light);
+}
+
+/* Docs page improvements */
+.theme-doc-markdown {
+  max-width: 800px;
+}
+
+/* Inline code in headers */
+h1 code, h2 code, h3 code, h4 code {
+  font-size: 0.9em;
+}

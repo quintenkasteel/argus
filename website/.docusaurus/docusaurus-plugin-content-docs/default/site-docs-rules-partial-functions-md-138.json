@@ -1,0 +1,31 @@
+{
+  "id": "rules/partial-functions",
+  "title": "Partial Functions",
+  "description": "Detect and replace partial functions with safe alternatives",
+  "source": "@site/docs/rules/partial-functions.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/partial-functions",
+  "permalink": "/docs/rules/partial-functions",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/partial-functions.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Partial Functions",
+    "description": "Detect and replace partial functions with safe alternatives"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Rules Overview",
+    "permalink": "/docs/rules/overview"
+  },
+  "next": {
+    "title": "Security Rules",
+    "permalink": "/docs/rules/security"
+  }
+}

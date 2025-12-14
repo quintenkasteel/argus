@@ -1,0 +1,1 @@
+[{"code":"performance/boxing","hasFix":false,"message":"Integer is arbitrary precision and boxed. Use Int64/Word64 if range is known, or Int for machine word","severity":"Suggestion"},{"code":"space-leak/lazy-fold","hasFix":true,"message":"foldl accumulates thunks that can cause stack overflow on large lists. Use foldl' from Data.List for strict left fold","severity":"Warning"}]

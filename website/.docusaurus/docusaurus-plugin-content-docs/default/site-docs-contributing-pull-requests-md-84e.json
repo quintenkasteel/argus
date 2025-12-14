@@ -1,0 +1,31 @@
+{
+  "id": "contributing/pull-requests",
+  "title": "Pull Requests",
+  "description": "Guidelines for submitting pull requests",
+  "source": "@site/docs/contributing/pull-requests.md",
+  "sourceDirName": "contributing",
+  "slug": "/contributing/pull-requests",
+  "permalink": "/docs/contributing/pull-requests",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/contributing/pull-requests.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Pull Requests",
+    "description": "Guidelines for submitting pull requests"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Testing Guide",
+    "permalink": "/docs/contributing/testing-guide"
+  },
+  "next": {
+    "title": "FAQ & Troubleshooting",
+    "permalink": "/docs/faq/"
+  }
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="4.3">
+  <file name="src/Example.hs">
+    <error line="42" column="5" severity="warning" message="Use of partial function &apos;head&apos;: consider using &apos;headMay&apos; from Data.Maybe or pattern matching" source="partial/head"/>
+
+  </file>
+  <file name="src/Security.hs">
+    <error line="15" column="1" severity="error" message="Potential SQL injection: use parameterized queries instead of string concatenation" source="security/sql-injection"/>
+
+  </file>
+  <file name="src/Utils.hs">
+    <error line="100" column="10" severity="info" message="Consider using &apos;foldl&apos;&apos; instead of &apos;foldl&apos; for better performance with strict accumulator" source="performance/foldl"/>
+
+  </file>
+
+</checkstyle>

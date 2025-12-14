@@ -1,0 +1,343 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/docs",
+          "mainDocId": "overview/introduction",
+          "docs": [
+            {
+              "id": "architecture/analysis-passes",
+              "path": "/docs/architecture/analysis-passes",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/fix-system",
+              "path": "/docs/architecture/fix-system",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/hie-integration",
+              "path": "/docs/architecture/hie-integration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/overview",
+              "path": "/docs/architecture/overview",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/plugin-mode",
+              "path": "/docs/architecture/plugin-mode",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/rule-engine",
+              "path": "/docs/architecture/rule-engine",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/check",
+              "path": "/docs/cli-reference/check",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/daemon",
+              "path": "/docs/cli-reference/daemon",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/fix",
+              "path": "/docs/cli-reference/fix",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/index",
+              "path": "/docs/cli-reference/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/index-cmd",
+              "path": "/docs/cli-reference/index-cmd",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/init",
+              "path": "/docs/cli-reference/init",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/lsp",
+              "path": "/docs/cli-reference/lsp",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/output-formats",
+              "path": "/docs/cli-reference/output-formats",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/unused",
+              "path": "/docs/cli-reference/unused",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "cli-reference/watch",
+              "path": "/docs/cli-reference/watch",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/complexity-section",
+              "path": "/docs/configuration/complexity-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/extensions-section",
+              "path": "/docs/configuration/extensions-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/file-format",
+              "path": "/docs/configuration/file-format",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/fix-section",
+              "path": "/docs/configuration/fix-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/naming-section",
+              "path": "/docs/configuration/naming-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/output-section",
+              "path": "/docs/configuration/output-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/rules-section",
+              "path": "/docs/configuration/rules-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "configuration/scopes-section",
+              "path": "/docs/configuration/scopes-section",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/adding-rules",
+              "path": "/docs/contributing/adding-rules",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/code-style",
+              "path": "/docs/contributing/code-style",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/development-setup",
+              "path": "/docs/contributing/development-setup",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/index",
+              "path": "/docs/contributing/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/pull-requests",
+              "path": "/docs/contributing/pull-requests",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "contributing/testing-guide",
+              "path": "/docs/contributing/testing-guide",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "faq/error-messages",
+              "path": "/docs/faq/error-messages",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "faq/general",
+              "path": "/docs/faq/general",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "faq/index",
+              "path": "/docs/faq/",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "faq/troubleshooting",
+              "path": "/docs/faq/troubleshooting",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "getting-started/basic-usage",
+              "path": "/docs/getting-started/basic-usage",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "getting-started/configuration",
+              "path": "/docs/getting-started/configuration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "getting-started/installation",
+              "path": "/docs/getting-started/installation",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "getting-started/project-setup",
+              "path": "/docs/getting-started/project-setup",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "overview/introduction",
+              "path": "/docs/overview/introduction",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "overview/key-features",
+              "path": "/docs/overview/key-features",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "overview/quickstart",
+              "path": "/docs/overview/quickstart",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/architecture",
+              "path": "/docs/rules/architecture",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/complexity",
+              "path": "/docs/rules/complexity",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/custom-rules",
+              "path": "/docs/rules/custom-rules",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/imports",
+              "path": "/docs/rules/imports",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/modernize",
+              "path": "/docs/rules/modernize",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/naming",
+              "path": "/docs/rules/naming",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/overview",
+              "path": "/docs/rules/overview",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/partial-functions",
+              "path": "/docs/rules/partial-functions",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/performance",
+              "path": "/docs/rules/performance",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/pragmas",
+              "path": "/docs/rules/pragmas",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/redundant",
+              "path": "/docs/rules/redundant",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/security",
+              "path": "/docs/rules/security",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "rules/space-leaks",
+              "path": "/docs/rules/space-leaks",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "testing/golden-tests",
+              "path": "/docs/testing/golden-tests",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "testing/running-tests",
+              "path": "/docs/testing/running-tests",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "testing/test-fixtures",
+              "path": "/docs/testing/test-fixtures",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "testing/writing-tests",
+              "path": "/docs/testing/writing-tests",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "usage-guide/analysis-modes",
+              "path": "/docs/usage-guide/analysis-modes",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "usage-guide/auto-fix",
+              "path": "/docs/usage-guide/auto-fix",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "usage-guide/ci-integration",
+              "path": "/docs/usage-guide/ci-integration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "usage-guide/ide-integration",
+              "path": "/docs/usage-guide/ide-integration",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "usage-guide/working-with-hie",
+              "path": "/docs/usage-guide/working-with-hie",
+              "sidebar": "docsSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docsSidebar": {
+              "link": {
+                "path": "/docs/overview/introduction",
+                "label": "overview/introduction"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

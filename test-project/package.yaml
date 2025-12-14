@@ -1,0 +1,49 @@
+name: test-project
+version: 0.1.0.0
+
+dependencies:
+  - base >= 4.7 && < 5
+  - text
+  - bytestring
+  - containers
+  - mtl
+  - transformers
+  - time
+  - process
+  - directory
+  - filepath
+  - aeson
+  - template-haskell
+  - cryptonite
+  - memory
+  - deepseq
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Lib
+    - Utils
+    - PartialFunctions
+    - Security
+    - Performance
+    - SpaceLeaks
+    - Complexity
+    - Imports
+    - Pragmas
+    - Duplicates
+    - Naming
+    - TemplateHaskell
+    - Architecture.Core
+    - Architecture.DB
+    - Architecture.UI
+
+executables:
+  test-project:
+    main: Main.hs
+    source-dirs: src
+    dependencies:
+      - test-project
+
+ghc-options:
+  - -fwrite-ide-info
+  - -hiedir=.hie

@@ -1,0 +1,1 @@
+[{"code":"redundant/double-not","hasFix":true,"message":"'not (not x)' is equivalent to 'x'","severity":"Warning"},{"code":"redundant/eq-true","hasFix":true,"message":"'x == True' is equivalent to 'x'","severity":"Warning"},{"code":"redundant/if-true-false","hasFix":true,"message":"'if x then True else False' is equivalent to 'x'","severity":"Warning"}]

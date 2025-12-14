@@ -1,5 +1,15 @@
-# Haskell Linter - Stack Configuration
+# Argus - Haskell Static Analyzer - Stack Configuration
 # Using LTS 24.21 (GHC 9.10.3) - Latest stable as of November 2025
+#
+# Coverage: Run `stack test --coverage` or `make coverage` for HPC coverage.
+# Note: Coverage requires a clean rebuild with coverage instrumentation.
+#
+# Quick commands:
+#   stack build              - Build the project
+#   stack test               - Run all tests
+#   stack test --coverage    - Run tests with coverage (slow, requires rebuild)
+#   stack bench              - Run benchmarks
+#   stack run -- check src/  - Run argus on source
 
 resolver: lts-24.21
 

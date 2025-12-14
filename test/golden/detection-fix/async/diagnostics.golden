@@ -1,0 +1,1 @@
+[{"code":"performance/lazy","hasFix":false,"message":"Mutable reference modification can accumulate thunks if not forced. Use strict variants: modifyIORef'/modifyMVar'/modifyTVar'","severity":"Suggestion"}]

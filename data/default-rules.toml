@@ -1,0 +1,516 @@
+# Argus Default Rules Configuration
+# This file contains the default rules shipped with Argus.
+# Users can override these in their project's argus.toml or ~/.config/argus/rules.toml
+
+[general]
+inherit-defaults = true
+
+# Category default severities
+# Available levels: "off", "error", "warn", "suggestion", "info"
+[categories]
+performance = "warn"
+space-leaks = "warn"
+security = "error"
+modernize = "suggestion"
+redundant = "warn"
+partial = "warn"
+imports = "suggestion"
+naming = "suggestion"
+extensions = "info"
+complexity = "warn"
+
+# Fix safety configuration
+# "safe" rules are applied automatically
+# "unsafe" rules require confirmation
+# "disabled" rules are never auto-fixed
+[fix]
+safe = ["ALL"]  # All safe rules can be auto-fixed
+unsafe = []     # Rules that need confirmation
+disabled = []   # Rules that should never be auto-fixed
+
+# ============================================================================
+# PERFORMANCE RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "performance/length-null"
+category = "performance"
+pattern = "length $X == 0"
+fix = "null $X"
+message = "Use null for O(1) emptiness check instead of length == 0"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/length-gt-0"
+category = "performance"
+pattern = "length $X > 0"
+fix = "not (null $X)"
+message = "Use not . null instead of length > 0"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/concat-map"
+category = "performance"
+pattern = "concat $ map $F $X"
+fix = "concatMap $F $X"
+message = "Use concatMap instead of concat . map"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/concat-map-compose"
+category = "performance"
+pattern = "concat . map $F"
+fix = "concatMap $F"
+message = "Use concatMap instead of concat . map"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/mconcat-map"
+category = "performance"
+pattern = "mconcat $ map $F $X"
+fix = "foldMap $F $X"
+message = "Use foldMap instead of mconcat . map"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/head-sort"
+category = "performance"
+pattern = "head $ sort $X"
+fix = "minimum $X"
+message = "Use minimum instead of head . sort"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/last-sort"
+category = "performance"
+pattern = "last $ sort $X"
+fix = "maximum $X"
+message = "Use maximum instead of last . sort"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/nub"
+category = "performance"
+pattern = "nub $X"
+fix = "ordNub $X"
+message = "nub is O(n^2), use ordNub or nubOrd for O(n log n)"
+severity = "warning"
+safety = "unsafe"
+note = "Requires Ord constraint, may change behavior for types with non-standard Eq/Ord"
+
+[[rules.custom]]
+id = "performance/foldr-concat"
+category = "performance"
+pattern = "foldr (++) []"
+fix = "concat"
+message = "Use concat instead of foldr (++) []"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "performance/map-id"
+category = "performance"
+pattern = "map id $X"
+fix = "$X"
+message = "map id is redundant"
+severity = "warning"
+safety = "safe"
+
+# ============================================================================
+# SPACE LEAK RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "space-leaks/foldl"
+category = "space-leaks"
+pattern = "foldl $F $Z $X"
+fix = "foldl' $F $Z $X"
+message = "Use foldl' to avoid space leaks"
+severity = "warning"
+safety = "unsafe"
+note = "Requires importing Data.List (foldl')"
+
+# NOTE: Import-based space leak rules removed because simple pattern matching
+# cannot distinguish "import Data.Map" from "import Data.Map.Strict", causing
+# infinite appending of ".Strict". These rules need AST-based import analysis.
+# Users can configure import preferences in their project's argus.toml using
+# module restrictions with the 'as' field.
+
+# ============================================================================
+# SECURITY RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "security/trace"
+category = "security"
+pattern = "trace $X $Y"
+message = "Debug trace found - remove before production"
+severity = "error"
+safety = "manual"
+
+[[rules.custom]]
+id = "security/traceShow"
+category = "security"
+pattern = "traceShow $X $Y"
+message = "Debug traceShow found - remove before production"
+severity = "error"
+safety = "manual"
+
+[[rules.custom]]
+id = "security/traceShowId"
+category = "security"
+pattern = "traceShowId $X"
+fix = "$X"
+message = "Debug traceShowId found - remove before production"
+severity = "error"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "security/unsafePerformIO"
+category = "security"
+pattern = "unsafePerformIO"
+message = "unsafePerformIO breaks referential transparency"
+severity = "error"
+safety = "manual"
+
+[[rules.custom]]
+id = "security/unsafeCoerce"
+category = "security"
+pattern = "unsafeCoerce"
+message = "unsafeCoerce can cause memory corruption"
+severity = "error"
+safety = "manual"
+
+[[rules.custom]]
+id = "security/undefined"
+category = "security"
+pattern = "undefined"
+message = "undefined will crash at runtime"
+severity = "error"
+safety = "manual"
+
+[[rules.custom]]
+id = "security/error-call"
+category = "security"
+pattern = "error $X"
+message = "error will crash at runtime - consider proper error handling"
+severity = "warning"
+safety = "manual"
+
+# ============================================================================
+# MODERNIZATION RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "modernize/return-pure"
+category = "modernize"
+pattern = "return $X"
+fix = "pure $X"
+message = "Use pure instead of return (Applicative is more general)"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/liftM-fmap"
+category = "modernize"
+pattern = "liftM $F $X"
+fix = "fmap $F $X"
+message = "Use fmap instead of liftM"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/liftM2-liftA2"
+category = "modernize"
+pattern = "liftM2 $F $X $Y"
+fix = "liftA2 $F $X $Y"
+message = "Use liftA2 instead of liftM2"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/mappend"
+category = "modernize"
+pattern = "mappend $X $Y"
+fix = "$X <> $Y"
+message = "Use (<>) instead of mappend (Semigroup)"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/mapM-traverse"
+category = "modernize"
+pattern = "mapM $F $X"
+fix = "traverse $F $X"
+message = "Use traverse instead of mapM"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/mapM_-traverse_"
+category = "modernize"
+pattern = "mapM_ $F $X"
+fix = "traverse_ $F $X"
+message = "Use traverse_ instead of mapM_"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/forM-for"
+category = "modernize"
+pattern = "forM $X $F"
+fix = "for $X $F"
+message = "Use for instead of forM"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/forM_-for_"
+category = "modernize"
+pattern = "forM_ $X $F"
+fix = "for_ $X $F"
+message = "Use for_ instead of forM_"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/sequence-sequenceA"
+category = "modernize"
+pattern = "sequence $X"
+fix = "sequenceA $X"
+message = "Use sequenceA instead of sequence"
+severity = "suggestion"
+safety = "safe"
+
+[[rules.custom]]
+id = "modernize/foldMap-id"
+category = "modernize"
+pattern = "foldMap id $X"
+fix = "fold $X"
+message = "Use fold instead of foldMap id"
+severity = "suggestion"
+safety = "safe"
+
+# ============================================================================
+# REDUNDANT CODE RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "redundant/id"
+category = "redundant"
+pattern = "id $X"
+fix = "$X"
+message = "Redundant use of id"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/double-not"
+category = "redundant"
+pattern = "not $ not $X"
+fix = "$X"
+message = "Double negation is redundant"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/double-reverse"
+category = "redundant"
+pattern = "reverse $ reverse $X"
+fix = "$X"
+message = "Double reverse is redundant"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/if-then-else-bool"
+category = "redundant"
+pattern = "if $X then True else False"
+fix = "$X"
+message = "Redundant if-then-else, use the condition directly"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/if-then-else-bool-not"
+category = "redundant"
+pattern = "if $X then False else True"
+fix = "not $X"
+message = "Redundant if-then-else, use not"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/maybe-Just-id"
+category = "redundant"
+pattern = "maybe Nothing Just $X"
+fix = "$X"
+message = "maybe Nothing Just is equivalent to id for Maybe"
+severity = "warning"
+safety = "safe"
+
+[[rules.custom]]
+id = "redundant/either-Left-Right"
+category = "redundant"
+pattern = "either Left Right $X"
+fix = "$X"
+message = "either Left Right is equivalent to id for Either"
+severity = "warning"
+safety = "safe"
+
+# ============================================================================
+# PARTIAL FUNCTION RULES
+# ============================================================================
+
+[[rules.custom]]
+id = "partial/head"
+category = "partial"
+pattern = "head $X"
+fix = "headMay $X"
+message = "head is partial, use headMay from safe package"
+severity = "warning"
+safety = "unsafe"
+note = "Requires importing Safe (headMay)"
+
+[[rules.custom]]
+id = "partial/tail"
+category = "partial"
+pattern = "tail $X"
+fix = "tailMay $X"
+message = "tail is partial, use tailMay from safe package"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/init"
+category = "partial"
+pattern = "init $X"
+fix = "initMay $X"
+message = "init is partial, use initMay from safe package"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/last"
+category = "partial"
+pattern = "last $X"
+fix = "lastMay $X"
+message = "last is partial, use lastMay from safe package"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/fromJust"
+category = "partial"
+pattern = "fromJust $X"
+message = "fromJust is partial, use pattern matching or fromMaybe"
+severity = "warning"
+safety = "manual"
+
+[[rules.custom]]
+id = "partial/read"
+category = "partial"
+pattern = "read $X"
+fix = "readMaybe $X"
+message = "read is partial, use readMaybe from Text.Read"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/minimum"
+category = "partial"
+pattern = "minimum $X"
+fix = "minimumMay $X"
+message = "minimum is partial on empty lists"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/maximum"
+category = "partial"
+pattern = "maximum $X"
+fix = "maximumMay $X"
+message = "maximum is partial on empty lists"
+severity = "warning"
+safety = "unsafe"
+
+[[rules.custom]]
+id = "partial/foldr1"
+category = "partial"
+pattern = "foldr1 $F $X"
+message = "foldr1 is partial on empty lists, use foldr with explicit base case"
+severity = "warning"
+safety = "manual"
+
+[[rules.custom]]
+id = "partial/foldl1"
+category = "partial"
+pattern = "foldl1 $F $X"
+message = "foldl1 is partial on empty lists, use foldl' with explicit base case"
+severity = "warning"
+safety = "manual"
+
+[[rules.custom]]
+id = "partial/bang-index"
+category = "partial"
+pattern = "$X !! $N"
+message = "(!!) is partial, consider using safe indexing"
+severity = "warning"
+safety = "manual"
+
+# ============================================================================
+# DEFAULT RESTRICTIONS
+# ============================================================================
+
+# Function restrictions - functions that should be banned or restricted
+[[restrictions.functions]]
+name = "unsafePerformIO"
+within = []  # Banned everywhere
+message = "unsafePerformIO is forbidden - use proper IO handling"
+
+[[restrictions.functions]]
+name = "unsafeCoerce"
+within = []  # Banned everywhere
+message = "unsafeCoerce is forbidden - use proper type conversions"
+
+[[restrictions.functions]]
+name = "head"
+within = ["*.Spec", "Test.*", "*.Test"]  # Only allowed in tests
+message = "head is partial - use headMay or pattern matching"
+
+[[restrictions.functions]]
+name = "tail"
+within = ["*.Spec", "Test.*", "*.Test"]
+message = "tail is partial - use tailMay or pattern matching"
+
+# Extension restrictions - extensions that should be limited
+[[restrictions.extensions]]
+name = "TemplateHaskell"
+within = ["*.TH", "TH.*", "**/TH/*.hs"]
+message = "TemplateHaskell should only be used in dedicated TH modules"
+
+[[restrictions.extensions]]
+name = "UndecidableInstances"
+within = []
+message = "UndecidableInstances can cause compilation issues - document why it's needed"
+
+# ============================================================================
+# SCOPED CONFIGURATIONS
+# ============================================================================
+
+# Test files have relaxed rules
+[[scopes]]
+modules = ["*.Spec", "Test.*", "*.Test", "**/*Spec.hs"]
+ignore = ["partial/head", "partial/tail", "security/undefined"]
+
+# Generated files should be ignored
+[[scopes]]
+modules = ["Generated.*", "**/Generated/**", "Paths_*"]
+ignore = ["ALL"]

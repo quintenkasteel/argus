@@ -1,0 +1,31 @@
+{
+  "id": "configuration/complexity-section",
+  "title": "Complexity Configuration",
+  "description": "Configure code complexity thresholds and metrics",
+  "source": "@site/docs/configuration/complexity-section.md",
+  "sourceDirName": "configuration",
+  "slug": "/configuration/complexity-section",
+  "permalink": "/docs/configuration/complexity-section",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/configuration/complexity-section.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Complexity Configuration",
+    "description": "Configure code complexity thresholds and metrics"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Naming Configuration",
+    "permalink": "/docs/configuration/naming-section"
+  },
+  "next": {
+    "title": "Output Configuration",
+    "permalink": "/docs/configuration/output-section"
+  }
+}

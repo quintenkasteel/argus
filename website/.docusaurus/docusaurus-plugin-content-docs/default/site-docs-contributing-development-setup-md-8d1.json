@@ -1,0 +1,31 @@
+{
+  "id": "contributing/development-setup",
+  "title": "Development Setup",
+  "description": "Setting up your Argus development environment",
+  "source": "@site/docs/contributing/development-setup.md",
+  "sourceDirName": "contributing",
+  "slug": "/contributing/development-setup",
+  "permalink": "/docs/contributing/development-setup",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/contributing/development-setup.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Development Setup",
+    "description": "Setting up your Argus development environment"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Contributing",
+    "permalink": "/docs/contributing/"
+  },
+  "next": {
+    "title": "Code Style",
+    "permalink": "/docs/contributing/code-style"
+  }
+}

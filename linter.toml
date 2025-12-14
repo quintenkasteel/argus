@@ -3,7 +3,19 @@
 
 [general]
 directories = ["src", "app"]
-exclude = ["Generated/**", "*.gen.hs"]
+exclude = [
+  # Build artifacts
+  ".stack-work/**",
+  "dist-newstyle/**",
+  "dist/**",
+  ".cabal/**",
+  # Generated code
+  "Generated/**",
+  "*.gen.hs",
+  "**/autogen/**",
+  # Version control
+  ".git/**",
+]
 mode = "quick"
 hie-dir = ".hie"
 
@@ -20,8 +32,16 @@ check-functions = true
 check-types = true
 check-imports = true
 check-exports = true
+check-constructors = true
+check-record-fields = true
+check-local-binds = true
+check-instances = false
 roots = ["^Main.main$", "^Paths_.*"]
 th-roots = ["parseJSON", "toJSON", "makeLenses", "share"]
+typeclass-roots = true
+derive-roots = true
+min-confidence = 0.7
+ignore-patterns = ["_*", "unused*"]
 
 [naming]
 enabled = true
@@ -107,3 +127,66 @@ enabled = true
 safe-only = true
 preview = true
 backup = true
+
+[fix.auto-imports]
+enabled = true
+add-missing = true
+remove-unused = true
+organize = false
+use-explicit = true
+qualify-new = false
+group-by-category = false
+
+[qualify-import]
+enabled = true
+strategy = "last-part"
+custom-aliases = []
+prefer-uppercase = true
+allow-conflicts = true
+
+[architecture]
+enabled = false
+layers = []
+max-cycle-length = 10
+instability-threshold = 0.8
+coupling-threshold = 15
+check-orphans = true
+check-qualified = true
+
+[complexity]
+enabled = true
+cyclomatic-warning = 10
+cyclomatic-error = 20
+cognitive-warning = 15
+cognitive-error = 25
+line-length-warning = 50
+nesting-warning = 4
+parameter-warning = 5
+pattern-branch-warning = 10
+
+[resource]
+timeout-seconds = 30
+max-retries = 3
+kill-on-timeout = true
+track-per-file = false
+
+# Disable noisy/buggy rules
+[rules]
+disabled = [
+  "performance/allocation",
+  "performance/lazy",
+  "performance/boxing",
+  "performance/io",
+  "performance/algorithm",
+  "performance/fusion",
+  "modernize/traversable",
+  "modernize/applicative",
+  "modernize/semigroup",
+  "modernize/monoid",
+  "space-leaks/lazy-map",
+  "space-leak/lazy-io",
+  "space-leak/lazy-fold",
+  "space-leak/lazy-accumulator",
+  "redundant/map-id",
+  "extension/missing",
+]

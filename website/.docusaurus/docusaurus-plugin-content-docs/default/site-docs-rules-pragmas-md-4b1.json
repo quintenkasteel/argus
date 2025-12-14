@@ -1,0 +1,31 @@
+{
+  "id": "rules/pragmas",
+  "title": "Pragma Rules",
+  "description": "Detect unused and missing LANGUAGE extensions",
+  "source": "@site/docs/rules/pragmas.md",
+  "sourceDirName": "rules",
+  "slug": "/rules/pragmas",
+  "permalink": "/docs/rules/pragmas",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/rules/pragmas.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 10,
+  "frontMatter": {
+    "sidebar_position": 10,
+    "title": "Pragma Rules",
+    "description": "Detect unused and missing LANGUAGE extensions"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Naming Rules",
+    "permalink": "/docs/rules/naming"
+  },
+  "next": {
+    "title": "Modernization Rules",
+    "permalink": "/docs/rules/modernize"
+  }
+}

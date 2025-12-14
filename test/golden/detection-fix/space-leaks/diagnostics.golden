@@ -1,0 +1,1 @@
+[{"code":"space-leak/lazy-fold","hasFix":true,"message":"foldl accumulates thunks that can cause stack overflow on large lists. Use foldl' from Data.List for strict left fold","severity":"Warning"}]

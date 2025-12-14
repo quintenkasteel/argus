@@ -1,0 +1,31 @@
+{
+  "id": "testing/writing-tests",
+  "title": "Writing Tests",
+  "description": "How to write tests for Argus",
+  "source": "@site/docs/testing/writing-tests.md",
+  "sourceDirName": "testing",
+  "slug": "/testing/writing-tests",
+  "permalink": "/docs/testing/writing-tests",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/testing/writing-tests.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Writing Tests",
+    "description": "How to write tests for Argus"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Running Tests",
+    "permalink": "/docs/testing/running-tests"
+  },
+  "next": {
+    "title": "Test Fixtures",
+    "permalink": "/docs/testing/test-fixtures"
+  }
+}

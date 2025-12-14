@@ -1,0 +1,31 @@
+{
+  "id": "usage-guide/ide-integration",
+  "title": "IDE Integration",
+  "description": "Integrate Argus with your code editor",
+  "source": "@site/docs/usage-guide/ide-integration.md",
+  "sourceDirName": "usage-guide",
+  "slug": "/usage-guide/ide-integration",
+  "permalink": "/docs/usage-guide/ide-integration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/usage-guide/ide-integration.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "IDE Integration",
+    "description": "Integrate Argus with your code editor"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "CI Integration",
+    "permalink": "/docs/usage-guide/ci-integration"
+  },
+  "next": {
+    "title": "Working with HIE Files",
+    "permalink": "/docs/usage-guide/working-with-hie"
+  }
+}

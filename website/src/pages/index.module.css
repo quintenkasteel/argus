@@ -1,0 +1,112 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroDescription {
+  font-size: 1.25rem;
+  max-width: 600px;
+  margin: 1rem auto 2rem;
+  opacity: 0.9;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.features {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+}
+
+.features .row {
+  gap: 2rem;
+}
+
+.quickInstall {
+  background-color: var(--ifm-color-emphasis-100);
+  padding: 4rem 0;
+}
+
+[data-theme='dark'] .quickInstall {
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+.installCode {
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.installCode pre {
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.ruleCategories {
+  padding: 4rem 0;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.categoryCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 8px;
+  background: var(--ifm-card-background-color);
+  border-left: 4px solid var(--category-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.categoryCard:hover {
+  transform: translateY(-2px);
+}
+
+.categoryName {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--category-color);
+}
+
+.categoryCount {
+  font-size: 0.875rem;
+  color: var(--ifm-color-content-secondary);
+  margin-top: 0.25rem;
+}
+
+@media screen and (max-width: 768px) {
+  .heroBanner {
+    padding: 2rem 1rem;
+  }
+
+  .heroDescription {
+    font-size: 1rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
+
+  .buttons .button {
+    width: 100%;
+    max-width: 300px;
+    margin: 0;
+  }
+}

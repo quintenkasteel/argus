@@ -1,0 +1,1 @@
+[{"code":"pattern/avoid-head","hasFix":true,"message":"Use listToMaybe instead of partial head","severity":"Warning"},{"code":"security/undefined","hasFix":false,"message":"undefined will crash at runtime","severity":"Error"}]

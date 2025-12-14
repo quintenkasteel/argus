@@ -1,0 +1,31 @@
+{
+  "id": "architecture/fix-system",
+  "title": "Fix System",
+  "description": "How Argus generates and applies automatic fixes",
+  "source": "@site/docs/architecture/fix-system.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/fix-system",
+  "permalink": "/docs/architecture/fix-system",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/quinten/argus/tree/main/website/docs/architecture/fix-system.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Fix System",
+    "description": "How Argus generates and applies automatic fixes"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "HIE Integration",
+    "permalink": "/docs/architecture/hie-integration"
+  },
+  "next": {
+    "title": "Analysis Passes",
+    "permalink": "/docs/architecture/analysis-passes"
+  }
+}

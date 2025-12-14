@@ -1,10 +1,10 @@
 -- |
 -- Module      : Main
--- Description : Entry point for the Haskell linter
+-- Description : Entry point for Argus - The All-Seeing Haskell Static Analyzer
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This is the main entry point for the haskell-linter tool.
+-- This is the main entry point for the Argus tool.
 module Main (main) where
 
-import Linter.CLI (main)
+import Argus.CLI (main)

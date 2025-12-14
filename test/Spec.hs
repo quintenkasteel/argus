@@ -18,11 +18,12 @@ import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import Test.Hspec
 
-import Linter.Config
-import Linter.Core
-import Linter.Types
-import Linter.Rules.Naming
-import Linter.Analysis.Syntactic
+import Argus.Config
+import Argus.Core
+import Argus.Types
+import Argus.Rules.Naming
+import Argus.Rules.ConfigurableRules (defaultRulesConfig)
+import Argus.Analysis.Syntactic
 
 --------------------------------------------------------------------------------
 -- Main Test Spec
@@ -30,10 +31,10 @@ import Linter.Analysis.Syntactic
 
 spec :: Spec
 spec = do
-  describe "Linter.Config" configSpec
-  describe "Linter.Analysis.Syntactic" syntacticSpec
-  describe "Linter.Rules.Naming" namingSpec
-  describe "Linter.Core" coreSpec
+  describe "Argus.Config" configSpec
+  describe "Argus.Analysis.Syntactic" syntacticSpec
+  describe "Argus.Rules.Naming" namingSpec
+  describe "Argus.Core" coreSpec
   describe "Integration Tests" integrationSpec
 
 --------------------------------------------------------------------------------
@@ -149,7 +150,7 @@ coreSpec = do
   describe "analyzeFile" $ do
     it "analyzes a valid Haskell file" $ do
       cfg <- loadConfig (Just "test/config.yaml")
-      let ctx = AnalysisContext cfg defaultOptions [] Nothing
+      let ctx = AnalysisContext cfg defaultOptions [] Nothing defaultRulesConfig Nothing
       result <- analyzeFile ctx "test/data/Test1.hs"
       fileResultPath result `shouldBe` "test/data/Test1.hs"
 
@@ -169,7 +170,7 @@ integrationSpec = do
       it ("correctly processes " ++ testFile) $ do
         cfg <- loadLegacyConfig "test/config.yaml"
         let config = convertLegacyConfig cfg
-            ctx = AnalysisContext config defaultOptions [] Nothing
+            ctx = AnalysisContext config defaultOptions [] Nothing defaultRulesConfig Nothing
 
         result <- analyzeFile ctx inputFile
 
@@ -180,9 +181,9 @@ integrationSpec = do
 -- Helper Functions
 --------------------------------------------------------------------------------
 
--- | Find Haskell files for testing
-findHaskellFiles :: [FilePath] -> IO [FilePath]
-findHaskellFiles paths = concat <$> mapM findInPath paths
+-- | Find Haskell files in test directories (simple, non-recursive)
+findTestHsFiles :: [FilePath] -> IO [FilePath]
+findTestHsFiles paths = concat <$> mapM findInPath paths
   where
     findInPath path = do
       contents <- listDirectory path
