@@ -57,6 +57,12 @@ jobs:
         run: |
           brew install sqlite3
 
+      # Clear Stack's Hackage cache on macOS to avoid verification errors
+      - name: Clear Hackage cache (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          rm -rf ~/.stack/pantry/hackage || true
+
       # Restore file timestamps to prevent unnecessary rebuilds
       - name: Restore file timestamps
         run: |
@@ -70,8 +76,14 @@ jobs:
           done
 
       # Build dependencies first (better caching)
+      # Retry on macOS due to occasional Hackage index issues
       - name: Build dependencies
-        run: make deps
+        run: |
+          for i in 1 2 3; do
+            make deps && break
+            echo "Attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          done
 
       # Run full CI build (warnings as errors + tests)
       - name: Run CI build

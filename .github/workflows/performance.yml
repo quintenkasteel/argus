@@ -70,12 +70,18 @@ jobs:
             # Extract baseline vs current comparisons
             grep -E "(Baseline:|Current:|Change:)" perf-output.txt > metrics.txt || true
 
-            # Count regressions
-            REGRESSIONS=$(grep -c "Performance regression detected" perf-output.txt || echo "0")
+            # Count regressions (grep -c returns 1 if no match, so we capture and default)
+            REGRESSIONS=$(grep -c "Performance regression detected" perf-output.txt 2>/dev/null || true)
+            if [ -z "$REGRESSIONS" ] || [ "$REGRESSIONS" = "" ]; then
+              REGRESSIONS=0
+            fi
             echo "regressions=$REGRESSIONS" >> $GITHUB_OUTPUT
 
             # Extract successful baseline recordings
-            BASELINES=$(grep -c "Baseline recorded" perf-output.txt || echo "0")
+            BASELINES=$(grep -c "Baseline recorded" perf-output.txt 2>/dev/null || true)
+            if [ -z "$BASELINES" ] || [ "$BASELINES" = "" ]; then
+              BASELINES=0
+            fi
             echo "baselines=$BASELINES" >> $GITHUB_OUTPUT
           else
             echo "regressions=0" >> $GITHUB_OUTPUT
@@ -302,6 +308,7 @@ jobs:
           name: profiling-results
           path: .profile-results/
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Check for space leaks
         run: |
