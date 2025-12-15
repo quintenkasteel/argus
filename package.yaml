@@ -67,6 +67,9 @@ ghc-options:
   - -Wunused-packages
   - -fwrite-ide-info
   - -hiedir=.hie
+  # Suppress macOS case-sensitivity warnings from clang CPP
+  # See: https://github.com/commercialhaskell/stack/issues/3918
+  - -optP-Wno-nonportable-include-path
 
 library:
   source-dirs: src
