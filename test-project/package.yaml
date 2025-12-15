@@ -17,6 +17,8 @@ dependencies:
   - cryptonite
   - memory
   - deepseq
+  - hiedb
+  - ghc
 
 library:
   source-dirs: src
@@ -33,6 +35,9 @@ library:
     - Duplicates
     - Naming
     - TemplateHaskell
+    - YesodTHSimulation
+    - THRealTest
+    - THRealTest.TH
     - Architecture.Core
     - Architecture.DB
     - Architecture.UI
@@ -43,6 +48,9 @@ executables:
     source-dirs: src
     dependencies:
       - test-project
+
+build-tools:
+  - hiedb
 
 ghc-options:
   - -fwrite-ide-info

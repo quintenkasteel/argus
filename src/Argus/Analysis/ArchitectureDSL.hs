@@ -119,8 +119,6 @@ module Argus.Analysis.ArchitectureDSL
 
 import Control.Monad.State.Strict
 import Data.Aeson (ToJSON, FromJSON)
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -129,7 +127,7 @@ import Data.Text qualified as T
 import GHC.Generics (Generic)
 
 import Argus.Analysis.Architecture (ArchitectureConfig(..), LayerConfig(..), ArchitectureReport(..), LayerViolation(..), CircularDep(..), CouplingMetrics(..))
-import Argus.Types (SrcSpan, Diagnostic(..))
+import Argus.Types (SrcSpan)
 
 --------------------------------------------------------------------------------
 -- Types

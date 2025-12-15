@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
@@ -49,11 +50,9 @@ module Argus.Plugin.Manifest
 import Control.DeepSeq (NFData)
 import Control.Exception (try)
 import Data.Aeson (FromJSON, ToJSON)
-import Data.Aeson qualified as JSON
-import Data.List (intercalate)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, isJust, mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -275,7 +274,7 @@ parseVersion txt =
     _ -> Left $ "Invalid version format: " <> txt
   where
     isVersionChar c = c >= '0' && c <= '9' || c == '.'
-    (versionPart, rest) = T.break (\c -> c == '-' || c == '+') txt
+    (_versionPart, rest) = T.break (\c -> c == '-' || c == '+') txt
     (preRelease, build) = case T.uncons rest of
       Just ('-', r) -> let (pr, b) = T.break (== '+') r
                        in (Just pr, if T.null b then Nothing else Just (T.drop 1 b))
@@ -292,8 +291,9 @@ parseVersionConstraint txt
   | ">=" `T.isPrefixOf` txt = VCMinimum <$> parseVersion (T.drop 2 txt)
   | "<=" `T.isPrefixOf` txt = VCMaximum <$> parseVersion (T.drop 2 txt)
   | " - " `T.isInfixOf` txt =
-      let [minV, maxV] = T.splitOn " - " txt
-      in VCRange <$> parseVersion minV <*> parseVersion maxV
+      case T.splitOn " - " txt of
+        [minV, maxV] -> VCRange <$> parseVersion minV <*> parseVersion maxV
+        _ -> Left $ "Invalid version range: " <> txt
   | otherwise = VCExact <$> parseVersion txt
 
 -- | Check if a version satisfies a constraint
@@ -438,8 +438,8 @@ parseManifest txt = do
       in Right $ Set.fromList $ map (unquote . snd) perms
 
     parseList :: Text -> [Text]
-    parseList txt =
-      let stripped = T.strip $ T.dropWhile (== '[') $ T.dropWhileEnd (== ']') txt
+    parseList txt' =
+      let stripped = T.strip $ T.dropWhile (== '[') $ T.dropWhileEnd (== ']') txt'
       in map (T.strip . unquote) $ T.splitOn "," stripped
 
     unquote :: Text -> Text
@@ -452,8 +452,6 @@ parseManifest txt = do
     eitherToMaybe :: Either a b -> Maybe b
     eitherToMaybe (Right x) = Just x
     eitherToMaybe (Left _) = Nothing
-
-    (&) = flip ($)
 
 -- | Parse a manifest file
 parseManifestFile :: FilePath -> IO (Either ManifestError PluginManifest)

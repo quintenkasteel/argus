@@ -6,9 +6,36 @@
 -- Description : Core types for HIE-backed analysis
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module defines the core types used for HIE-backed analysis,
 -- including symbol information, type constraints, and safety checks.
+--
+-- = HIE Files
+--
+-- HIE (Haskell Interface Extended) files contain rich semantic information
+-- produced by GHC during compilation. This information includes:
+--
+-- * Type information for all expressions
+-- * Cross-reference data (definitions, usages)
+-- * Scope information
+-- * Instance declarations
+--
+-- = Key Types
+--
+-- * 'HieSymbol': Complete information about a symbol
+-- * 'TypeInfo': Type information for expressions/bindings
+-- * 'TypeConstraint': Type class constraint information
+-- * 'ReplaceSafety': Safety analysis for symbol replacement
+--
+-- = Thread Safety
+--
+-- All types in this module are immutable and thread-safe.
+--
+-- @since 1.0.0
 module Argus.HIE.Types
   ( -- * Symbol Information
     HieSymbol (..)

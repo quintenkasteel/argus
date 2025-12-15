@@ -662,12 +662,12 @@ generateSecurityFixes _ _ _ = []
 
 -- | Extend a span's end column by n characters
 extendSpan :: SrcSpan -> Int -> SrcSpan
-extendSpan span n = mkSrcSpanRaw
-  (srcSpanFile span)
-  (srcSpanStartLineRaw span)
-  (srcSpanStartColRaw span)
-  (srcSpanEndLineRaw span)
-  (srcSpanEndColRaw span + n)
+extendSpan srcSpan n = mkSrcSpanRaw
+  (srcSpanFile srcSpan)
+  (srcSpanStartLineRaw srcSpan)
+  (srcSpanStartColRaw srcSpan)
+  (srcSpanEndLineRaw srcSpan)
+  (srcSpanEndColRaw srcSpan + n)
 
 -- | Helper to create a security fix with proper category and safety
 mkSecurityFix :: Text -> [FixEdit] -> Bool -> Fix
@@ -680,18 +680,6 @@ mkSecurityFix title edits preferred = Fix
   , fixCategory = FCSecurity
   , fixSafety = FSReview
   }
-
--- | Remove a trace "message" call from code
--- trace "msg" expr → expr
-removeTraceCall :: Text -> Text
-removeTraceCall code =
-  case T.breakOn "trace \"" code of
-    (before, rest) ->
-      case T.breakOn "\" " (T.drop 7 rest) of  -- Skip 'trace "'
-        (_, afterQuote) ->
-          if T.null afterQuote
-          then code  -- Can't parse, return unchanged
-          else before <> T.drop 2 afterQuote  -- Skip '" '
 
 categoryCode :: SecurityCategory -> Text
 categoryCode = \case

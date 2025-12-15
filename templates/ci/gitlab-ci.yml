@@ -1,0 +1,244 @@
+# Argus Haskell Linter - GitLab CI Integration
+# Copy this file to .gitlab-ci.yml or include it in your existing pipeline
+#
+# This pipeline runs Argus static analysis on your Haskell codebase
+# and generates SARIF/CodeClimate reports.
+#
+# Prerequisites:
+#   - Stack-based Haskell project
+#   - Argus installed (built from source or from release)
+#
+# Configuration:
+#   - Edit variables below to customize behavior
+#   - Modify LINT_PATHS to analyze specific directories
+
+variables:
+  # Paths to analyze
+  LINT_PATHS: "src/ app/"
+  # Whether to fail on lint errors (set to "false" to continue on errors)
+  FAIL_ON_ERROR: "true"
+  # Output format for console (terminal, plain, json)
+  OUTPUT_FORMAT: "terminal"
+  # Stack version
+  STACK_VERSION: "latest"
+
+# Cache Stack dependencies across jobs
+.stack-cache: &stack-cache
+  cache:
+    key: stack-$CI_COMMIT_REF_SLUG
+    paths:
+      - .stack-work/
+      - ~/.stack/
+    policy: pull-push
+
+# Base job for Argus-related tasks
+.argus-base:
+  image: haskell:9.6
+  <<: *stack-cache
+  before_script:
+    # Install system dependencies
+    - apt-get update && apt-get install -y libsqlite3-dev git
+    # Clone and build Argus
+    - |
+      if [ ! -f /usr/local/bin/argus ]; then
+        git clone --depth 1 https://github.com/quintenkasteel/argus.git /tmp/argus
+        cd /tmp/argus
+        stack build --fast --copy-bins --local-bin-path /usr/local/bin
+        cd -
+      fi
+    - argus --version || true
+
+stages:
+  - lint
+  - fix
+  - report
+
+# Main lint job
+argus:lint:
+  extends: .argus-base
+  stage: lint
+  script:
+    # Initialize Argus config if not present
+    - |
+      if [ ! -f argus.toml ] && [ ! -f linter.toml ]; then
+        argus init --quiet || true
+      fi
+
+    # Run Argus analysis
+    - |
+      set +e
+      argus check ${LINT_PATHS} --format ${OUTPUT_FORMAT} --color always 2>&1 | tee argus-results.txt
+      EXIT_CODE=$?
+
+      # Count issues
+      ERRORS=$(grep -c "error:" argus-results.txt || echo "0")
+      WARNINGS=$(grep -c "warning:" argus-results.txt || echo "0")
+      echo "ARGUS_ERRORS=${ERRORS}" >> argus.env
+      echo "ARGUS_WARNINGS=${WARNINGS}" >> argus.env
+      echo "ARGUS_EXIT_CODE=${EXIT_CODE}" >> argus.env
+
+      echo "Found ${ERRORS} errors and ${WARNINGS} warnings"
+
+      if [ "${FAIL_ON_ERROR}" = "true" ] && [ "${ERRORS}" -gt 0 ]; then
+        exit 1
+      fi
+  artifacts:
+    reports:
+      dotenv: argus.env
+    paths:
+      - argus-results.txt
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "**/*.hs"
+        - "package.yaml"
+        - "stack.yaml"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: manual
+      allow_failure: true
+
+# Generate CodeClimate report for GitLab Code Quality
+argus:codeclimate:
+  extends: .argus-base
+  stage: report
+  needs:
+    - job: argus:lint
+      optional: true
+  script:
+    - argus check ${LINT_PATHS} --format codeclimate > codeclimate.json 2>&1 || true
+    # Validate JSON
+    - python3 -c "import json; json.load(open('codeclimate.json'))" || echo "[]" > codeclimate.json
+  artifacts:
+    reports:
+      codequality: codeclimate.json
+    paths:
+      - codeclimate.json
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Generate SARIF report
+argus:sarif:
+  extends: .argus-base
+  stage: report
+  needs:
+    - job: argus:lint
+      optional: true
+  script:
+    - argus check ${LINT_PATHS} --format sarif > argus-results.sarif 2>&1 || true
+    # Validate JSON
+    - python3 -c "import json; json.load(open('argus-results.sarif'))" || echo '{"version":"2.1.0","runs":[]}' > argus-results.sarif
+  artifacts:
+    reports:
+      sast: argus-results.sarif
+    paths:
+      - argus-results.sarif
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Generate JUnit report for test integration
+argus:junit:
+  extends: .argus-base
+  stage: report
+  needs:
+    - job: argus:lint
+      optional: true
+  script:
+    - argus check ${LINT_PATHS} --format junit > junit-report.xml 2>&1 || true
+  artifacts:
+    reports:
+      junit: junit-report.xml
+    paths:
+      - junit-report.xml
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Auto-fix suggestions (manual trigger)
+argus:fix:
+  extends: .argus-base
+  stage: fix
+  needs:
+    - job: argus:lint
+  script:
+    - |
+      echo "Generating auto-fix suggestions..."
+      argus fix ${LINT_PATHS} --dry-run --format diff > fix-suggestions.diff 2>&1 || true
+
+      if [ -s fix-suggestions.diff ]; then
+        echo "Auto-fix suggestions available:"
+        cat fix-suggestions.diff
+        echo ""
+        echo "To apply these fixes locally, run:"
+        echo "  argus fix ${LINT_PATHS}"
+      else
+        echo "No auto-fixes available"
+      fi
+  artifacts:
+    paths:
+      - fix-suggestions.diff
+    expire_in: 7 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - when: manual
+      allow_failure: true
+
+# Baseline comparison (for existing codebases)
+argus:baseline:
+  extends: .argus-base
+  stage: lint
+  script:
+    - |
+      # Generate or compare against baseline
+      if [ -f .argus-baseline.json ]; then
+        echo "Comparing against baseline..."
+        argus diff ${LINT_PATHS} --baseline .argus-baseline.json > baseline-diff.txt 2>&1 || true
+        cat baseline-diff.txt
+
+        # Check for new issues
+        NEW_ISSUES=$(grep -c "new:" baseline-diff.txt || echo "0")
+        if [ "${NEW_ISSUES}" -gt 0 ]; then
+          echo "Found ${NEW_ISSUES} new issue(s) compared to baseline"
+          if [ "${FAIL_ON_ERROR}" = "true" ]; then
+            exit 1
+          fi
+        fi
+      else
+        echo "No baseline file found. Generate one with:"
+        echo "  argus baseline ${LINT_PATHS} > .argus-baseline.json"
+      fi
+  artifacts:
+    paths:
+      - baseline-diff.txt
+    expire_in: 7 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - .argus-baseline.json
+    - when: manual
+      allow_failure: true
+
+# Statistics job (for monitoring trends)
+argus:stats:
+  extends: .argus-base
+  stage: report
+  needs:
+    - job: argus:lint
+      optional: true
+  script:
+    - argus stats ${LINT_PATHS} --format json > stats.json 2>&1 || true
+    - argus stats ${LINT_PATHS} --format terminal || true
+  artifacts:
+    paths:
+      - stats.json
+    expire_in: 90 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: manual
+      allow_failure: true

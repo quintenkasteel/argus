@@ -80,7 +80,7 @@ module Argus.Analysis.Comments
   ) where
 
 import Data.Aeson (ToJSON, FromJSON)
-import Data.List (sortBy, foldl')
+import Data.List (sortBy)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe, listToMaybe)
@@ -91,7 +91,6 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 
-import Argus.Types (Line(..), Column(..))
 
 --------------------------------------------------------------------------------
 -- Comment Types
@@ -302,32 +301,35 @@ scanBlockComment config comments state lineNum lineText col
                    then scanBlockComment config comments
                           (state { psBlockNesting = psBlockNesting state - 1 })
                           lineNum lineText (col + 2)
-                   else
-                     -- Close the block comment
-                     let endCol = col + 1
-                         Just (startLine, startCol) = psBlockStart state
-                         commentContent' = psBlockContent state <> T.take (col - 1) lineText
-                         commentType' = classifyBlockComment (psBlockContent state)
-                         newComment = CommentInfo
-                           { commentType = if ccTrackHaddock config then commentType' else BlockComment
-                           , commentStartLine = startLine
-                           , commentStartCol = startCol
-                           , commentEndLine = lineNum
-                           , commentEndCol = endCol
-                           , commentContent = commentContent'
-                           , commentNesting = 0
-                           }
-                         newState = state
-                           { psInBlockComment = False
-                           , psBlockNesting = 0
-                           , psBlockStart = Nothing
-                           , psBlockContent = ""
-                           }
-                         -- Continue scanning the rest of the line
-                         restLine = T.drop (col + 1) lineText
-                     in if T.null restLine
-                          then (newComment : comments, newState)
-                          else processNewLine config (newComment : comments) newState lineNum (T.replicate (col + 1) " " <> restLine)
+                   else case psBlockStart state of
+                     Nothing ->
+                       -- Shouldn't happen, but handle gracefully
+                       (comments, state { psInBlockComment = False, psBlockNesting = 0 })
+                     Just (startLine, startCol) ->
+                       -- Close the block comment
+                       let endCol = col + 1
+                           commentContent' = psBlockContent state <> T.take (col - 1) lineText
+                           commentType' = classifyBlockComment (psBlockContent state)
+                           newComment = CommentInfo
+                             { commentType = if ccTrackHaddock config then commentType' else BlockComment
+                             , commentStartLine = startLine
+                             , commentStartCol = startCol
+                             , commentEndLine = lineNum
+                             , commentEndCol = endCol
+                             , commentContent = commentContent'
+                             , commentNesting = 0
+                             }
+                           newState = state
+                             { psInBlockComment = False
+                             , psBlockNesting = 0
+                             , psBlockStart = Nothing
+                             , psBlockContent = ""
+                             }
+                           -- Continue scanning the rest of the line
+                           restLine = T.drop (col + 1) lineText
+                       in if T.null restLine
+                            then (newComment : comments, newState)
+                            else processNewLine config (newComment : comments) newState lineNum (T.replicate (col + 1) " " <> restLine)
 
                -- Continue scanning
                _ -> scanBlockComment config comments
@@ -389,7 +391,7 @@ scanLine config comments state lineNum lineText col inStr
           _ -> case T.take 2 remaining of
             -- Block comment start
             "{-" ->
-              let isHaddock = T.isPrefixOf "|" (T.drop 2 remaining) || T.isPrefixOf "^" (T.drop 2 remaining)
+              let _isHaddock = T.isPrefixOf "|" (T.drop 2 remaining) || T.isPrefixOf "^" (T.drop 2 remaining)
                   newState = state
                     { psInBlockComment = True
                     , psBlockNesting = 1

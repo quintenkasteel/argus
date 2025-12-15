@@ -3,12 +3,12 @@
 module StringPatterns where
 
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Char8 as BS8
+import Data.Text (Text)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Char (toLower, toUpper, isSpace)
 import Data.List (intercalate)
 

@@ -6,6 +6,10 @@
 -- Description : Sequential fix application with span adjustment
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides a robust system for applying multiple fixes
 -- to the same file sequentially. After each fix is applied:
@@ -15,17 +19,43 @@
 -- 3. Re-validate that adjusted fixes are still applicable
 -- 4. Optionally run compilation check
 --
--- == Why Sequential Application?
+-- = Why Sequential Application?
 --
 -- The naive approach of applying all fixes at once has issues:
 --
 -- * No validation between fixes (one bad fix breaks everything)
--- * No ability to skip/rollback individual fixes
+-- * No ability to skip\/rollback individual fixes
 -- * No re-detection of new issues after each fix
 --
 -- Sequential application with span adjustment solves these problems.
 --
--- == Usage
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                   Sequential Fix Application                        │
+-- │                                                                     │
+-- │  Fixes ──► Sort by Span ──► Apply First ──► Validate ──► Continue  │
+-- │                                  │              │                   │
+-- │                                  ▼              ▼                   │
+-- │                           Compute Delta    Success/Fail             │
+-- │                                  │              │                   │
+-- │                                  ▼              ▼                   │
+-- │                           Adjust Remaining  Record Result           │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Re-detection Mode
+--
+-- With 'RedetectionConfig', the fixer can re-run analysis after each fix
+-- to discover new issues or verify that fixes didn't introduce regressions.
+--
+-- = Thread Safety
+--
+-- Sequential fixing is IO-based and operates on a single file at a time.
+-- For multi-file fixes, use 'Argus.AutoFix.MultiFile'.
+--
+-- = Usage
 --
 -- @
 -- result <- applyFixesSequentially config content fixes
@@ -34,6 +64,8 @@
 --   SeqPartial applied failed -> -- Some fixes failed
 --   SeqFailed err -> -- Complete failure
 -- @
+--
+-- @since 1.0.0
 module Argus.Refactor.SequentialFixer
   ( -- * Sequential Application
     applyFixesSequentially
@@ -74,9 +106,7 @@ import Argus.Refactor.SpanAdjustment
 import Argus.Refactor.Validation
   ( validateSyntax
   , ValidationError(..)
-  , ValidationSeverity(..)
   )
-import Argus.Analysis.Syntactic (parseModule)
 
 --------------------------------------------------------------------------------
 -- Configuration
@@ -242,10 +272,10 @@ applyFixesSequentially config path content fixes = do
                 let delta = case fixEdits adjustedFix of
                       [] -> SpanDelta path (1, 1) (1, 1) 0 0 1 1
                       (edit:_) ->
-                        let span = fixEditSpan edit
-                            oldText = extractSpanText currentContent span
+                        let theSpan = fixEditSpan edit
+                            oldText = extractSpanText currentContent theSpan
                             newText = fixEditNewText edit
-                        in computeDelta span oldText newText
+                        in computeDelta theSpan oldText newText
 
                 -- Record success
                 let appliedInfo = AppliedFixInfo
@@ -320,7 +350,7 @@ applyFixesWithRedetection config redetectConfig path content initialFixes = do
           (fix:rest) -> do
             writeIORef fixQueueRef rest
             currentContent <- readIORef contentRef
-            currentDeltas <- readIORef deltasRef
+            _currentDeltas <- readIORef deltasRef
 
             -- Apply single fix
             result <- applyFixesSequentially
@@ -488,12 +518,12 @@ parseGhcError defaultFile line =
 
 -- | Extract text from a span (copied from SpanAdjustment for local use).
 extractSpanText :: Text -> SrcSpan -> Text
-extractSpanText content span =
+extractSpanText content theSpan =
   let contentLines = T.lines content
-      startLine = srcSpanStartLineRaw span
-      endLine = srcSpanEndLineRaw span
-      startCol = srcSpanStartColRaw span
-      endCol = srcSpanEndColRaw span
+      startLine = srcSpanStartLineRaw theSpan
+      endLine = srcSpanEndLineRaw theSpan
+      startCol = srcSpanStartColRaw theSpan
+      endCol = srcSpanEndColRaw theSpan
 
   in if startLine == endLine
      then
@@ -512,7 +542,6 @@ extractSpanText content span =
                                [] -> ""
                                (l:_) -> T.take (endCol - 1) l
                   middleParts = case rest of
-                                  [] -> []
                                   [_] -> []
                                   xs -> init xs
               in T.intercalate "\n" ([firstPart] ++ middleParts ++ [lastPart])

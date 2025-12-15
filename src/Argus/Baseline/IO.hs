@@ -32,7 +32,7 @@ module Argus.Baseline.IO
   ) where
 
 import Control.Exception (try, IOException)
-import Data.Aeson (eitherDecodeStrict, encode)
+import Data.Aeson (eitherDecodeStrict)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, confIndent, Indent(..))
 import Data.ByteString qualified as BS
 import Data.ByteString.Lazy qualified as BL
@@ -40,9 +40,9 @@ import Data.List (nubBy)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (getCurrentTime)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath (takeDirectory)
 
 import Argus.Types (Diagnostic)
 import Argus.Baseline.Types

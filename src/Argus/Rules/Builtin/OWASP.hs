@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Module      : Argus.Rules.Builtin.OWASP
@@ -61,7 +60,6 @@ module Argus.Rules.Builtin.OWASP
 
 import Data.Text (Text)
 import Argus.Rules.Types
-import Argus.Types (Severity(..))
 
 --------------------------------------------------------------------------------
 -- Helper Functions
@@ -167,6 +165,8 @@ rulePrivilegeEscalation = defaultRule
 a02CryptographicFailures :: [Rule]
 a02CryptographicFailures = map (owaspRule "A02" ["CWE-327", "CWE-328"])
   [ ruleWeakCipher
+  , ruleWeakHash
+  , ruleWeakRandom
   , ruleHardcodedKey
   , ruleInsecureKeySize
   , ruleECBMode
@@ -179,11 +179,37 @@ ruleWeakCipher = defaultRule
   { ruleId = "owasp/a02-weak-cipher"
   , ruleSeverity = Error
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "RC4|RC2|Blowfish|IDEA|DES(?!ede)|3DES|TripleDES"
+  -- Note: Using alternation instead of negative lookahead (not supported by regex-tdfa)
+  , rulePattern = RegexPatternSpec "\\bRC4\\b|\\bRC2\\b|\\bBlowfish\\b|\\bIDEA\\b|\\b3DES\\b|\\bTripleDES\\b|\\bDES_"
   , ruleMessage = "A02:2021 - Weak/deprecated cipher algorithm. Use AES-256-GCM or ChaCha20-Poly1305 instead. [CWE-327]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = Unsafe
+  }
+
+ruleWeakHash :: Rule
+ruleWeakHash = defaultRule
+  { ruleId = "owasp/a02-weak-hash"
+  , ruleSeverity = Error
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "\\bMD5\\b|\\bmd5\\b|\\bSHA1\\b|\\bsha1\\b|hashMD5|hashSHA1|Crypto\\.Hash\\.MD5|Crypto\\.Hash\\.SHA1"
+  , ruleMessage = "A02:2021 - Weak/deprecated hash algorithm. MD5 and SHA1 are cryptographically broken. Use SHA-256, SHA-3, or BLAKE2. [CWE-328]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment, NotInString]
+  , ruleSafety = Unsafe
+  }
+
+ruleWeakRandom :: Rule
+ruleWeakRandom = defaultRule
+  { ruleId = "owasp/a02-weak-random"
+  , ruleSeverity = Warning
+  , ruleCategory = Security
+  -- Note: Matches common insecure random functions; verify crypto context
+  , rulePattern = RegexPatternSpec "\\brandomIO\\b|\\brandomRIO\\b|\\bnewStdGen\\b|\\bmkStdGen\\b|import\\s+System\\.Random\\b"
+  , ruleMessage = "A02:2021 - Potentially weak random number generation. System.Random is not cryptographically secure. Use Crypto.Random for security-sensitive operations. [CWE-330]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment, NotInString]
+  , ruleSafety = NeedsReview
   }
 
 ruleHardcodedKey :: Rule
@@ -203,7 +229,8 @@ ruleInsecureKeySize = defaultRule
   { ruleId = "owasp/a02-weak-key"
   , ruleSeverity = Warning
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "keySize.*=.*(64|128)|RSA.*(512|1024)|AES.*(64|128)(?!.*GCM)"
+  -- Note: Simplified pattern without negative lookahead (not supported by regex-tdfa)
+  , rulePattern = RegexPatternSpec "keySize.*=.*(64|128)\\b|RSA.*(512|1024)\\b|\\bAES64\\b|\\bAES128\\b"
   , ruleMessage = "A02:2021 - Potentially weak key size. Use at least 256-bit for symmetric and 2048-bit for asymmetric encryption. [CWE-326]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
@@ -239,7 +266,8 @@ rulePlaintextProtocol = defaultRule
   { ruleId = "owasp/a02-plaintext"
   , ruleSeverity = Warning
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "\"http://(?!localhost|127\\.0\\.0\\.1)|\"ftp://|\"telnet://|\"smtp://(?!.*tls)"
+  -- Note: Simplified pattern - matches plaintext protocols (may have false positives for localhost)
+  , rulePattern = RegexPatternSpec "\"http://[a-zA-Z]|\"ftp://|\"telnet://|\"smtp://"
   , ruleMessage = "A02:2021 - Plaintext protocol URL. Use encrypted protocols (HTTPS, FTPS, SMTPS) to protect data in transit. [CWE-319]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment]
@@ -260,6 +288,8 @@ a03Injection = map (owaspRule "A03" ["CWE-89", "CWE-78"])
   , ruleXPathInjection
   , ruleTemplateInjection
   , ruleLogInjection
+  , ruleXSS
+  , ruleHTMLInjection
   ]
 
 ruleSQLInjection :: Rule
@@ -346,6 +376,30 @@ ruleLogInjection = defaultRule
   , ruleSafety = NeedsReview
   }
 
+ruleXSS :: Rule
+ruleXSS = defaultRule
+  { ruleId = "owasp/a03-xss"
+  , ruleSeverity = Error
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "toHtml.*\\$.*user|rawHtml.*request|preEscapedText.*input|unsafeByteString.*param"
+  , ruleMessage = "A03:2021 - Cross-Site Scripting (XSS) risk. User input rendered as HTML without escaping can execute malicious scripts. Use proper HTML escaping. [CWE-79]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment, NotInString]
+  , ruleSafety = Unsafe
+  }
+
+ruleHTMLInjection :: Rule
+ruleHTMLInjection = defaultRule
+  { ruleId = "owasp/a03-html-injection"
+  , ruleSeverity = Warning
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "\"<script|\"<iframe|\"<object|\"<embed|\"<form.*action|javascript:"
+  , ruleMessage = "A03:2021 - HTML/JavaScript injection pattern in string literal. Ensure this is not user-controlled content. [CWE-79]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment]
+  , ruleSafety = NeedsReview
+  }
+
 --------------------------------------------------------------------------------
 -- A04:2021 - Insecure Design
 --------------------------------------------------------------------------------
@@ -364,8 +418,9 @@ ruleNoRateLimit = defaultRule
   { ruleId = "owasp/a04-no-rate-limit"
   , ruleSeverity = Suggestion
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "(login|authenticate|sendEmail|resetPassword|register)(?!.*rateLimit|throttle)"
-  , ruleMessage = "A04:2021 - Sensitive operation without rate limiting. Consider adding rate limiting to prevent brute force attacks. [CWE-307]"
+  -- Note: Pattern matches sensitive operations - manually verify rate limiting exists
+  , rulePattern = RegexPatternSpec "\\b(login|authenticate|sendEmail|resetPassword|register)\\s*::"
+  , ruleMessage = "A04:2021 - Sensitive operation detected. Ensure rate limiting is in place to prevent brute force attacks. [CWE-307]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview
@@ -474,8 +529,9 @@ ruleMissingSecurityHeaders = defaultRule
   { ruleId = "owasp/a05-missing-headers"
   , ruleSeverity = Suggestion
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "respondWith.*200|return.*response(?!.*securityHeaders|X-Content-Type|X-Frame-Options)"
-  , ruleMessage = "A05:2021 - Response may be missing security headers. Add X-Content-Type-Options, X-Frame-Options, and Content-Security-Policy. [CWE-693]"
+  -- Note: Simplified pattern - flags HTTP responses for manual security header review
+  , rulePattern = RegexPatternSpec "respondWith\\s+200|responseLBS\\s+status200"
+  , ruleMessage = "A05:2021 - HTTP response detected. Ensure security headers are set: X-Content-Type-Options, X-Frame-Options, Content-Security-Policy. [CWE-693]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview
@@ -509,7 +565,8 @@ ruleOutdatedDep = defaultRule
   { ruleId = "owasp/a06-outdated-dep"
   , ruleSeverity = Suggestion
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "import.*Crypto\\.(?!Hash|MAC|Random)|import.*Data\\.Binary\\.(?!Get|Put)"
+  -- Note: Matches old-style crypto imports - recommend cryptonite instead
+  , rulePattern = RegexPatternSpec "import.*Crypto\\.Cipher|import.*Crypto\\.Pubkey|import.*Data\\.Binary\\.Strict"
   , ruleMessage = "A06:2021 - Potentially outdated cryptographic library. Prefer cryptonite for modern cryptographic operations. [CWE-1104]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
@@ -528,6 +585,9 @@ a07AuthenticationFailures = map (owaspRule "A07" ["CWE-287", "CWE-384"])
   , ruleSessionFixation
   , ruleMissingMFA
   , ruleInsecureSession
+  , ruleJWTNoneAlg
+  , ruleJWTWeakSecret
+  , ruleHardcodedToken
   ]
 
 ruleWeakPassword :: Rule
@@ -535,7 +595,8 @@ ruleWeakPassword = defaultRule
   { ruleId = "owasp/a07-weak-password"
   , ruleSeverity = Warning
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "minLength.*=.*[1-7](?![0-9])|passwordLength.*<.*8"
+  -- Note: Matches short password length requirements
+  , rulePattern = RegexPatternSpec "minLength.*=.*[1-7]\\b|passwordLength.*<.*8|minPasswordLength.*=.*[1-7]\\b"
   , ruleMessage = "A07:2021 - Weak password requirements. Require at least 8 characters; NIST recommends supporting up to 64. [CWE-521]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
@@ -559,8 +620,9 @@ ruleSessionFixation = defaultRule
   { ruleId = "owasp/a07-session-fixation"
   , ruleSeverity = Warning
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "loginSuccess(?!.*regenerateSession|newSession)|authenticate(?!.*invalidateSession)"
-  , ruleMessage = "A07:2021 - Session may not be regenerated after login. Regenerate session IDs after authentication to prevent fixation. [CWE-384]"
+  -- Note: Simplified pattern - flags authentication functions for session handling review
+  , rulePattern = RegexPatternSpec "\\bloginSuccess\\b|\\bauthenticateUser\\b|\\bvalidateCredentials\\b"
+  , ruleMessage = "A07:2021 - Authentication detected. Ensure session IDs are regenerated after login to prevent fixation attacks. [CWE-384]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview
@@ -571,8 +633,9 @@ ruleMissingMFA = defaultRule
   { ruleId = "owasp/a07-missing-mfa"
   , ruleSeverity = Suggestion
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "adminLogin|privilegedAction|sensitiveOperation(?!.*2fa|mfa|totp|otp)"
-  , ruleMessage = "A07:2021 - Privileged operation without MFA check. Consider requiring multi-factor authentication for sensitive actions. [CWE-308]"
+  -- Note: Flags privileged operations for MFA review
+  , rulePattern = RegexPatternSpec "\\badminLogin\\b|\\bprivilegedAction\\b|\\bsudoOperation\\b|\\belevatedAccess\\b"
+  , ruleMessage = "A07:2021 - Privileged operation detected. Consider requiring multi-factor authentication for sensitive actions. [CWE-308]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview
@@ -587,6 +650,42 @@ ruleInsecureSession = defaultRule
   , ruleMessage = "A07:2021 - Insecure session configuration. Set appropriate timeouts and enable HttpOnly, Secure, and SameSite flags. [CWE-613]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
+  , ruleSafety = Unsafe
+  }
+
+ruleJWTNoneAlg :: Rule
+ruleJWTNoneAlg = defaultRule
+  { ruleId = "owasp/a07-jwt-none-alg"
+  , ruleSeverity = Error
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "alg.*=.*\"none\"|algorithm.*None|JWTAlgNone|unsafeVerify|skipVerification"
+  , ruleMessage = "A07:2021 - JWT with 'none' algorithm or verification bypass. Always verify JWT signatures with a strong algorithm. [CWE-347]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment, NotInString]
+  , ruleSafety = Unsafe
+  }
+
+ruleJWTWeakSecret :: Rule
+ruleJWTWeakSecret = defaultRule
+  { ruleId = "owasp/a07-jwt-weak-secret"
+  , ruleSeverity = Error
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "jwtSecret.*=.*\".{1,15}\"|hmacSecret.*=.*\".{1,15}\"|signingKey.*=.*\"(secret|password|key)\""
+  , ruleMessage = "A07:2021 - Weak or short JWT secret. Use at least 256-bit (32+ character) cryptographically random secret for HMAC signing. [CWE-326]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment]
+  , ruleSafety = Unsafe
+  }
+
+ruleHardcodedToken :: Rule
+ruleHardcodedToken = defaultRule
+  { ruleId = "owasp/a07-hardcoded-token"
+  , ruleSeverity = Error
+  , ruleCategory = Security
+  , rulePattern = RegexPatternSpec "apiToken.*=.*\"[A-Za-z0-9]{20,}\"|bearerToken.*=.*\"|authToken.*=.*\"[^\"]{10,}\""
+  , ruleMessage = "A07:2021 - Hardcoded authentication token. Store tokens in environment variables or secure configuration. [CWE-798]"
+  , ruleEnabled = True
+  , ruleConditions = [NotInComment]
   , ruleSafety = Unsafe
   }
 
@@ -619,8 +718,9 @@ ruleMissingSignature = defaultRule
   { ruleId = "owasp/a08-missing-signature"
   , ruleSeverity = Warning
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "downloadFile|fetchUpdate|loadPlugin(?!.*verify|checksum|signature|hash)"
-  , ruleMessage = "A08:2021 - Downloaded content may not be verified. Verify signatures or checksums for downloaded files and updates. [CWE-494]"
+  -- Note: Flags download operations for signature verification review
+  , rulePattern = RegexPatternSpec "\\bdownloadFile\\b|\\bfetchUpdate\\b|\\bloadRemotePlugin\\b|\\bfetchPackage\\b"
+  , ruleMessage = "A08:2021 - Download operation detected. Ensure signatures or checksums are verified for downloaded content. [CWE-494]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview
@@ -667,8 +767,9 @@ ruleMissingAuditLog = defaultRule
   { ruleId = "owasp/a09-missing-audit"
   , ruleSeverity = Suggestion
   , ruleCategory = Security
-  , rulePattern = RegexPatternSpec "deleteUser|changePermission|modifyConfig(?!.*audit|log.*action)"
-  , ruleMessage = "A09:2021 - Security-critical action without audit logging. Log authentication attempts, access control changes, and admin actions. [CWE-778]"
+  -- Note: Flags security-critical operations for audit logging review
+  , rulePattern = RegexPatternSpec "\\bdeleteUser\\b|\\bchangePermission\\b|\\bmodifySecurityConfig\\b|\\brevokeAccess\\b"
+  , ruleMessage = "A09:2021 - Security-critical action detected. Ensure audit logging is in place for authentication attempts and access control changes. [CWE-778]"
   , ruleEnabled = True
   , ruleConditions = [NotInComment, NotInString]
   , ruleSafety = NeedsReview

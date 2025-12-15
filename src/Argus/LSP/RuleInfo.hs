@@ -56,7 +56,7 @@ module Argus.LSP.RuleInfo
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe ()
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)

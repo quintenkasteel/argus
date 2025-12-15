@@ -460,8 +460,8 @@ previewTransaction _engine tx = do
 
     changeToPreview :: FileChange -> Maybe (Int, Text, Text)
     changeToPreview fc = do
-      span <- fchSpan fc
-      let line = unLine (srcSpanStartLine span)
+      sp <- fchSpan fc
+      let line = unLine (srcSpanStartLine sp)
           old = fromMaybe "" (fcOldContent fc)
           new = fromMaybe "" (fcNewContent fc)
       pure (line, old, new)
@@ -591,7 +591,7 @@ applyTransaction engine tx = do
   where
     createBackups :: MultiFileConfig -> [FilePath] -> IO (Map FilePath FilePath)
     createBackups cfg paths = do
-      now <- getCurrentTime
+      _now <- getCurrentTime
       let backupDir = mfcBackupDir cfg
       createDirectoryIfMissing True backupDir
 
@@ -650,7 +650,7 @@ applyTransaction engine tx = do
     sortByPosition = map snd . sortBy (comparing fst) . map withPos
       where
         withPos fc = case fchSpan fc of
-          Just span -> (unLine (srcSpanStartLine span), fc)
+          Just sp -> (unLine (srcSpanStartLine sp), fc)
           Nothing -> (0, fc)
 
         sortBy _ [] = []
@@ -664,35 +664,35 @@ applyTransaction engine tx = do
     applyFileChange :: Text -> FileChange -> IO Text
     applyFileChange content change = case fcKind change of
       CKInsert -> case (fchSpan change, fcNewContent change) of
-        (Just span, Just new) -> pure $ insertAt content span new
+        (Just sp, Just newContent) -> pure $ insertAt content sp newContent
         _ -> pure content
       CKDelete -> case fchSpan change of
-        Just span -> pure $ deleteAt content span
+        Just sp -> pure $ deleteAt content sp
         Nothing -> pure content
       CKReplace -> case (fchSpan change, fcNewContent change) of
-        (Just span, Just new) -> pure $ replaceAt content span new
+        (Just sp, Just newContent) -> pure $ replaceAt content sp newContent
         _ -> pure content
       _ -> pure content
 
     insertAt :: Text -> SrcSpan -> Text -> Text
-    insertAt content span new =
+    insertAt content srcSpan newText =
       let linesList = T.lines content
-          lineNum = unLine (srcSpanStartLine span) - 1
-          colNum = unColumn (srcSpanStartCol span) - 1
+          lineNum = unLine (srcSpanStartLine srcSpan) - 1
+          colNum = unColumn (srcSpanStartCol srcSpan) - 1
           (before, after) = splitAt lineNum linesList
           targetLine = if lineNum < length linesList
                        then linesList !! lineNum
                        else ""
-          newLine = T.take colNum targetLine <> new <> T.drop colNum targetLine
+          newLine = T.take colNum targetLine <> newText <> T.drop colNum targetLine
       in T.unlines (before ++ [newLine] ++ drop 1 after)
 
     deleteAt :: Text -> SrcSpan -> Text
-    deleteAt content span =
+    deleteAt content srcSpan =
       let linesList = T.lines content
-          startLine = unLine (srcSpanStartLine span) - 1
-          endLine = unLine (srcSpanEndLine span) - 1
-          startCol = unColumn (srcSpanStartCol span) - 1
-          endCol = unColumn (srcSpanEndCol span) - 1
+          startLine = unLine (srcSpanStartLine srcSpan) - 1
+          endLine = unLine (srcSpanEndLine srcSpan) - 1
+          startCol = unColumn (srcSpanStartCol srcSpan) - 1
+          endCol = unColumn (srcSpanEndCol srcSpan) - 1
           before = take startLine linesList
           after = drop (endLine + 1) linesList
           firstLine = if startLine < length linesList
@@ -707,8 +707,8 @@ applyTransaction engine tx = do
       in T.unlines (before ++ merged ++ after)
 
     replaceAt :: Text -> SrcSpan -> Text -> Text
-    replaceAt content span new =
-      insertAt (deleteAt content span) span new
+    replaceAt content srcSpan newText =
+      insertAt (deleteAt content srcSpan) srcSpan newText
 
     atomicWrite :: FilePath -> Text -> IO ()
     atomicWrite path content = do
@@ -787,7 +787,7 @@ createRenameTransaction :: MultiFileEngine
                         -> [FilePath]     -- ^ Files to search
                         -> RenameScope    -- ^ Scope
                         -> IO (FixTransaction, RenameResult)
-createRenameTransaction engine oldName newName files scope = do
+createRenameTransaction engine oldName newName files _scope = do
   tx <- createTransaction engine $
     "Rename " <> oldName <> " to " <> newName
 
@@ -877,7 +877,7 @@ renameSymbol engine oldName newName files scope = do
 -- | Rename a module
 renameModule :: MultiFileEngine -> Text -> Text -> IO TransactionResult
 renameModule engine oldModule newModule = do
-  tx <- createTransaction engine $
+  _tx <- createTransaction engine $
     "Rename module " <> oldModule <> " to " <> newModule
 
   -- Would find all import statements and update them
@@ -892,7 +892,7 @@ renameModule engine oldModule newModule = do
 -- | Rename a file
 renameFile :: MultiFileEngine -> FilePath -> FilePath -> IO TransactionResult
 renameFile engine oldPath newPath = do
-  tx <- createTransaction engine $
+  _tx <- createTransaction engine $
     "Rename file " <> T.pack oldPath <> " to " <> T.pack newPath
 
   -- Would rename file and update all imports
@@ -969,8 +969,8 @@ moveToModule engine symbolName srcFile targetModule = do
 
 -- | Extract definitions to a new module
 extractToModule :: MultiFileEngine -> [Text] -> FilePath -> Text -> IO TransactionResult
-extractToModule engine symbols srcFile newModule = do
-  tx <- createTransaction engine $
+extractToModule engine _symbols srcFile newModule = do
+  _tx <- createTransaction engine $
     "Extract to module " <> newModule
 
   -- Would create new module and move definitions
@@ -1007,7 +1007,7 @@ data ImportUpdateResult = ImportUpdateResult
 
 -- | Update imports for a rename
 updateImportsForRename :: MultiFileEngine -> Text -> Text -> [FilePath] -> IO [ImportUpdateResult]
-updateImportsForRename engine oldName newName files = do
+updateImportsForRename _engine oldName newName files = do
   forM files $ \path -> do
     exists <- doesFileExist path
     if exists
@@ -1029,7 +1029,7 @@ updateImportsForRename engine oldName newName files = do
 
 -- | Update imports for a move
 updateImportsForMove :: MultiFileEngine -> Text -> Text -> Text -> [FilePath] -> IO [ImportUpdateResult]
-updateImportsForMove engine symbolName oldModule newModule files = do
+updateImportsForMove _engine _symbolName _oldModule _newModule files = do
   forM files $ \path -> do
     -- Would update import statements
     pure ImportUpdateResult
@@ -1040,7 +1040,7 @@ updateImportsForMove engine symbolName oldModule newModule files = do
 
 -- | Add import to multiple files
 addImportToFiles :: MultiFileEngine -> Text -> [Text] -> [FilePath] -> IO [ImportUpdateResult]
-addImportToFiles engine moduleName symbols files = do
+addImportToFiles _engine moduleName _symbols files = do
   forM files $ \path -> do
     -- Would add import statement
     pure ImportUpdateResult
@@ -1051,13 +1051,13 @@ addImportToFiles engine moduleName symbols files = do
 
 -- | Remove import from multiple files
 removeImportFromFiles :: MultiFileEngine -> Text -> [FilePath] -> IO [ImportUpdateResult]
-removeImportFromFiles engine moduleName files = do
+removeImportFromFiles _engine modName files = do
   forM files $ \path -> do
     -- Would remove import statement
     pure ImportUpdateResult
       { iurFile = path
       , iurSuccess = True
-      , iurMessage = "Removed import " <> moduleName
+      , iurMessage = "Removed import " <> modName
       }
 
 --------------------------------------------------------------------------------
@@ -1094,7 +1094,7 @@ data DependencyGraph = DependencyGraph
 
 -- | Analyze dependencies between files
 analyzeFileDependencies :: [FilePath] -> IO [FileDependency]
-analyzeFileDependencies files = do
+analyzeFileDependencies _files = do
   -- Would parse imports from each file
   pure []
 
@@ -1342,7 +1342,7 @@ instance FixEngine MultiFileEngine where
     , fvSuggestions = []
     }
 
-  applyFix engine _path content ef = do
+  applyFix _engine _path content ef = do
     let fix = efFix ef
     -- For single file, just apply directly
     pure ApplySuccess
@@ -1364,13 +1364,13 @@ applyFixContent content fix =
   foldl applyEdit content (reverse $ fixEdits fix)
   where
     applyEdit txt edit =
-      let span = fixEditSpan edit
+      let editSpan = fixEditSpan edit
           newText = fixEditNewText edit
           linesList = T.lines txt
-          startLine = unLine (srcSpanStartLine span) - 1
-          endLine = unLine (srcSpanEndLine span) - 1
-          startCol = unColumn (srcSpanStartCol span) - 1
-          endCol = unColumn (srcSpanEndCol span) - 1
+          startLine = unLine (srcSpanStartLine editSpan) - 1
+          endLine = unLine (srcSpanEndLine editSpan) - 1
+          startCol = unColumn (srcSpanStartCol editSpan) - 1
+          endCol = unColumn (srcSpanEndCol editSpan) - 1
           before = take startLine linesList
           after = drop (endLine + 1) linesList
           modLine = if startLine == endLine && startLine < length linesList

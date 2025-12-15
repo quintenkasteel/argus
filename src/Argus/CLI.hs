@@ -32,6 +32,10 @@ module Argus.CLI
   , ArchitectureOptions (..)
   , PackOptions (..)
   , PackAction (..)
+  , WorkspaceOptions (..)
+  , WorkspaceAction (..)
+  , RuleOptions (..)
+  , RuleAction (..)
 
     -- * Parsers
   , parseCommand
@@ -59,6 +63,8 @@ import Argus.CLI.Common
   , parseLspOptions
   , parseArchitectureOptions
   , parsePackOptions
+  , parseWorkspaceOptions
+  , parseRuleOptions
   )
 
 -- Import command implementations
@@ -75,6 +81,8 @@ import Argus.CLI.Daemon (runDaemon)
 import Argus.CLI.LSP (runLsp)
 import Argus.CLI.Architecture (runArchitecture)
 import Argus.CLI.Pack (runPack)
+import Argus.CLI.Workspace (runWorkspace)
+import Argus.CLI.Rule (runRule)
 
 -- Main entry point
 main :: IO ()
@@ -98,6 +106,8 @@ runCLI = do
     CmdLsp global opts      -> runLsp global opts
     CmdArchitecture global opts -> runArchitecture global opts
     CmdPack global opts     -> runPack global opts
+    CmdWorkspace global opts -> runWorkspace global opts
+    CmdRule global opts      -> runRule global opts
 
 -- | Parse command
 parseCommand :: Parser Command
@@ -128,6 +138,10 @@ parseCommand = hsubparser
       (progDesc "Analyze module architecture (layers, coupling, cycles)"))
   <> command "pack" (info (CmdPack <$> parseGlobalOptions <*> parsePackOptions)
       (progDesc "Manage rule packs (list, show, export, import)"))
+  <> command "workspace" (info (CmdWorkspace <$> parseGlobalOptions <*> parseWorkspaceOptions)
+      (progDesc "Analyze multi-project workspaces"))
+  <> command "rule" (info (CmdRule <$> parseGlobalOptions <*> parseRuleOptions)
+      (progDesc "Author and manage custom rules"))
   )
 
 -- | Full parser with info

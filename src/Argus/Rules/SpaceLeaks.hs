@@ -597,7 +597,7 @@ findStandaloneWord word code = go 0 (T.unpack code)
     wordLen = length wordStr
 
     go _ [] = Nothing
-    go pos str@(c:cs)
+    go pos str@(_c:cs)
       | wordStr `isPrefixOfAt` str =
           let beforeOk = pos == 0 || not (isIdentChar (T.index code (pos - 1)))
               afterOk = pos + wordLen >= T.length code ||

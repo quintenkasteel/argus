@@ -54,9 +54,7 @@ import Data.Foldable qualified as F
 
 -- | A difference list implemented as a function
 -- The representation is a function from list to list
-newtype DList a = DList
-  { unDL :: [a] -> [a]
-  }
+newtype DList a = DList ([a] -> [a])
 
 -- | The empty difference list
 empty :: DList a

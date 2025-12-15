@@ -162,10 +162,9 @@ import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.Aeson (ToJSON (..), FromJSON (..), (.:), (.:?), (.!=), withObject, withText, object)
 import qualified Data.Aeson as AE ((.=))
-import Data.List (find, tails, isInfixOf)
+import Data.List (find, isInfixOf)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
 import Data.Maybe (fromMaybe, mapMaybe, catMaybes, isJust)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -188,8 +187,7 @@ import Argus.Rules.ASTMatch qualified as AST
 import Argus.Rules.Types qualified as RT
   ( Rule(..), Category(..), SafetyLevel(..), SideCondition(..), RulePattern(..)
   , ImportSpec(..), RuleTarget(..), ImportSymbol(..), SymbolType(..)
-  , categoryToText, textToCategory, allCategories
-  , safetyToText, textToSafety
+  , allCategories
   )
 import Argus.Plugin.Types (Version(..), showVersion, parseVersion)
 
@@ -1012,36 +1010,41 @@ categoryCodec :: TOML.Key -> TomlCodec RuleCategory
 categoryCodec key = TOML.textBy toText fromText key
   where
     toText = \case
-      Performance -> "performance"
-      SpaceLeaks -> "space-leaks"
-      Security -> "security"
-      Modernize -> "modernize"
-      Redundant -> "redundant"
-      Partial -> "partial"
-      Imports -> "imports"
-      Naming -> "naming"
-      Extensions -> "extensions"
-      Complexity -> "complexity"
-      Concurrency -> "concurrency"
-      ErrorHandling -> "error-handling"
-      Documentation -> "documentation"
-      CustomCategory t -> t
+      RT.Performance -> "performance"
+      RT.SpaceLeaks -> "space-leaks"
+      RT.Security -> "security"
+      RT.Modernization -> "modernize"
+      RT.Redundant -> "redundant"
+      RT.Safety -> "partial"
+      RT.Imports -> "imports"
+      RT.Naming -> "naming"
+      RT.Extensions -> "extensions"
+      RT.Complexity -> "complexity"
+      RT.Concurrency -> "concurrency"
+      RT.ErrorHandling -> "error-handling"
+      RT.Documentation -> "documentation"
+      RT.Custom t -> t
+      RT.Style -> "style"
+      RT.Correctness -> "correctness"
     fromText t = Right $ case T.toLower t of
-      "performance" -> Performance
-      "space-leaks" -> SpaceLeaks
-      "security" -> Security
-      "modernize" -> Modernize
-      "redundant" -> Redundant
-      "partial" -> Partial
-      "imports" -> Imports
-      "naming" -> Naming
-      "extensions" -> Extensions
-      "complexity" -> Complexity
-      "concurrency" -> Concurrency
-      "error-handling" -> ErrorHandling
-      "errorhandling" -> ErrorHandling
-      "documentation" -> Documentation
-      other -> CustomCategory other
+      "performance" -> RT.Performance
+      "space-leaks" -> RT.SpaceLeaks
+      "security" -> RT.Security
+      "modernize" -> RT.Modernization
+      "redundant" -> RT.Redundant
+      "partial" -> RT.Safety
+      "safety" -> RT.Safety
+      "imports" -> RT.Imports
+      "naming" -> RT.Naming
+      "extensions" -> RT.Extensions
+      "complexity" -> RT.Complexity
+      "concurrency" -> RT.Concurrency
+      "error-handling" -> RT.ErrorHandling
+      "errorhandling" -> RT.ErrorHandling
+      "documentation" -> RT.Documentation
+      "style" -> RT.Style
+      "correctness" -> RT.Correctness
+      other -> RT.Custom other
 
 catSeverityCodec :: TOML.Key -> TomlCodec CategorySeverity
 catSeverityCodec key = TOML.textBy toText fromText key
@@ -1187,14 +1190,18 @@ safetyCodec :: TOML.Key -> TomlCodec FixSafety
 safetyCodec key = TOML.textBy toText fromText key
   where
     toText = \case
-      Safe -> "safe"
-      Unsafe -> "unsafe"
-      Manual -> "manual"
+      RT.Safe -> "safe"
+      RT.MostlySafe -> "mostly-safe"
+      RT.NeedsReview -> "manual"
+      RT.Unsafe -> "unsafe"
     fromText t = Right $ case T.toLower t of
-      "safe" -> Safe
-      "unsafe" -> Unsafe
-      "manual" -> Manual
-      _ -> Safe
+      "safe" -> RT.Safe
+      "mostly-safe" -> RT.MostlySafe
+      "mostlysafe" -> RT.MostlySafe
+      "manual" -> RT.NeedsReview
+      "needs-review" -> RT.NeedsReview
+      "unsafe" -> RT.Unsafe
+      _ -> RT.Safe
 
 overrideCodec :: TomlCodec RuleOverride
 overrideCodec = RuleOverride
@@ -1475,8 +1482,8 @@ findPatternMatchesWithTarget target patternText content =
           [(lineNum, col, matchedText, captures)]
 
 -- | Find pattern matches in content (default: TargetCode)
-findPatternMatches :: Text -> Text -> [(Int, Int, Text, Map Text Text)]
-findPatternMatches = findPatternMatchesWithTarget RT.TargetCode
+_findPatternMatches :: Text -> Text -> [(Int, Int, Text, Map Text Text)]
+_findPatternMatches = findPatternMatchesWithTarget RT.TargetCode
 
 -- | Capture metavariables from a line using the regex pattern with target awareness
 -- Filters matches based on whether they're in code, comments, strings, docs, or pragmas
@@ -1497,6 +1504,7 @@ captureMetavarsWithTarget target regexPat metavars lineText =
               inPragma = isInsidePragma lineStr col
               -- Check if match location is appropriate for target
               targetMatches = case target of
+                RT.TargetAll           -> True  -- Match anywhere
                 RT.TargetCode          -> not inComment && not inString && not inPragma
                 RT.TargetComments      -> inComment && not inHaddock
                 RT.TargetDocumentation -> inHaddock
@@ -1510,8 +1518,8 @@ captureMetavarsWithTarget target regexPat metavars lineText =
 -- | Capture metavariables from a line using the regex pattern
 -- Now also checks that matches are not inside string literals, comments,
 -- and that identifier patterns appear at word boundaries (default: TargetCode)
-captureMetavars :: Text -> [Text] -> Text -> Maybe (Int, Text, Map Text Text)
-captureMetavars = captureMetavarsWithTarget RT.TargetCode
+_captureMetavars :: Text -> [Text] -> Text -> Maybe (Int, Text, Map Text Text)
+_captureMetavars = captureMetavarsWithTarget RT.TargetCode
 
 -- | Check if a column position is inside a comment
 -- Handles line comments (--) and block comments ({- -})
@@ -1647,8 +1655,8 @@ extractMetavars pat =
 
 -- | Convert pattern to regex
 -- First replace metavariables with placeholders, then escape, then replace placeholders with regex
-patternToRegex :: Text -> Text
-patternToRegex pat =
+_patternToRegex :: Text -> Text
+_patternToRegex pat =
   -- Use simple substring matching for literal parts
   -- Replace metavariables with .* for loose matching
   let escaped = escapeRegexLiteral pat
@@ -1673,11 +1681,11 @@ escapeRegexLiteral = T.concatMap escape
 matchToDiagnostic :: RulesConfig -> ConfigurableRule -> FilePath -> Text -> (Int, Int, Text, Map Text Text) -> Maybe Diagnostic
 matchToDiagnostic cfg rule filepath moduleName (line, col, matchedText, metavars) = do
   severity <- getRuleEffectiveSeverity cfg rule moduleName
-  let span = mkSrcSpanRaw filepath line col line (col + fromIntegral (T.length matchedText))
+  let srcSpan = mkSrcSpanRaw filepath line col line (col + T.length matchedText)
       msg = interpolateMetavars (cpMessage $ crPattern rule) metavars
-      fix' = mkRuleFix cfg rule span matchedText metavars
+      fix' = mkRuleFix cfg rule srcSpan matchedText metavars
   pure Diagnostic
-    { diagSpan = span
+    { diagSpan = srcSpan
     , diagSeverity = severity
     , diagKind = CodePattern
     , diagMessage = msg
@@ -1694,7 +1702,7 @@ interpolateMetavars msg vars = Map.foldrWithKey replace msg vars
 
 -- | Create a fix for the rule
 mkRuleFix :: RulesConfig -> ConfigurableRule -> SrcSpan -> Text -> Map Text Text -> Maybe Fix
-mkRuleFix cfg rule span _matchedText metavars = do
+mkRuleFix cfg rule srcSpan _matchedText metavars = do
   -- Check if fix is allowed
   guard (canAutoFix cfg rule)
 
@@ -1706,7 +1714,7 @@ mkRuleFix cfg rule span _matchedText metavars = do
 
   pure Fix
     { fixTitle = "Apply: " <> crId rule
-    , fixEdits = [FixEdit span fixText]
+    , fixEdits = [FixEdit srcSpan fixText]
     , fixIsPreferred = crSafety rule == Safe
     -- Convert RT.ImportSpec to FixImport (TODO-004)
     , fixAddImports = map convertImportSpecToFixImport (crAddImports rule)
@@ -1794,7 +1802,7 @@ findFunctionUsages filepath funcName mMessage content =
     findUsage :: Text -> Text -> FilePath -> (Int, Text) -> Maybe Diagnostic
     findUsage name msgText fp (lineNum, lineText)
       | hasWordBoundary name lineText = Just Diagnostic
-          { diagSpan = mkSrcSpanRaw fp lineNum 1 lineNum (fromIntegral (T.length lineText) + 1)
+          { diagSpan = mkSrcSpanRaw fp lineNum 1 lineNum (T.length lineText + 1)
           , diagSeverity = Error
           , diagKind = SecurityIssue
           , diagMessage = msgText
@@ -1841,7 +1849,7 @@ checkModule filepath currentModule lineNum lineText requiredAs withinModules mMe
 
 -- | Check if an import line has the module properly qualified with the required alias
 isProperlyQualified :: Text -> Text -> Text -> Bool
-isProperlyQualified lineText modName qualifier =
+isProperlyQualified lineText _modName qualifier =
   -- Must have "qualified" keyword and correct "as" alias
   ("qualified" `T.isInfixOf` lineText) && hasCorrectAlias lineText qualifier
   where
@@ -1851,7 +1859,7 @@ isProperlyQualified lineText modName qualifier =
 -- | Generate diagnostic for module that needs qualified import
 mkModuleDiag :: FilePath -> Int -> Text -> Text -> Text -> Maybe Text -> Diagnostic
 mkModuleDiag filepath lineNum lineText modName qualifier mMessage = Diagnostic
-  { diagSpan = mkSrcSpanRaw filepath lineNum 1 lineNum (fromIntegral (T.length lineText) + 1)
+  { diagSpan = mkSrcSpanRaw filepath lineNum 1 lineNum (T.length lineText + 1)
   , diagSeverity = Warning
   , diagKind = ImportStyle
   , diagMessage = fromMaybe defaultMsg mMessage
@@ -1865,7 +1873,7 @@ mkModuleDiag filepath lineNum lineText modName qualifier mMessage = Diagnostic
 -- | Generate diagnostic for banned module
 mkBannedModuleDiag :: FilePath -> Int -> Text -> Text -> Maybe Text -> Diagnostic
 mkBannedModuleDiag filepath lineNum lineText modName mMessage = Diagnostic
-  { diagSpan = mkSrcSpanRaw filepath lineNum 1 lineNum (fromIntegral (T.length lineText) + 1)
+  { diagSpan = mkSrcSpanRaw filepath lineNum 1 lineNum (T.length lineText + 1)
   , diagSeverity = Error
   , diagKind = ImportStyle
   , diagMessage = fromMaybe defaultMsg mMessage
@@ -1882,7 +1890,7 @@ mkQualifiedImportFix :: FilePath -> Int -> Text -> Text -> Text -> Fix
 mkQualifiedImportFix filepath lineNum lineText modName qualifier =
   Fix
     { fixTitle = "Import qualified as " <> qualifier
-    , fixEdits = [FixEdit span replacement]
+    , fixEdits = [FixEdit srcSpan replacement]
     , fixIsPreferred = True
     , fixAddImports = []
     , fixRemoveImports = []
@@ -1890,7 +1898,7 @@ mkQualifiedImportFix filepath lineNum lineText modName qualifier =
     , fixSafety = AT.FSAlways
     }
   where
-    span = mkSrcSpanRaw filepath lineNum 1 lineNum (fromIntegral (T.length lineText) + 1)
+    srcSpan = mkSrcSpanRaw filepath lineNum 1 lineNum (T.length lineText + 1)
     replacement = transformToQualifiedImport lineText modName qualifier
 
 -- | Transform an import line to qualified form
@@ -1937,7 +1945,7 @@ findExtensionUsages filepath extName mMessage content =
     findExt :: Text -> Text -> FilePath -> (Int, Text) -> Maybe Diagnostic
     findExt name msgText fp (lineNum, lineText)
       | "LANGUAGE" `T.isInfixOf` lineText && name `T.isInfixOf` lineText = Just Diagnostic
-          { diagSpan = mkSrcSpanRaw fp lineNum 1 lineNum (fromIntegral (T.length lineText) + 1)
+          { diagSpan = mkSrcSpanRaw fp lineNum 1 lineNum (T.length lineText + 1)
           , diagSeverity = Warning
           , diagKind = Custom "extension-restriction"
           , diagMessage = msgText
@@ -2652,20 +2660,22 @@ setModuleContext fromMod toMod rule = rule
 -- | Default severity for a category
 categoryToSeverity :: RuleCategory -> Severity
 categoryToSeverity = \case
-  Performance -> Warning
-  SpaceLeaks -> Warning
-  Security -> Error
-  Modernize -> Suggestion
-  Redundant -> Warning
-  Partial -> Warning
-  Imports -> Suggestion
-  Naming -> Suggestion
-  Extensions -> Info
-  Complexity -> Warning
-  Concurrency -> Warning
-  ErrorHandling -> Warning
-  Documentation -> Suggestion
-  CustomCategory _ -> Warning
+  RT.Performance -> Warning
+  RT.SpaceLeaks -> Warning
+  RT.Security -> Error
+  RT.Modernization -> Suggestion
+  RT.Redundant -> Warning
+  RT.Safety -> Warning
+  RT.Imports -> Suggestion
+  RT.Naming -> Suggestion
+  RT.Extensions -> Info
+  RT.Complexity -> Warning
+  RT.Concurrency -> Warning
+  RT.ErrorHandling -> Warning
+  RT.Documentation -> Suggestion
+  RT.Custom _ -> Warning
+  RT.Style -> Suggestion
+  RT.Correctness -> Error
 
 --------------------------------------------------------------------------------
 -- AST-Based Rule Integration
@@ -2741,29 +2751,14 @@ convertToASTRules rules = pure $ map convertRule rules
       }
 
 -- | Convert old RuleCategory to unified Category
+-- Note: Since RuleCategory = RT.Category, this is identity
 ruleCategoryToUnified :: RuleCategory -> RT.Category
-ruleCategoryToUnified = \case
-  Performance -> RT.Performance
-  SpaceLeaks -> RT.SpaceLeaks
-  Partial -> RT.Safety
-  Security -> RT.Security
-  Redundant -> RT.Style
-  Naming -> RT.Naming
-  Imports -> RT.Imports
-  Extensions -> RT.Extensions
-  Modernize -> RT.Modernization
-  Complexity -> RT.Complexity
-  Concurrency -> RT.Concurrency
-  ErrorHandling -> RT.ErrorHandling
-  Documentation -> RT.Documentation
-  CustomCategory t -> RT.Custom t
+ruleCategoryToUnified = id
 
 -- | Convert old FixSafety to unified SafetyLevel
+-- Note: Since FixSafety = RT.SafetyLevel, this is identity
 fixSafetyToUnified :: FixSafety -> RT.SafetyLevel
-fixSafetyToUnified = \case
-  Safe -> RT.Safe
-  Manual -> RT.NeedsReview
-  Unsafe -> RT.Unsafe
+fixSafetyToUnified = id
 
 -- | Apply AST-based configurable rules to a parsed module
 -- This provides more accurate matching than text-based patterns
@@ -2790,26 +2785,29 @@ loadAndApplyASTRules = applyASTConfigurableRules
 -- | Convert RuleCategory to FixCategory
 ruleCategoryToFixCategory :: RuleCategory -> FixCategory
 ruleCategoryToFixCategory = \case
-  Performance -> FCPerformance
-  SpaceLeaks -> FCSpaceLeaks
-  Security -> FCSecurity
-  Modernize -> FCModernize
-  Redundant -> FCRedundant
-  Partial -> FCSafety
-  Imports -> FCImports
-  Naming -> FCStyle
-  Extensions -> FCStyle
-  Complexity -> FCStyle
-  Concurrency -> FCSafety
-  ErrorHandling -> FCSafety
-  Documentation -> FCStyle
-  CustomCategory t -> FCCustom t
+  RT.Performance -> FCPerformance
+  RT.SpaceLeaks -> FCSpaceLeaks
+  RT.Security -> FCSecurity
+  RT.Modernization -> FCModernize
+  RT.Redundant -> FCRedundant
+  RT.Safety -> FCSafety
+  RT.Imports -> FCImports
+  RT.Naming -> FCStyle
+  RT.Extensions -> FCStyle
+  RT.Complexity -> FCStyle
+  RT.Concurrency -> FCSafety
+  RT.ErrorHandling -> FCSafety
+  RT.Documentation -> FCStyle
+  RT.Custom t -> FCCustom t
+  RT.Style -> FCStyle
+  RT.Correctness -> FCSafety
 
 -- | Convert rule-level safety (RuleTypes) to fix-level safety (Types)
 ruleSafetyToTypeSafety :: FixSafety -> AT.FixSafety
-ruleSafetyToTypeSafety Safe = AT.FSAlways
-ruleSafetyToTypeSafety Unsafe = AT.FSReview
-ruleSafetyToTypeSafety Manual = AT.FSUnsafe
+ruleSafetyToTypeSafety RT.Safe = AT.FSAlways
+ruleSafetyToTypeSafety RT.MostlySafe = AT.FSMostly
+ruleSafetyToTypeSafety RT.NeedsReview = AT.FSReview
+ruleSafetyToTypeSafety RT.Unsafe = AT.FSUnsafe
 
 --------------------------------------------------------------------------------
 -- Fix Dependencies (TODO-010)

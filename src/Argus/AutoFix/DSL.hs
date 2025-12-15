@@ -13,6 +13,8 @@
 -- Description : Enhanced DSL combinators for defining auto-fix transformations
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
 -- This module provides an embedded domain-specific language for defining
 -- composable, type-safe auto-fix transformations. It bridges the gap between
@@ -72,6 +74,8 @@
 --     .> addImports [("Safe", ["headMay", "tailMay"])]
 --     .> removeImports ["Data.List"]
 -- @
+--
+-- @since 1.0.0
 module Argus.AutoFix.DSL
   ( -- * Fix Specification Types
     FixSpec (..)
@@ -494,7 +498,29 @@ data FixSpec = FixSpec
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Create a fix specification
+-- | Create a fix specification from a builder.
+--
+-- ==== Parameters
+--
+-- * @name@: Unique name for this fix specification
+-- * @builder@: Builder containing fix operations and metadata
+--
+-- ==== Returns
+--
+-- A complete 'FixSpec' ready for compilation or registration.
+--
+-- ==== Example
+--
+-- @
+-- myFix :: FixSpec
+-- myFix = fixSpec "simplify-boolean" $ do
+--   replace "not (not x)" "x"
+--   confidence 0.95
+--   safety Safe
+--   category Style
+-- @
+--
+-- @since 1.0.0
 fixSpec :: Text -> FixBuilder -> FixSpec
 fixSpec name builder =
   let state = runFixBuilder builder

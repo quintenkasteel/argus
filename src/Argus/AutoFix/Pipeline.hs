@@ -11,6 +11,10 @@
 -- Description : Fix composition and pipeline system
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides a composable pipeline system for fix operations.
 -- Pipelines allow you to:
@@ -21,26 +25,66 @@
 -- * Validate fixes at each stage
 -- * Collect metrics during pipeline execution
 --
--- == Architecture
+-- = Architecture
 --
 -- A 'FixPipeline' is a sequence of 'PipelineStage's, each of which can
 -- filter, transform, or validate fixes. The pipeline executes stages
 -- in order, passing fixes through each stage.
 --
--- == Usage
+-- @
+-- Input Fixes
+--     │
+--     ▼
+-- ┌─────────────┐
+-- │ FilterStage │  ─── Remove low-confidence fixes
+-- └─────────────┘
+--     │
+--     ▼
+-- ┌─────────────┐
+-- │ SortStage   │  ─── Order by priority
+-- └─────────────┘
+--     │
+--     ▼
+-- ┌──────────────┐
+-- │ValidateStage │  ─── Check syntax validity
+-- └──────────────┘
+--     │
+--     ▼
+-- Output Fixes
+-- @
+--
+-- = Stage Types
+--
+-- * 'FilterStage': Remove fixes that don't match a predicate
+-- * 'TransformStage': Modify individual fixes
+-- * 'TransformAllStage': Modify the entire fix list
+-- * 'ValidateStage': Validate fixes and remove invalid ones
+-- * 'SortStage': Reorder fixes
+-- * 'LimitStage': Limit the number of fixes
+-- * 'DeduplicateStage': Remove duplicate fixes
+--
+-- = Thread Safety
+--
+-- Pipelines are immutable and thread-safe. Pipeline execution is
+-- also thread-safe as long as the validation functions don't have
+-- side effects that require synchronization.
+--
+-- = Usage
 --
 -- @
 -- -- Build a pipeline
 -- let pipeline = buildPipeline
 --       [ filterByConfidence (Confidence 0.8)
 --       , filterByCategory [Style, Performance]
---       , validateSyntax
+--       , validateSyntax customValidator
 --       , sortByPriority
 --       ]
 --
 -- -- Execute pipeline
 -- result <- executePipeline pipeline fixes content
 -- @
+--
+-- @since 1.0.0
 module Argus.AutoFix.Pipeline
   ( -- * Pipeline Types
     FixPipeline (..)
@@ -226,7 +270,31 @@ emptyPipeline = FixPipeline
   , fpStopOnEmpty = True
   }
 
--- | Build a pipeline from a list of stages
+-- | Build a pipeline from a list of stages.
+--
+-- Creates a named pipeline that will execute stages in order.
+-- The pipeline stops early if no fixes remain after a stage
+-- (configurable via 'fpStopOnEmpty').
+--
+-- ==== Parameters
+--
+-- * @stages@: List of stages to execute in order
+--
+-- ==== Returns
+--
+-- A 'FixPipeline' ready for execution.
+--
+-- ==== Example
+--
+-- @
+-- let pipeline = buildPipeline
+--       [ filterByConfidence (mkConfidence 0.8)
+--       , sortByConfidence
+--       , limitStage "top-10" 10
+--       ]
+-- @
+--
+-- @since 1.0.0
 buildPipeline :: [PipelineStage] -> FixPipeline
 buildPipeline stages = FixPipeline
   { fpStages = stages
@@ -419,13 +487,64 @@ sortByPriority = SortStage "by-priority" $
 -- Pipeline Execution
 --------------------------------------------------------------------------------
 
--- | Execute a pipeline on fixes
+-- | Execute a pipeline on fixes.
+--
+-- Runs all stages in sequence, passing fixes through each stage.
+-- Returns only the final list of fixes (for statistics, use
+-- 'executePipelineWithStats').
+--
+-- ==== Parameters
+--
+-- * @pipeline@: The pipeline to execute
+-- * @fixes@: Input fixes to process
+-- * @content@: File content (needed for validation stages)
+--
+-- ==== Returns
+--
+-- List of fixes remaining after all stages complete.
+--
+-- ==== Example
+--
+-- @
+-- let pipeline = buildPipeline [filterByConfidence (mkConfidence 0.8)]
+-- result <- executePipeline pipeline fixes content
+-- @
+--
+-- @since 1.0.0
 executePipeline :: FixPipeline -> [EnrichedFix] -> Text -> IO [EnrichedFix]
 executePipeline pipeline fixes content = do
   result <- executePipelineWithStats pipeline fixes content
   pure (prFixes result)
 
--- | Execute a pipeline with statistics
+-- | Execute a pipeline with detailed statistics.
+--
+-- Runs all stages in sequence, collecting metrics at each stage.
+-- Useful for debugging and performance analysis.
+--
+-- ==== Parameters
+--
+-- * @pipeline@: The pipeline to execute
+-- * @fixes@: Input fixes to process
+-- * @content@: File content (needed for validation stages)
+--
+-- ==== Returns
+--
+-- A 'PipelineResult' containing:
+--
+-- * 'prFixes': Remaining fixes after all stages
+-- * 'prStats': Aggregate statistics (input/output counts, duration)
+-- * 'prStageResults': Per-stage input/output counts
+--
+-- ==== Example
+--
+-- @
+-- result <- executePipelineWithStats pipeline fixes content
+-- putStrLn $ "Processed in " ++ show (psDurationMs $ prStats result) ++ "ms"
+-- forM_ (prStageResults result) $ \\(name, inp, out) ->
+--   putStrLn $ name ++ ": " ++ show inp ++ " -> " ++ show out
+-- @
+--
+-- @since 1.0.0
 executePipelineWithStats :: FixPipeline
                          -> [EnrichedFix]
                          -> Text

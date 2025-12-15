@@ -180,7 +180,7 @@ groupByModule = groupBy sameImportStyle . sortBy (comparing importKey)
   where
     -- Key for sorting: module name, then qualified status, then alias
     importKey :: ParsedImport -> (Text, Bool, Maybe Text)
-    importKey pi = (piModule pi, piQualified pi, piAlias pi)
+    importKey pImport = (piModule pImport, piQualified pImport, piAlias pImport)
 
     -- Only group imports with same module, qualification, and alias
     sameImportStyle :: ParsedImport -> ParsedImport -> Bool

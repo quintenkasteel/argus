@@ -44,12 +44,12 @@ renderJUnitXml result =
       testsuites = map renderTestSuite files
       totalTests = sum $ map (length . fileResultDiagnostics . snd) files
       totalFailures = sum
-        [ 1
+        [ 1 :: Int
         | (_, fr) <- files
         , d <- fileResultDiagnostics fr
         , diagSeverity d == Error
         ]
-      totalErrors = 0  -- We treat errors as failures
+      totalErrors = 0 :: Int  -- We treat errors as failures
       totalTime = 0.0 :: Double  -- We don't track execution time
   in T.unlines
     [ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"

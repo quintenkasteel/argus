@@ -6,13 +6,53 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the daemon command for running Argus as a background service.
+-- = Overview
+--
+-- This module implements the @argus daemon@ command, which runs Argus as
+-- a background service providing fast analysis responses.
+--
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                        Daemon Architecture                          │
+-- │                                                                     │
+-- │  ┌─────────────┐    ┌──────────────────────────────────────────┐   │
+-- │  │   Client    │    │              Argus Daemon                 │   │
+-- │  │             │    │  ┌─────────────────────────────────────┐  │   │
+-- │  │ argus daemon│───►│  │           Request Handler           │  │   │
+-- │  │   check ... │    │  └──────────────────┬──────────────────┘  │   │
+-- │  └─────────────┘    │                     │                     │   │
+-- │       Unix Socket   │       ┌─────────────┼─────────────┐       │   │
+-- │       or TCP Port   │       ▼             ▼             ▼       │   │
+-- │                     │  ┌────────┐   ┌──────────┐   ┌────────┐   │   │
+-- │                     │  │ Cache  │   │ Analyzer │   │ Config │   │   │
+-- │                     │  └────────┘   └──────────┘   └────────┘   │   │
+-- │                     └──────────────────────────────────────────┘   │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Commands
+--
+-- * @start@: Start the daemon process
+-- * @stop@: Stop a running daemon
+-- * @status@: Query daemon status and statistics
+-- * @reload@: Reload configuration without restart
+-- * @check@: Analyze files through the daemon
+--
+-- = Performance Benefits
+--
+-- * Cached parsed files avoid re-parsing
+-- * Warm JIT for faster analysis
+-- * Reduced startup overhead
+--
+-- @since 1.0.0
 module Argus.CLI.Daemon
-  ( runDaemon
+  ( -- * Command Entry Point
+    runDaemon
   ) where
 
 import Control.Monad (forM_, unless, when)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import System.Exit (exitFailure)
@@ -21,9 +61,14 @@ import Argus.CLI.Types
 import Argus.Daemon qualified as Daemon
 import Argus.Types (diagMessage)
 
--- | Run daemon command
+-- | Run the daemon command.
+--
+-- Dispatches to the appropriate daemon action (start, stop, status,
+-- reload, or check).
+--
+-- @since 1.0.0
 runDaemon :: GlobalOptions -> DaemonOptions -> IO ()
-runDaemon _global opts = do
+runDaemon _ opts = do
   socketPath <- case daSocketPath opts of
     Just p -> pure p
     Nothing -> Daemon.getDefaultSocketPath

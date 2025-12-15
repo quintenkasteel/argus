@@ -103,7 +103,7 @@ buildFromDirectories dirs = do
           imports = extractImports content
       pure $ addModuleWithImports modName imports graph
 
-    foldM f acc [] = pure acc
+    foldM _f acc [] = pure acc
     foldM f acc (x:xs) = do
       acc' <- f acc x
       foldM f acc' xs
@@ -239,7 +239,7 @@ outputJsonArchitecture opts graph = do
 
 -- | Output terminal architecture analysis
 outputTerminalArchitecture :: ArchitectureOptions -> Progress.ProgressConfig -> ModuleGraph -> IO ()
-outputTerminalArchitecture opts _progressCfg graph = do
+outputTerminalArchitecture opts _ graph = do
   let modules = allModules graph
       cycles = findCycles graph
       metrics = map (computeModuleMetrics graph) modules

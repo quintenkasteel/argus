@@ -2,6 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PackageImports #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
 
 -- |
 -- Module      : Argus.Analysis.Semver
@@ -286,7 +287,7 @@ getModuleInfoSafe db modName = do
 
 -- | Extract signatures from a HIE file
 extractFromHieFile :: FilePath -> [Text] -> IO APISignature
-extractFromHieFile hiePath exports = do
+extractFromHieFile hiePath _exports = do
   nc <- makeNc
   hieResult <- readHieFile nc hiePath
   let hieFile = hie_file_result hieResult
@@ -325,7 +326,7 @@ extractDefinitions hieFile ast =
 
 -- | Extract definition from an identifier
 extractDefFromIdent :: HieFile -> (Either a Name, IdentifierDetails b) -> Maybe (Text, SymbolSignature)
-extractDefFromIdent hieFile (Right name, details) =
+extractDefFromIdent _hieFile (Right name, details) =
   let symName = T.pack $ occNameString $ nameOccName name
       contexts = Set.toList $ identInfo details
   in case classifyContext contexts of

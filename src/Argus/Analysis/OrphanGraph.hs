@@ -191,8 +191,8 @@ extractInstanceInfo :: Text -> HieFile -> HieAST TypeIndex -> ContextInfo -> May
 extractInstanceInfo moduleName hieFile ast context = case context of
   ClassTyDecl{} -> do
     -- This is an instance declaration
-    let span = nodeSpan ast
-        srcSpan = hieSpanToSrcSpan (hie_hs_file hieFile) span
+    let span' = nodeSpan ast
+        srcSpan = hieSpanToSrcSpan (hie_hs_file hieFile) span'
 
     -- Try to extract class and type from the node
     (className, typeName) <- extractClassAndType hieFile ast
@@ -224,13 +224,13 @@ extractClassAndType _hieFile ast =
 
 -- | Convert HIE span to our SrcSpan type
 hieSpanToSrcSpan :: FilePath -> GHC.RealSrcSpan -> SrcSpan
-hieSpanToSrcSpan file span =
+hieSpanToSrcSpan file span' =
   mkSrcSpanRaw
     file
-    (GHC.srcSpanStartLine span)
-    (GHC.srcSpanStartCol span)
-    (GHC.srcSpanEndLine span)
-    (GHC.srcSpanEndCol span)
+    (GHC.srcSpanStartLine span')
+    (GHC.srcSpanStartCol span')
+    (GHC.srcSpanEndLine span')
+    (GHC.srcSpanEndCol span')
 
 -- | Check if an instance is orphan
 -- An instance is orphan if it's defined in a module that doesn't define
@@ -254,7 +254,7 @@ extractInstancesFromHieDb hieDir db = do
 
 -- | Load instances from a single module
 loadModuleInstances :: FilePath -> HieModuleRow -> IO [OrphanInstance]
-loadModuleInstances hieDir modRow = do
+loadModuleInstances _hieDir modRow = do
   let hieFile = hieModuleHieFile modRow
   result <- try @SomeException $ do
     nc <- makeNc
@@ -307,17 +307,16 @@ buildOrphanGraph orphans deps =
 -- | Compute which modules are infected by orphans
 computeInfected :: [OrphanInstance] -> [ModuleDep] -> Map Text [OrphanInstance]
 computeInfected orphans deps =
-  let orphansByModule = groupBy oiModule orphans
-      allModules = nub $ map mdFrom deps ++ map mdTo deps
+  let allModules = nub $ map mdFrom deps ++ map mdTo deps
       infected = Map.fromList
-        [ (mod, findInfectingOrphans mod orphans deps)
-        | mod <- allModules
+        [ (modName, findInfectingOrphans modName orphans deps)
+        | modName <- allModules
         ]
   in Map.filter (not . null) infected
 
 -- | Group items by a key function
-groupBy :: Ord k => (a -> k) -> [a] -> Map k [a]
-groupBy f items = Map.fromListWith (++) [(f item, [item]) | item <- items]
+_groupBy :: Ord k => (a -> k) -> [a] -> Map k [a]
+_groupBy f items = Map.fromListWith (++) [(f item, [item]) | item <- items]
 
 -- | Find which orphans infect a given module
 findInfectingOrphans :: Text -> [OrphanInstance] -> [ModuleDep] -> [OrphanInstance]
@@ -355,17 +354,17 @@ findPath source deps target
   | otherwise = go Set.empty [[source]]
   where
     go _ [] = Nothing
-    go visited (path:paths)
-      | current `Set.member` visited = go visited paths
-      | current == target = Just (reverse path)
-      | otherwise =
-          -- Follow reverse dependency direction: find modules that import current
-          -- (i.e., where mdTo == current, the neighbor is mdFrom)
-          let neighbors = [mdFrom d | d <- deps, mdTo d == current]
-              newPaths = [n:path | n <- neighbors]
-          in go (Set.insert current visited) (paths ++ newPaths)
-      where
-        current = head path
+    go visited (path:paths) = case path of
+      [] -> go visited paths  -- Shouldn't happen but be safe
+      (current:_)
+        | current `Set.member` visited -> go visited paths
+        | current == target -> Just (reverse path)
+        | otherwise ->
+            -- Follow reverse dependency direction: find modules that import current
+            -- (i.e., where mdTo == current, the neighbor is mdFrom)
+            let neighbors = [mdFrom d | d <- deps, mdTo d == current]
+                newPaths = [n:path | n <- neighbors]
+            in go (Set.insert current visited) (paths ++ newPaths)
 
 -- | Convert a module path to an infection path
 toInfectionPath :: OrphanInstance -> [Text] -> InfectionPath
@@ -463,7 +462,9 @@ formatDepEdge ModuleDep{..} =
 formatInfectionPath :: InfectionPath -> [Text]
 formatInfectionPath InfectionPath{..} =
   let orphanLabel = oiClass (ipOrphan) <> " " <> oiType (ipOrphan)
-      pairs = zip ipPath (tail ipPath)
+      pairs = case ipPath of
+        [] -> []
+        (_:rest) -> zip ipPath rest
   in map (\(from, to) -> formatInfectionEdge from to orphanLabel) pairs
 
 -- | Format an infection edge

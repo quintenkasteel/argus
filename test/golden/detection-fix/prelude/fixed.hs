@@ -3,8 +3,9 @@
 module PreludeExamples where
 
 import Prelude
-import qualified Data.Text as T')
-import qualified Data.Text as T (Text)
+import Data.List (foldl')
+import Data.Text (Text)
+import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 -- Partial functions

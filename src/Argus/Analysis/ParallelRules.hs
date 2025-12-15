@@ -486,7 +486,7 @@ runHybridParallel engine files analyzer = do
 
 -- | Wait for tasks to complete
 waitForCompletion :: ParallelEngine -> [TaskId] -> IO [TaskResult]
-waitForCompletion engine taskIds = do
+waitForCompletion _engine taskIds = do
   resultVars <- forM taskIds $ \_ -> newEmptyMVar
 
   -- Would implement proper waiting logic
@@ -595,7 +595,7 @@ workerLoop engine wid = forever $ do
       updateWorkerStatus engine wid WSBusy
 
       -- Execute task
-      result <- executeTask engine workItem
+      _result <- executeTask engine workItem
 
       -- Update stats
       atomically $ modifyTVar' (peStats engine) $ \s ->

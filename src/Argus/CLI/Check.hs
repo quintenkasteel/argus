@@ -6,14 +6,60 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the check command for static analysis.
+-- = Overview
+--
+-- This module implements the @argus check@ command, which performs static
+-- analysis on Haskell source files and reports diagnostics.
+--
+-- = Execution Flow
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                         runCheck                                     │
+-- │                                                                      │
+-- │  1. Build Options ──► 2. Run Analysis ──► 3. Format Output          │
+-- │                              │                    │                  │
+-- │                              ▼                    ▼                  │
+-- │                       ArgusResult           OutputFormat             │
+-- │                              │                    │                  │
+-- │                              └────────┬───────────┘                  │
+-- │                                       │                              │
+-- │                              4. CI Mode Check                        │
+-- │                                       │                              │
+-- │                                       ▼                              │
+-- │                              5. Exit Code                            │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = CI Mode
+--
+-- When a baseline path is provided, the command operates in CI mode:
+--
+-- 1. Compares results against the baseline
+-- 2. Reports new, fixed, and unchanged issues
+-- 3. Exits with non-zero status based on thresholds:
+--    - @--fail-on-new@: New issues vs baseline
+--    - @--fail-on-severity@: Issues at threshold severity
+--    - @--fail-on-count@: Total issue count
+--    - @--fail-on-delta@: Net new issues
+--
+-- = Output Formats
+--
+-- * Terminal: Human-readable with ANSI colors
+-- * JSON: Machine-readable for tooling
+-- * SARIF: GitHub code scanning integration
+-- * JUnit: CI system test reports
+-- * CodeClimate: Code Climate integration
+-- * Checkstyle: Checkstyle XML format
+--
+-- @since 1.0.0
 module Argus.CLI.Check
-  ( runCheck
+  ( -- * Command Entry Point
+    runCheck
   ) where
 
 import Control.Monad (when, unless)
 import Data.Map.Strict qualified as Map
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import System.Exit (exitFailure, exitWith, ExitCode(ExitFailure))
@@ -34,7 +80,19 @@ import Argus.Output.Progress qualified as Progress
 import Argus.Baseline qualified as Baseline
 import Argus.Baseline.Types (CIOptions(..), CIResult(..))
 
--- | Run check command
+-- | Run the check command.
+--
+-- Performs static analysis on the specified targets and outputs
+-- diagnostics in the requested format. In CI mode, compares against
+-- a baseline and applies failure thresholds.
+--
+-- = Exit Codes
+--
+-- * 0: Success (no errors, or within thresholds)
+-- * 1: Analysis found errors
+-- * 2: CI threshold exceeded
+--
+-- @since 1.0.0
 runCheck :: GlobalOptions -> CheckOptions -> IO ()
 runCheck global opts = do
   let progressCfg = mkProgressConfig global (coOutputFormat opts == "terminal")

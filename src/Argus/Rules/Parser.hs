@@ -20,7 +20,7 @@ module Argus.Rules.Parser
   , mkApplicationPattern
   ) where
 
-import Data.Char (isAlphaNum, isUpper) -- removed isLower - unused
+import Data.Char (isAlphaNum, isAscii, isUpper)
 import Data.Text (Text)
 import Data.Text qualified as T
 
@@ -41,7 +41,7 @@ parsePattern text = case T.unpack (T.strip text) of
                                           else PVar (PatternVar (T.pack s) Nothing)
   s -> parseComplexPattern (T.pack s)
   where
-    isSimpleChar c = isAlphaNum c || c == '_' || c == '\''
+    isSimpleChar c = isAscii c && (isAlphaNum c || c == '_' || c == '\'')
 
 -- | Parse a complex pattern (with spaces, constructors, etc.)
 parseComplexPattern :: Text -> Either Text Pattern
@@ -49,15 +49,21 @@ parseComplexPattern text =
   let parts = T.words text
   in case parts of
     [] -> Left "Empty pattern"
-    [p] -> parsePattern p
+    [p] ->
+      -- Avoid infinite loop: if single word is not simple, reject it
+      let s = T.unpack p
+      in if all isSimpleChar s
+         then case s of
+           (c:_) | isUpper c -> Right $ PConstructor p []
+           _ -> Right $ PVar (PatternVar p Nothing)
+         else Left $ "Cannot parse pattern: " <> text
     (c:args) | isConstructor c ->
       PConstructor c <$> traverse parsePattern args
     (f:x:xs) ->
       let app = PApplication <$> parsePattern f <*> parsePattern x
       in foldl (\acc arg -> PApplication <$> acc <*> parsePattern arg) app xs
-    -- Redundant pattern: commented out to avoid warning
-    -- _ -> Left $ "Cannot parse pattern: " <> text
   where
+    isSimpleChar c = isAscii c && (isAlphaNum c || c == '_' || c == '\'')
     isConstructor t = case T.unpack t of
       (c:_) -> isUpper c
       _ -> False
@@ -73,7 +79,7 @@ parseTypePattern text = case T.unpack (T.strip text) of
               else TPVar (T.pack s)
   s -> parseComplexTypePattern (T.pack s)
   where
-    isSimpleChar c = isAlphaNum c || c == '_' || c == '\''
+    isSimpleChar c = isAscii c && (isAlphaNum c || c == '_' || c == '\'')
 
 -- | Parse a complex type pattern
 parseComplexTypePattern :: Text -> Either Text TypePattern
@@ -88,8 +94,17 @@ parseComplexTypePattern text =
       let parts = T.words text
       in case parts of
         [] -> Left "Empty type pattern"
-        [p] -> parseTypePattern p
+        [p] ->
+          -- Avoid infinite loop: if single word is not simple, reject it
+          let s = T.unpack p
+          in if all isSimpleChar s
+             then case s of
+               (c:_) | isUpper c -> Right $ TPConstructor p []
+               _ -> Right $ TPVar p
+             else Left $ "Cannot parse type pattern: " <> text
         (c:args) -> TPConstructor c <$> traverse parseTypePattern args
+  where
+    isSimpleChar c = isAscii c && (isAlphaNum c || c == '_' || c == '\'')
 
 --------------------------------------------------------------------------------
 -- Rule Parsing from Text

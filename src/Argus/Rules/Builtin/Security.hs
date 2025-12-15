@@ -76,9 +76,7 @@ module Argus.Rules.Builtin.Security
   , securityRuleCount
   ) where
 
-import Data.Text (Text)
 import Argus.Rules.DSL
-import Argus.Types (Severity(..))
 
 --------------------------------------------------------------------------------
 -- Rule Sets

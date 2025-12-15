@@ -4,12 +4,11 @@
 module Performance where
 
 import Control.Monad (liftM)
-import Control.Monad.State (State, execState, modify)
+import Control.Monad.State.Strict (State, execState, modify)
 import Data.List (foldl', nub, sort)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T (Text)
-import Control.Monad.State.Strict (State, execState, modify)
 -- =============================================================================
 -- String vs Text performance
 -- =============================================================================
@@ -24,7 +23,7 @@ buildStringLoop = foldr (++) ""
 
 -- | Should use Text.concat or Text builder
 slowStringConcat :: [String] -> String
-slowStringConcat xs = foldl (++) "" xsfoldl'
+slowStringConcat xs = foldl (++) "" xs
 
 -- =============================================================================
 -- List as map/set (O(n) lookup)
@@ -58,21 +57,27 @@ checkEmpty xs = null xs
 checkNonEmpty :: [a] -> Bool
 checkNonEmpty xs = not (null xs)
 
--- | minimum instead of minimum
-getMinimum :: Ord a => [a] -> a
-getMinimum xs = head (sort xs)
+-- | Safe minimum - consider using minimum directly
+getMinimum :: Ord a => [a] -> Maybe a
+getMinimum []     = Nothing
+getMinimum (x:xs) = Just (foldr min x xs)
 
--- | maximum instead of maximum
-getMaximum :: Ord a => [a] -> a
-getMaximum xs = last (sort xs)
+-- | Safe maximum - consider using maximum directly
+getMaximum :: Ord a => [a] -> Maybe a
+getMaximum []     = Nothing
+getMaximum (x:xs) = Just (foldr max x xs)
 
 -- | concatMap instead of concatMap
 flatMap :: (a -> [b]) -> [a] -> [b]
 flatMap f xs = concat (map f xs)
 
--- | map then filter instead of mapMaybe
-mapThenFilter :: Eq b => (a -> Maybe b) -> [a] -> [b]
-mapThenFilter f xs = map (\(Just x) -> x) $ filter (/= Nothing) $ map f xs
+-- | map then filter instead of mapMaybe - use mapMaybe from Data.Maybe
+mapThenFilter :: (a -> Maybe b) -> [a] -> [b]
+mapThenFilter f xs = foldr go [] xs
+  where
+    go a acc = case f a of
+      Nothing -> acc
+      Just b  -> b : acc
 
 -- | mconcatMap instead of foldMap
 combineAll :: Monoid m => (a -> m) -> [a] -> m

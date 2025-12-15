@@ -89,7 +89,7 @@ runCICheck opts diagnostics = do
     Just path -> do
       result <- loadBaseline path
       case result of
-        Left err -> pure Nothing  -- No baseline, treat as fresh start
+        Left _err -> pure Nothing  -- No baseline, treat as fresh start
         Right b -> pure (Just b)
 
   -- Compute diff

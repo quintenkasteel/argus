@@ -35,7 +35,7 @@ import Data.Aeson (ToJSON, FromJSON)
 
 import Argus.Types
 import Argus.Analysis.TextProcessing
-  ( isCodeLine, extractCode, patternInCode, countInCode, detectChainedFunction )
+  ( isCodeLine, extractCode, patternInCode, detectChainedFunction )
 
 --------------------------------------------------------------------------------
 -- Performance-Specific Utilities

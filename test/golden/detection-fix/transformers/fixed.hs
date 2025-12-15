@@ -5,7 +5,7 @@ module TransformerPatterns where
 
 import Control.Monad.Reader
 import Control.Monad.State.Strict
-import Control.Monad.Writer.Strict
+import Control.Monad.Writer
 import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe

@@ -10,12 +10,10 @@ module ASTMatchSpec (spec) where
 import Test.Hspec
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (isJust, isNothing)
 
 import Argus.Rules.ASTMatch
-import Argus.Rules.Types (SideCondition(..))
 
 -- Helper to check if lookup succeeds
 hasBinding :: Text -> Subst -> Bool
@@ -114,36 +112,36 @@ spec = describe "Argus.Rules.ASTMatch" $ do
   describe "Expression Unification" $ do
     describe "simple patterns" $ do
       it "unifies variable with any expression" $ do
-        let (Right pat) = parsePatternPure "x"
-            (Right target) = parsePatternPure "foo"
+        let pat = parseExpr "x"
+            target = parseExpr "foo"
         case unifyExpr pat target of
           Just subst -> hasBinding "x" subst `shouldBe` True
           Nothing -> fail "Should have unified"
 
       it "unifies same literal" $ do
-        let (Right pat) = parsePatternPure "42"
-            (Right target) = parsePatternPure "42"
+        let pat = parseExpr "42"
+            target = parseExpr "42"
         isJust (unifyExpr pat target) `shouldBe` True
 
       it "fails to unify different literals" $ do
-        let (Right pat) = parsePatternPure "42"
-            (Right target) = parsePatternPure "43"
+        let pat = parseExpr "42"
+            target = parseExpr "43"
         isNothing (unifyExpr pat target) `shouldBe` True
 
       it "unifies same function name" $ do
-        let (Right pat) = parsePatternPure "map"
-            (Right target) = parsePatternPure "map"
+        let pat = parseExpr "map"
+            target = parseExpr "map"
         isJust (unifyExpr pat target) `shouldBe` True
 
       it "fails to unify different function names" $ do
-        let (Right pat) = parsePatternPure "map"
-            (Right target) = parsePatternPure "filter"
+        let pat = parseExpr "map"
+            target = parseExpr "filter"
         isNothing (unifyExpr pat target) `shouldBe` True
 
     describe "application patterns" $ do
       it "unifies f x with foo bar" $ do
-        let (Right pat) = parsePatternPure "f x"
-            (Right target) = parsePatternPure "foo bar"
+        let pat = parseExpr "f x"
+            target = parseExpr "foo bar"
         case unifyExpr pat target of
           Just subst -> do
             hasBinding "f" subst `shouldBe` True
@@ -153,8 +151,8 @@ spec = describe "Argus.Rules.ASTMatch" $ do
       it "unifies nested application" $ do
         -- Pattern: f (g x) = App f (App g x)
         -- Target: show (length xs) = App show (App length xs)
-        let (Right pat) = parsePatternPure "f (g x)"
-            (Right target) = parsePatternPure "show (length xs)"
+        let pat = parseExpr "f (g x)"
+            target = parseExpr "show (length xs)"
         case unifyExpr pat target of
           Just subst -> do
             hasBinding "f" subst `shouldBe` True
@@ -163,8 +161,8 @@ spec = describe "Argus.Rules.ASTMatch" $ do
           Nothing -> fail "Should have unified"
 
       it "captures concrete function names" $ do
-        let (Right pat) = parsePatternPure "map f x"
-            (Right target) = parsePatternPure "map show xs"
+        let pat = parseExpr "map f x"
+            target = parseExpr "map show xs"
         case unifyExpr pat target of
           Just subst -> do
             hasBinding "f" subst `shouldBe` True

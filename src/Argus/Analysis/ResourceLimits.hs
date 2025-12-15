@@ -118,8 +118,7 @@ instance NFData a => NFData (TimeoutResult a)
 
 -- | Run an action with a timeout in seconds
 withTimeout
-  :: NFData a
-  => ResourceConfig
+  :: ResourceConfig
   -> IO a
   -> IO (TimeoutResult a)
 withTimeout config action = case rcTimeoutSeconds config of

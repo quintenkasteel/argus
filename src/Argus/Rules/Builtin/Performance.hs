@@ -82,9 +82,7 @@ module Argus.Rules.Builtin.Performance
   , performanceRuleCount
   ) where
 
-import Data.Text (Text)
 import Argus.Rules.DSL
-import Argus.Types (Severity(..))
 
 --------------------------------------------------------------------------------
 -- Rule Sets

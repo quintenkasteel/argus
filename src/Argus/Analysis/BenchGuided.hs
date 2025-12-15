@@ -748,11 +748,10 @@ benchGuidedDiagnostics hotSpots diagnostics =
     enrichDiagnostic :: [HotSpot] -> Diagnostic -> Diagnostic
     enrichDiagnostic hss diag =
       let matchingHotSpots = filter (\hs -> diag `elem` findDiagnosticsInHotSpot hs [diag]) hss
-      in if null matchingHotSpots
-         then diag
-         else
-           let hotSpot = head matchingHotSpots
-               perfNote = "\n[Performance Hot Spot: " <>
+      in case matchingHotSpots of
+         [] -> diag
+         (hotSpot:_) ->
+           let perfNote = "\n[Performance Hot Spot: " <>
                          T.pack (printf "%.1f%%" (hsTimePercent hotSpot)) <>
                          " of execution time]"
                newMessage = diagMessage diag <> perfNote

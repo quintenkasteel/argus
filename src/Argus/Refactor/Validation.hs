@@ -6,12 +6,43 @@
 -- Description : Comprehensive validation of refactored code
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module provides multi-level validation of refactored Haskell code:
--- 1. Syntactic validation via GHC parser
--- 2. Semantic validation via type checking (optional)
--- 3. Structural validation (balanced brackets, etc.)
--- 4. Idempotency checking
+-- = Overview
+--
+-- This module provides multi-level validation of refactored Haskell code
+-- to ensure that fixes don't break the codebase.
+--
+-- = Validation Levels
+--
+-- 1. __Structural__ ('StructuralOnly'): Fast checks for balanced brackets,
+--    strings, and basic code structure
+-- 2. __Syntactic__ ('SyntaxValidation'): Full GHC parser validation (recommended)
+-- 3. __Semantic__ ('SemanticValidation'): GHC type checking (slowest, safest)
+--
+-- = Validation Pipeline
+--
+-- @
+-- ┌─────────────────┐   ┌──────────────────┐   ┌───────────────────┐
+-- │   Structural    │ → │     Syntactic    │ → │     Semantic      │
+-- │   Validation    │   │    Validation    │   │    Validation     │
+-- │ (brackets, etc) │   │  (GHC parser)    │   │  (type checking)  │
+-- └─────────────────┘   └──────────────────┘   └───────────────────┘
+--          ↓                    ↓                       ↓
+--       Fast (~1ms)        Medium (~10ms)          Slow (~100ms+)
+-- @
+--
+-- = Diff Generation
+--
+-- This module also provides unified diff generation for displaying
+-- changes to users, with optional ANSI color support.
+--
+-- = Thread Safety
+--
+-- Validation functions are thread-safe and can be called concurrently.
+--
+-- @since 1.0.0
 module Argus.Refactor.Validation
   ( -- * Validation
     validateRefactoring
@@ -330,18 +361,18 @@ checkBalancedBrackets source =
     skipString stack line col [] = go stack line col []  -- Unclosed string, let parser catch it
     skipString stack line col ('"':xs) = go stack line (col + 1) xs  -- End of string
     skipString stack line col ('\\':_:xs) = skipString stack line (col + 2) xs  -- Escape sequence
-    skipString stack line col ('\n':xs) = skipString stack (line + 1) 1 xs  -- Multiline string
+    skipString stack line _col ('\n':xs) = skipString stack (line + 1) 1 xs  -- Multiline string
     skipString stack line col (_:xs) = skipString stack line (col + 1) xs
 
     -- Skip over a block comment {- ... -}, handling nesting
-    skipBlockComment stack startPos line col [] =
+    skipBlockComment _stack startPos _line _col [] =
       Left ("Unclosed block comment", fst startPos, snd startPos)
-    skipBlockComment stack startPos line col ('-':'}':xs) =
+    skipBlockComment stack _startPos line col ('-':'}':xs) =
       go stack line (col + 2) xs  -- End of block comment
     skipBlockComment stack startPos line col ('{':'-':xs) =
       -- Nested block comment - skip it and continue
       skipBlockComment stack startPos line (col + 2) (skipNestedComment 1 xs)
-    skipBlockComment stack startPos line col ('\n':xs) =
+    skipBlockComment stack startPos line _col ('\n':xs) =
       skipBlockComment stack startPos (line + 1) 1 xs
     skipBlockComment stack startPos line col (_:xs) =
       skipBlockComment stack startPos line (col + 1) xs

@@ -11,12 +11,51 @@
 -- Description : Domain-specific language for defining lint rules
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module provides an embedded DSL for defining Argus lint rules.
--- Rules can be defined in Haskell with a declarative syntax similar to HLint.
+-- = Overview
 --
--- The DSL produces 'Rule' values from the unified "Argus.Rules.Types" module.
--- Both DSL-defined and TOML-defined rules use the same types.
+-- This module provides an embedded DSL for defining Argus lint rules in Haskell.
+-- Rules are defined with a declarative syntax similar to HLint, making it easy
+-- to express code transformations and constraints.
+--
+-- The DSL produces unified 'Rule' values from "Argus.Rules.Types", ensuring
+-- consistency between DSL-defined and TOML-defined rules.
+--
+-- = Architecture
+--
+-- The DSL is built around three main concepts:
+--
+-- 1. __Match expressions__: Define what code pattern to match and its replacement
+-- 2. __Side conditions__: Constrain when a rule should fire
+-- 3. __Rule modifiers__: Configure severity, category, imports, etc.
+--
+-- @
+-- MatchExpr → RuleBuilder → Rule
+-- @
+--
+-- = Key Types
+--
+-- * 'MatchExpr': Pattern and replacement with conditions
+-- * 'RuleBuilder': Intermediate builder for rule construction
+-- * 'DSLSideCondition': Constraints on when rules apply
+-- * 'DSLImportSpec': Import management for fixes
+--
+-- = Pattern Syntax
+--
+-- Patterns use metavariables to capture code fragments:
+--
+-- * @$X@, @$Y@, @$Z@: Match any identifier
+-- * @$F@, @$FUNC@: Match function names
+-- * @$T@, @$TYPE@: Match type names
+-- * @$N@: Match numeric literals
+-- * @$XS@: Match list expressions
+--
+-- = Thread Safety
+--
+-- All DSL functions are pure and thread-safe. The resulting 'Rule' values
+-- are immutable and can be shared across threads.
 --
 -- == Basic Usage
 --
@@ -249,10 +288,23 @@ pattern ManualReview = NeedsReview
 --------------------------------------------------------------------------------
 
 -- | A DSL pattern for matching code.
--- This is used during DSL rule building, then converted to RulePattern.
+--
+-- Used during rule building, then converted to 'RulePattern' for evaluation.
+-- Most rules use 'PatternText' for simple patterns with metavariables.
+--
+-- __Example__:
+--
+-- @
+-- PatternText \"head $X\"       -- Matches: head foo, head (bar baz)
+-- PatternExpr (PApp (PVar \"f\") (PVar \"x\"))  -- Structured pattern
+-- @
+--
+-- @since 1.0.0
 data DSLPattern
-  = PatternText Text           -- ^ Simple text pattern
-  | PatternExpr PatternExpr    -- ^ Structured expression pattern
+  = PatternText Text
+    -- ^ Simple text pattern with optional metavariables (@$X@, @$F@, etc.).
+  | PatternExpr PatternExpr
+    -- ^ Structured expression pattern for complex matching.
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -277,18 +329,41 @@ data PatternExpr
 --------------------------------------------------------------------------------
 
 -- | DSL side conditions for constraining when a rule matches.
--- These are converted to unified SideCondition from Argus.Rules.Types.
+--
+-- Side conditions are evaluated after a pattern matches to determine
+-- if the rule should fire. They're converted to unified 'SideCondition'
+-- from "Argus.Rules.Types" during rule compilation.
+--
+-- __Condition Types__:
+--
+-- * 'TypeCondition': Type-based constraints (requires HIE for accuracy)
+-- * 'ContextCondition': File\/module context checks
+-- * 'ExprCondition': Expression structure checks
+--
+-- __Combinators__:
+--
+-- Use '.&&', '.||', and 'neg' to combine conditions:
+--
+-- @
+-- hasClass \"$X\" \"Ord\" .&& notEqual \"$X\" \"$Y\"
+-- isNumeric \"$N\" .|| isString \"$S\"
+-- neg (isLiteral \"$X\")
+-- @
+--
+-- @since 1.0.0
 data DSLSideCondition
-  -- Type predicates
   = TypeCondition TypePredicate
-  -- Context predicates
+    -- ^ Type-based constraint (e.g., @hasClass \"$X\" \"Ord\"@).
   | ContextCondition ContextPredicate
-  -- Expression predicates
+    -- ^ File or module context check (e.g., @inTestFile@).
   | ExprCondition ExprPredicate
-  -- Combinators
+    -- ^ Expression structure check (e.g., @isLiteral \"$X\"@).
   | AndCondition DSLSideCondition DSLSideCondition
+    -- ^ Both conditions must be true.
   | OrCondition DSLSideCondition DSLSideCondition
+    -- ^ At least one condition must be true.
   | NotCondition DSLSideCondition
+    -- ^ Negation of a condition.
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -573,32 +648,97 @@ infixl 3 `removeImports`
 -- Rule Builder DSL
 --------------------------------------------------------------------------------
 
--- | Builder for constructing rules (uses DSL-specific types internally)
+-- | Builder for constructing rules (intermediate DSL type).
+--
+-- 'RuleBuilder' accumulates rule configuration through modifier functions.
+-- Create with 'match' or 'matchText', modify with '&', finalize with 'rule'.
+--
+-- __Construction Pattern__:
+--
+-- @
+-- rule \"my-rule\" $
+--   match (\"oldCode\" ==> \"newCode\")
+--   & severity Warning
+--   & message \"Use newCode instead\"
+--   & category Performance
+-- @
+--
+-- __Default Values__:
+--
+-- * Severity: 'Warning'
+-- * Category: 'Style'
+-- * Safety: 'Safe'
+-- * Enabled: 'True'
+--
+-- @since 1.0.0
 data RuleBuilder = RuleBuilder
   { rbName          :: Text
+    -- ^ Rule identifier (set by 'rule').
   , rbPattern       :: DSLPattern
+    -- ^ Pattern to match in source code.
   , rbReplacement   :: Maybe DSLPattern
+    -- ^ Optional replacement for auto-fix.
   , rbSeverity      :: Severity
+    -- ^ Diagnostic severity level.
   , rbMessage       :: Text
+    -- ^ User-facing diagnostic message.
   , rbNote          :: Maybe Text
+    -- ^ Additional explanation or guidance.
   , rbCategory      :: Category
+    -- ^ Rule category for filtering.
   , rbFixDesc       :: Maybe Text
+    -- ^ Description for the fix action.
   , rbSafetyLevel   :: SafetyLevel
+    -- ^ How safe is the auto-fix.
   , rbEnabled       :: Bool
+    -- ^ Whether rule is active.
   , rbDeprecated    :: Maybe Text
+    -- ^ Deprecation message if rule is deprecated.
   , rbConditions    :: [DSLSideCondition]
+    -- ^ Side conditions that must hold for match.
   , rbWithin        :: [Text]
+    -- ^ Module patterns where rule applies.
   , rbExcept        :: [Text]
+    -- ^ Module patterns to exclude.
   , rbSourceModule  :: Maybe Text
+    -- ^ Expected source module of matched function.
   , rbTargetModule  :: Maybe Text
+    -- ^ Module containing the replacement.
   , rbAddImports    :: [DSLImportSpec]
+    -- ^ Imports to add when fix is applied.
   , rbRemoveImports :: [Text]
-  -- Target specification (where to match)
-  , rbTarget        :: Maybe RT.RuleTarget  -- ^ Nothing = infer from category
+    -- ^ Modules to remove from imports.
+  , rbTarget        :: Maybe RT.RuleTarget
+    -- ^ Where to match: code, comments, pragmas, etc.
+    -- 'Nothing' = infer from category.
   }
 
--- | Start defining a rule with a name.
--- This produces a unified 'Rule' from "Argus.Rules.Types".
+-- | Create a rule from a name and builder.
+--
+-- This is the primary entry point for defining rules. It converts the
+-- DSL-specific 'RuleBuilder' into a unified 'Rule' from "Argus.Rules.Types".
+--
+-- __Parameters__:
+--
+-- * @name@: Unique rule identifier (e.g., @\"avoid-head\"@, @\"prefer-foldl\'\"@)
+-- * @builder@: Configured rule builder from 'match' and modifiers
+--
+-- __Returns__:
+--
+-- A unified 'Rule' ready for use in the engine.
+--
+-- __Example__:
+--
+-- @
+-- avoidHead :: Rule
+-- avoidHead = rule \"avoid-head\" $
+--   match (\"head $X\" ==> \"headMay $X\")
+--   & severity Warning
+--   & message \"Use headMay to handle empty lists safely\"
+--   & category Safety
+-- @
+--
+-- @since 1.0.0
 rule :: Text -> RuleBuilder -> Rule
 rule name builder = Rule
   { ruleId = name
@@ -625,8 +765,28 @@ rule name builder = Rule
   , ruleTarget = rbTarget builder  -- Nothing = infer from category
   }
 
--- | Convert a MatchExpr to a RuleBuilder
--- Usage: match ("head $X" ==> "headMay $X" `where_` someCondition)
+-- | Convert a 'MatchExpr' to a 'RuleBuilder'.
+--
+-- This is the standard way to start building a rule. The 'MatchExpr'
+-- contains the pattern, optional replacement, and any side conditions.
+--
+-- __Usage Patterns__:
+--
+-- @
+-- -- Simple replacement
+-- match (\"head\" ==> \"headMay\")
+--
+-- -- With conditions
+-- match (\"nub $X\" ==> \"ordNub $X\" \`where_\` hasClass \"$X\" \"Ord\")
+--
+-- -- With module context
+-- match (\"foldl\" ==> \"foldl'\" \`fromModule\` \"Prelude\" \`toModule\` \"Data.List\")
+--
+-- -- Detection only (no fix)
+-- match (pat \"unsafePerformIO\")
+-- @
+--
+-- @since 1.0.0
 match :: MatchExpr -> RuleBuilder
 match MatchExpr{..} = RuleBuilder
   { rbName = ""
@@ -974,16 +1134,16 @@ dslSideConditionToUnified = \case
 -- | Convert TypePredicate to unified SideCondition
 typePredToUnified :: TypePredicate -> RT.SideCondition
 typePredToUnified = \case
-  TypeOf var ty -> RT.HasType var ty
-  TypeReturns var ty -> RT.TypeMatches var ("* -> " <> ty)
-  TypeHasClass var cls -> RT.HasTypeClass var cls
-  TypeIsNumeric var -> RT.IsNumeric var
-  TypeIsString var -> RT.IsString var
-  TypeIsList var -> RT.IsList var
-  TypeIsMaybe var -> RT.IsMaybe var
-  TypeIsMonad var monad -> RT.IsMonad var monad
-  TypeIsPure var -> RT.IsPure var
-  TypeMatches var pat -> RT.TypeMatches var pat
+  TypeOf varName ty -> RT.HasType varName ty
+  TypeReturns varName ty -> RT.TypeMatches varName ("* -> " <> ty)
+  TypeHasClass varName cls -> RT.HasTypeClass varName cls
+  TypeIsNumeric varName -> RT.IsNumeric varName
+  TypeIsString varName -> RT.IsString varName
+  TypeIsList varName -> RT.IsList varName
+  TypeIsMaybe varName -> RT.IsMaybe varName
+  TypeIsMonad varName monad -> RT.IsMonad varName monad
+  TypeIsPure varName -> RT.IsPure varName
+  TypeMatches varName patText -> RT.TypeMatches varName patText
 
 -- | Convert ContextPredicate to unified SideCondition
 contextPredToUnified :: ContextPredicate -> RT.SideCondition
@@ -999,22 +1159,22 @@ contextPredToUnified = \case
 -- | Convert ExprPredicate to unified SideCondition
 exprPredToUnified :: ExprPredicate -> RT.SideCondition
 exprPredToUnified = \case
-  IsLiteral var -> RT.IsLiteral var
-  IsVariable var -> RT.IsVariable var
-  IsApplication var -> RT.IsApplication var
-  IsLambda var -> RT.IsLambda var
-  IsAtomic var -> RT.IsAtomic var
-  IsSimple var -> RT.IsAtomic var  -- Simple ≈ Atomic
+  IsLiteral varName -> RT.IsLiteral varName
+  IsVariable varName -> RT.IsVariable varName
+  IsApplication varName -> RT.IsApplication varName
+  IsLambda varName -> RT.IsLambda varName
+  IsAtomic varName -> RT.IsAtomic varName
+  IsSimple varName -> RT.IsAtomic varName  -- Simple ≈ Atomic
   NotEqual v1 v2 -> RT.NotEqual v1 v2
   FreeIn v1 v2 -> RT.FreeIn v1 v2
   NotFreeIn v1 v2 -> RT.NotFreeIn v1 v2
   NotUsedIn v1 v2 -> RT.NotFreeIn v1 v2  -- Same semantics
   IsEtaReducible f x -> RT.IsEtaReducible f x
-  NotBind var -> RT.NotBind var
-  Complexity var ord limit -> case ord of
-    LT -> RT.ComplexityLT var limit
-    GT -> RT.ComplexityGT var limit
-    EQ -> RT.And [RT.ComplexityLT var (limit + 1), RT.ComplexityGT var (limit - 1)]
+  NotBind varName -> RT.NotBind varName
+  Complexity varName ord limit -> case ord of
+    LT -> RT.ComplexityLT varName limit
+    GT -> RT.ComplexityGT varName limit
+    EQ -> RT.And [RT.ComplexityLT varName (limit + (1 :: Int)), RT.ComplexityGT varName (limit - (1 :: Int))]
   NoDerivingStrategy -> RT.NoDerivingStrategy
   WildcardNotLast -> RT.WildcardNotLast
   HasOverlap -> RT.HasPatternOverlap
@@ -1071,29 +1231,29 @@ unifiedConditionToText = \case
   RT.InFunctionBody -> "inFunctionBody"
   RT.InCommentType ct -> "inCommentType " <> commentTypeToText ct
   RT.InStringLiteral -> "inStringLiteral"
-  RT.HasType var ty -> var <> " :: " <> ty
-  RT.HasTypeClass var cls -> var <> " has " <> cls
-  RT.TypeMatches var pat -> var <> " ~ " <> pat
-  RT.IsNumeric var -> "isNumeric " <> var
-  RT.IsString var -> "isString " <> var
-  RT.IsList var -> "isList " <> var
-  RT.IsMaybe var -> "isMaybe " <> var
-  RT.IsMonad var monad -> var <> " in " <> monad
-  RT.IsPure var -> "isPure " <> var
-  RT.IsLiteral var -> "isLiteral " <> var
-  RT.IsVariable var -> "isVariable " <> var
-  RT.IsApplication var -> "isApplication " <> var
-  RT.IsLambda var -> "isLambda " <> var
-  RT.IsAtomic var -> "isAtomic " <> var
-  RT.IsConstructor var -> "isConstructor " <> var
+  RT.HasType varName ty -> varName <> " :: " <> ty
+  RT.HasTypeClass varName cls -> varName <> " has " <> cls
+  RT.TypeMatches varName patText -> varName <> " ~ " <> patText
+  RT.IsNumeric varName -> "isNumeric " <> varName
+  RT.IsString varName -> "isString " <> varName
+  RT.IsList varName -> "isList " <> varName
+  RT.IsMaybe varName -> "isMaybe " <> varName
+  RT.IsMonad varName monad -> varName <> " in " <> monad
+  RT.IsPure varName -> "isPure " <> varName
+  RT.IsLiteral varName -> "isLiteral " <> varName
+  RT.IsVariable varName -> "isVariable " <> varName
+  RT.IsApplication varName -> "isApplication " <> varName
+  RT.IsLambda varName -> "isLambda " <> varName
+  RT.IsAtomic varName -> "isAtomic " <> varName
+  RT.IsConstructor varName -> "isConstructor " <> varName
   RT.NotEqual v1 v2 -> v1 <> " /= " <> v2
   RT.FreeIn v1 v2 -> v1 <> " freeIn " <> v2
   RT.NotFreeIn v1 v2 -> v1 <> " notFreeIn " <> v2
-  RT.ComplexityLT var n -> "complexity " <> var <> " < " <> T.pack (show n)
-  RT.ComplexityGT var n -> "complexity " <> var <> " > " <> T.pack (show n)
+  RT.ComplexityLT varName n -> "complexity " <> varName <> " < " <> T.pack (show n)
+  RT.ComplexityGT varName n -> "complexity " <> varName <> " > " <> T.pack (show n)
   RT.HasImport modName -> "hasImport " <> modName
-  RT.HasPragma p -> "hasPragma " <> p
-  RT.InModule m -> "inModule " <> m
+  RT.HasPragma pragma -> "hasPragma " <> pragma
+  RT.InModule moduleName -> "inModule " <> moduleName
   RT.InTestFile -> "inTestFile"
   RT.NotInTestFile -> "notInTestFile"
   RT.And cs -> "(" <> T.intercalate " && " (map unifiedConditionToText cs) <> ")"
@@ -1101,11 +1261,11 @@ unifiedConditionToText = \case
   RT.Not c -> "!(" <> unifiedConditionToText c <> ")"
   RT.Always -> "always"
   RT.Never -> "never"
-  RT.NotIn var vals -> var <> " notIn " <> T.intercalate "," vals
-  RT.TypeContains var ty -> var <> " contains " <> ty
-  RT.ComplexityCond var ord n -> "complexity " <> var <> " " <> showOrd ord <> " " <> T.pack (show n)
+  RT.NotIn varName vals -> varName <> " notIn " <> T.intercalate "," vals
+  RT.TypeContains varName ty -> varName <> " contains " <> ty
+  RT.ComplexityCond varName ord n -> "complexity " <> varName <> " " <> showOrd ord <> " " <> T.pack (show n)
   -- New expression structure predicates
-  RT.NotBind var -> "notBind " <> var
+  RT.NotBind varName -> "notBind " <> varName
   RT.IsEtaReducible f x -> "isEtaReducible " <> f <> " " <> x
   -- Deriving and pattern analysis predicates
   RT.NoDerivingStrategy -> "noDerivingStrategy"
@@ -1131,59 +1291,59 @@ commentTypeToText = \case
   RT.CTPragma -> "pragma"
 
 -- | Convert DSL side conditions to a where clause text (for legacy compat)
-conditionsToWhere :: [DSLSideCondition] -> Maybe Text
-conditionsToWhere [] = Nothing
-conditionsToWhere conds = Just $ T.intercalate ", " (map conditionToText conds)
+_conditionsToWhere :: [DSLSideCondition] -> Maybe Text
+_conditionsToWhere [] = Nothing
+_conditionsToWhere conds = Just $ T.intercalate ", " (map _conditionToText conds)
 
 -- | Convert a single DSL condition to text (legacy)
-conditionToText :: DSLSideCondition -> Text
-conditionToText = \case
-  TypeCondition tp -> typePredToText tp
-  ContextCondition cp -> contextPredToText cp
-  ExprCondition ep -> exprPredToText ep
-  AndCondition c1 c2 -> "(" <> conditionToText c1 <> " && " <> conditionToText c2 <> ")"
-  OrCondition c1 c2 -> "(" <> conditionToText c1 <> " || " <> conditionToText c2 <> ")"
-  NotCondition c -> "!(" <> conditionToText c <> ")"
+_conditionToText :: DSLSideCondition -> Text
+_conditionToText = \case
+  TypeCondition tp -> _typePredToText tp
+  ContextCondition cp -> _contextPredToText cp
+  ExprCondition ep -> _exprPredToText ep
+  AndCondition c1 c2 -> "(" <> _conditionToText c1 <> " && " <> _conditionToText c2 <> ")"
+  OrCondition c1 c2 -> "(" <> _conditionToText c1 <> " || " <> _conditionToText c2 <> ")"
+  NotCondition c -> "!(" <> _conditionToText c <> ")"
 
-typePredToText :: TypePredicate -> Text
-typePredToText = \case
-  TypeOf var ty -> var <> " :: " <> ty
-  TypeReturns var ty -> var <> " returns " <> ty
-  TypeHasClass var cls -> var <> " has " <> cls
-  TypeIsNumeric var -> "isNumeric " <> var
-  TypeIsString var -> "isString " <> var
-  TypeIsList var -> "isList " <> var
-  TypeIsMaybe var -> "isMaybe " <> var
-  TypeIsMonad var monad -> var <> " in " <> monad
-  TypeIsPure var -> "isPure " <> var
-  TypeMatches var pat -> var <> " ~ " <> pat
+_typePredToText :: TypePredicate -> Text
+_typePredToText = \case
+  TypeOf varName ty -> varName <> " :: " <> ty
+  TypeReturns varName ty -> varName <> " returns " <> ty
+  TypeHasClass varName cls -> varName <> " has " <> cls
+  TypeIsNumeric varName -> "isNumeric " <> varName
+  TypeIsString varName -> "isString " <> varName
+  TypeIsList varName -> "isList " <> varName
+  TypeIsMaybe varName -> "isMaybe " <> varName
+  TypeIsMonad varName monad -> varName <> " in " <> monad
+  TypeIsPure varName -> "isPure " <> varName
+  TypeMatches varName patText -> varName <> " ~ " <> patText
 
-contextPredToText :: ContextPredicate -> Text
-contextPredToText = \case
+_contextPredToText :: ContextPredicate -> Text
+_contextPredToText = \case
   InContext ctx -> "inContext " <> ctx
-  HasImport mod' -> "hasImport " <> mod'
-  HasPragma p -> "hasPragma " <> p
-  InModule m -> "inModule " <> m
+  HasImport modName -> "hasImport " <> modName
+  HasPragma pragma -> "hasPragma " <> pragma
+  InModule moduleName -> "inModule " <> moduleName
   InTestFile -> "inTestFile"
   InMainFile -> "inMainFile"
-  NotInContext cp -> "!(" <> contextPredToText cp <> ")"
+  NotInContext cp -> "!(" <> _contextPredToText cp <> ")"
 
-exprPredToText :: ExprPredicate -> Text
-exprPredToText = \case
-  IsLiteral var -> "isLiteral " <> var
-  IsVariable var -> "isVariable " <> var
-  IsApplication var -> "isApplication " <> var
-  IsLambda var -> "isLambda " <> var
-  IsAtomic var -> "isAtomic " <> var
-  IsSimple var -> "isSimple " <> var
+_exprPredToText :: ExprPredicate -> Text
+_exprPredToText = \case
+  IsLiteral varName -> "isLiteral " <> varName
+  IsVariable varName -> "isVariable " <> varName
+  IsApplication varName -> "isApplication " <> varName
+  IsLambda varName -> "isLambda " <> varName
+  IsAtomic varName -> "isAtomic " <> varName
+  IsSimple varName -> "isSimple " <> varName
   NotEqual v1 v2 -> v1 <> " /= " <> v2
   FreeIn v1 v2 -> v1 <> " freeIn " <> v2
   NotFreeIn v1 v2 -> v1 <> " notFreeIn " <> v2
   NotUsedIn v1 v2 -> v1 <> " notUsedIn " <> v2
   IsEtaReducible f x -> "isEtaReducible " <> f <> " " <> x
-  NotBind var -> "notBind " <> var
-  Complexity var ord limit ->
-    "complexity " <> var <> " " <> showOrd ord <> " " <> T.pack (show limit)
+  NotBind varName -> "notBind " <> varName
+  Complexity varName ord limit ->
+    "complexity " <> varName <> " " <> showOrd ord <> " " <> T.pack (show limit)
   NoDerivingStrategy -> "noDerivingStrategy"
   WildcardNotLast -> "wildcardNotLast"
   HasOverlap -> "hasOverlap"
@@ -1207,16 +1367,16 @@ sideConditionToAST = \case
 
 typePredToAST :: TypePredicate -> AST.SideCondition
 typePredToAST = \case
-  TypeOf var ty -> AST.HasType var ty
-  TypeReturns var ty -> AST.TypeMatches var ("* -> " <> ty)
-  TypeHasClass var cls -> AST.HasTypeClass var cls
-  TypeIsNumeric var -> AST.IsNumeric var
-  TypeIsString var -> AST.IsString var
-  TypeIsList var -> AST.IsList var
-  TypeIsMaybe var -> AST.IsMaybe var
-  TypeIsMonad var monad -> AST.IsMonad var monad
-  TypeIsPure var -> AST.IsPure var
-  TypeMatches var pat -> AST.TypeMatches var pat
+  TypeOf varName ty -> AST.HasType varName ty
+  TypeReturns varName ty -> AST.TypeMatches varName ("* -> " <> ty)
+  TypeHasClass varName cls -> AST.HasTypeClass varName cls
+  TypeIsNumeric varName -> AST.IsNumeric varName
+  TypeIsString varName -> AST.IsString varName
+  TypeIsList varName -> AST.IsList varName
+  TypeIsMaybe varName -> AST.IsMaybe varName
+  TypeIsMonad varName monad -> AST.IsMonad varName monad
+  TypeIsPure varName -> AST.IsPure varName
+  TypeMatches varName patText -> AST.TypeMatches varName patText
 
 contextPredToAST :: ContextPredicate -> AST.SideCondition
 contextPredToAST = \case
@@ -1232,19 +1392,19 @@ contextPredToAST = \case
 
 exprPredToAST :: ExprPredicate -> AST.SideCondition
 exprPredToAST = \case
-  IsLiteral var -> AST.IsLiteral var
-  IsVariable var -> AST.IsVariable var
-  IsApplication var -> AST.IsApplication var
-  IsLambda var -> AST.IsLambda var
-  IsAtomic var -> AST.IsAtomic var
-  IsSimple var -> AST.IsAtomic var      -- Simple ≈ Atomic for now
-  NotEqual v1 v2 -> AST.NotEqual v1 v2
-  FreeIn v1 v2 -> AST.FreeIn v1 v2
-  NotFreeIn v1 v2 -> AST.NotFreeIn v1 v2
-  NotUsedIn v1 v2 -> AST.NotFreeIn v1 v2  -- Same semantics
-  IsEtaReducible f x -> AST.IsEtaReducible f x
-  NotBind var -> AST.NotBind var
-  Complexity var ord limit -> AST.ComplexityCond var ord limit
+  IsLiteral varN -> AST.IsLiteral varN
+  IsVariable varN -> AST.IsVariable varN
+  IsApplication varN -> AST.IsApplication varN
+  IsLambda varN -> AST.IsLambda varN
+  IsAtomic varN -> AST.IsAtomic varN
+  IsSimple varN -> AST.IsAtomic varN    -- Simple ≈ Atomic for now
+  NotEqual varA varB -> AST.NotEqual varA varB
+  FreeIn varA varB -> AST.FreeIn varA varB
+  NotFreeIn varA varB -> AST.NotFreeIn varA varB
+  NotUsedIn varA varB -> AST.NotFreeIn varA varB  -- Same semantics
+  IsEtaReducible funcN argN -> AST.IsEtaReducible funcN argN
+  NotBind varN -> AST.NotBind varN
+  Complexity varN ord lim -> AST.ComplexityCond varN ord lim
   -- Deriving and pattern analysis predicates
   NoDerivingStrategy -> AST.NoDerivingStrategy
   WildcardNotLast -> AST.WildcardNotLast
@@ -1254,9 +1414,9 @@ exprPredToAST = \case
   UsesDefaultOptions -> AST.UsesDefaultOptions
 
 -- | Convert DSLPattern to text representation
-patternToText :: DSLPattern -> Text
-patternToText (PatternText t) = t
-patternToText (PatternExpr e) = exprToText e
+_patternToText :: DSLPattern -> Text
+_patternToText (PatternText t) = t
+_patternToText (PatternExpr e) = exprToText e
 
 -- | Convert PatternExpr to text representation
 exprToText :: PatternExpr -> Text

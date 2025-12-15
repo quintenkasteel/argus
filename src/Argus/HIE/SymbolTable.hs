@@ -8,10 +8,64 @@
 -- Description : Symbol resolution and table management
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides symbol table management for HIE-based analysis,
 -- including building symbol tables from HIE data, resolving symbols,
 -- and checking replacement safety.
+--
+-- = Architecture
+--
+-- @
+-- ┌──────────────────────────────────────────────────────────────────┐
+-- │                        SymbolTable                               │
+-- │  ┌───────────────┐  ┌──────────────┐  ┌─────────────────────┐   │
+-- │  │  stSymbols    │  │   stTypes    │  │    stClasses        │   │
+-- │  │ Map Text      │  │ Map Text     │  │  Map Text HieSymbol │   │
+-- │  │  [HieSymbol]  │  │  HieSymbol   │  │                     │   │
+-- │  └───────────────┘  └──────────────┘  └─────────────────────┘   │
+-- │  ┌───────────────┐  ┌──────────────┐  ┌─────────────────────┐   │
+-- │  │  stImports    │  │  stExports   │  │   stQualified       │   │
+-- │  │ ImportedModule│  │  Set Text    │  │  Map Text Text      │   │
+-- │  └───────────────┘  └──────────────┘  └─────────────────────┘   │
+-- └──────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Key Operations
+--
+-- * __Building__: Construct tables from HIE database ('buildSymbolTable')
+-- * __Resolution__: Find symbols by name or qualified name
+-- * __Safety Checking__: Validate symbol replacements ('canReplace')
+-- * __Scope Analysis__: Navigate local, module, and global scopes
+--
+-- = Safety Checking
+--
+-- The module provides comprehensive safety analysis for symbol replacement:
+--
+-- * __Shadowing__: Detects when a new name would shadow imports
+-- * __Conflicts__: Identifies naming collisions in scope
+-- * __Type Compatibility__: Checks for type variable capture
+-- * __Semantic Changes__: Warns about class method/instance breakage
+--
+-- = Thread Safety
+--
+-- 'SymbolTable' is immutable after construction and safe for concurrent reads.
+-- Modifications return new tables (functional updates).
+--
+-- = Usage
+--
+-- @
+-- table <- buildSymbolTable hieDb "MyModule"
+-- case canReplace table "oldName" "newName" of
+--   SafeReplace -> -- proceed with rename
+--   UnsafeShadow mod name -> -- warning: would shadow import
+--   UnsafeConflict reason -> -- error: conflict exists
+-- @
+--
+-- @since 1.0.0
 module Argus.HIE.SymbolTable
   ( -- * Symbol Table
     SymbolTable
@@ -49,10 +103,10 @@ module Argus.HIE.SymbolTable
   ) where
 
 import Control.Monad (forM)
-import Data.List (find, nub)
+import Data.List (find)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (mapMaybe, listToMaybe, catMaybes, fromMaybe)
+import Data.Maybe (listToMaybe, fromMaybe, catMaybes)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -67,8 +121,6 @@ import Argus.Analysis.Semantic
   ( findDefinition
   , findReferences
   , getExports
-  , getAllModules
-  , ModuleInfo(..)
   , DefinitionResult(..)
   , ReferenceResult(..)
   )

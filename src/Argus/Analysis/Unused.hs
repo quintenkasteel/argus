@@ -402,8 +402,8 @@ detectUnused cfg graph hies =
 -- | Sort key for consistent ordering (file, line, column)
 itemSortKey :: UnusedItem -> (FilePath, Int, Int)
 itemSortKey item =
-  let span = uiSpan item
-  in (srcSpanFile span, srcSpanStartLineRaw span, srcSpanStartColRaw span)
+  let theSpan = uiSpan item
+  in (srcSpanFile theSpan, srcSpanStartLineRaw theSpan, srcSpanStartColRaw theSpan)
 
 -- | Compute statistics for the result
 computeStats :: [UnusedItem] -> UnusedStats
@@ -515,8 +515,8 @@ detectUnusedRecordFields unreachable graph =
         Nothing -> False
 
 -- | Detect unused type classes
-detectUnusedTypeClasses :: Set QualifiedName -> DepGraph -> [UnusedItem]
-detectUnusedTypeClasses unreachable graph =
+_detectUnusedTypeClasses :: Set QualifiedName -> DepGraph -> [UnusedItem]
+_detectUnusedTypeClasses unreachable graph =
   [ mkUnusedItem name UnusedTypeClass (dnSymbol node) CLHigh
   | (name, node) <- Map.toList (dgNodes graph)
   , name `Set.member` unreachable
@@ -607,14 +607,14 @@ detectUnusedLocalBindings reachable hie =
   in [ UnusedItem
        { uiName = qn
        , uiKind = UnusedLocalBinding
-       , uiSpan = span
+       , uiSpan = theSpan
        , uiMessage = "Local binding '" <> qnName qn <> "' is unused"
        , uiConfidence = 0.9
        , uiSuggestion = Just $ "Remove unused binding or prefix with underscore"
        , uiRelated = []
        , uiCanAutoFix = True
        }
-     | (qn, span) <- localBindings
+     | (qn, theSpan) <- localBindings
      , qn `Set.notMember` reachable
      , not (T.isPrefixOf "_" (qnName qn))  -- Underscore prefix means intentionally unused
      ]
@@ -803,9 +803,9 @@ safetyForKind = \case
 
 -- | Create a fix that removes an unused import
 mkImportRemovalFix :: Text -> Text -> SrcSpan -> Fix
-mkImportRemovalFix moduleName symbolName span = Fix
+mkImportRemovalFix moduleName symbolName theSpan = Fix
   { fixTitle = "Remove unused import '" <> symbolName <> "' from " <> moduleName
-  , fixEdits = [FixEdit span ""]
+  , fixEdits = [FixEdit theSpan ""]
   , fixIsPreferred = True
   , fixAddImports = []
   , fixRemoveImports = [symbolName]

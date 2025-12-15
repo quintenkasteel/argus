@@ -62,7 +62,6 @@ module Argus.Config.Env
   , parseList
   ) where
 
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import System.Environment (lookupEnv)
@@ -92,8 +91,8 @@ data EnvConfig = EnvConfig
   deriving stock (Eq, Show)
 
 -- | Empty environment config (no overrides)
-emptyEnvConfig :: EnvConfig
-emptyEnvConfig = EnvConfig
+_emptyEnvConfig :: EnvConfig
+_emptyEnvConfig = EnvConfig
   { envCfgPath         = Nothing
   , envCfgOutputFormat = Nothing
   , envCfgMode         = Nothing
@@ -201,10 +200,6 @@ loadEnvConfig = do
 --------------------------------------------------------------------------------
 -- Applying Environment Configuration
 --------------------------------------------------------------------------------
-
--- | Type class for configs that can be modified by environment variables
-class ApplyEnvConfig a where
-  applyEnv :: EnvConfig -> a -> a
 
 -- | Apply environment config to a general config record
 --

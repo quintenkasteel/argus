@@ -30,7 +30,7 @@ module Argus.Rules.Concurrency
   ) where
 
 import Data.Aeson (ToJSON, FromJSON)
-import Data.Maybe (catMaybes, mapMaybe)
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
@@ -449,7 +449,7 @@ categoryToCode = \case
 mkSpan :: FilePath -> Int -> Text -> Text -> SrcSpan
 mkSpan path lineNum line keyword =
   let col = maybe 1 (+ 1) $ T.findIndex (== T.head keyword) line
-  in mkSrcSpanRaw path lineNum col lineNum (col + fromIntegral (T.length keyword))
+  in mkSrcSpanRaw path lineNum col lineNum (col + T.length keyword)
 
 -- | Check if a line is a comment
 isComment :: Text -> Bool

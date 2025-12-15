@@ -147,7 +147,7 @@ import Data.Hashable (Hashable, hash)
 import Data.List (sortBy)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (catMaybes, listToMaybe)
+import Data.Maybe (catMaybes, isJust, listToMaybe)
 import Data.Ord (comparing)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -669,9 +669,7 @@ addToHistory h app =
 findMatchingPattern :: LearningEngine -> Text -> IO (Maybe FixPattern)
 findMatchingPattern engine code = do
   db <- readTVarIO (lePatternDB engine)
-  let config = leConfig engine
-      threshold = lcSimilarityThreshold config
-      patterns = pdbPatterns db
+  let patterns = pdbPatterns db
       matches = filter (\p -> matchPattern p code) patterns
       sorted = sortBy (comparing (negate . fpConfidence)) matches
   pure $ listToMaybe sorted
@@ -725,8 +723,6 @@ suggestFixes engine diag content = do
 suggestFromPatterns :: LearningEngine -> Diagnostic -> Text -> IO [FixSuggestion]
 suggestFromPatterns engine diag content = do
   db <- readTVarIO (lePatternDB engine)
-  let config = leConfig engine
-      threshold = lcSimilarityThreshold config
 
   let matchingPatterns = filter (\p -> matchPattern p content) (pdbPatterns db)
 
@@ -875,12 +871,9 @@ extractDiagnosticFeatures diag = DiagnosticFeatures
   , dfFixCount = length (diagFixes diag)
   }
   where
-    spanSize span =
-      (unLine (srcSpanEndLine span) - unLine (srcSpanStartLine span) + 1) *
-      (unColumn (srcSpanEndCol span) - unColumn (srcSpanStartCol span))
-
-    isJust (Just _) = True
-    isJust Nothing = False
+    spanSize theSpan =
+      (unLine (srcSpanEndLine theSpan) - unLine (srcSpanStartLine theSpan) + 1) *
+      (unColumn (srcSpanEndCol theSpan) - unColumn (srcSpanStartCol theSpan))
 
 -- | Combine features into a vector
 combineFeatures :: CodeFeatures -> DiagnosticFeatures -> FeatureVector
@@ -964,7 +957,9 @@ editDistance t1 t2 =
     levenshtein s1 s2 = last $ foldl (compute s1) [0..length s1] s2
 
     compute :: String -> [Int] -> Char -> [Int]
-    compute s1 row c = scanl (step s1 c) (head row + 1) (zip3 s1 row (tail row))
+    compute s1 row c = case row of
+      (r:rs) -> scanl (step s1 c) (r + 1) (zip3 s1 row rs)
+      [] -> []
 
     step :: String -> Char -> Int -> (Char, Int, Int) -> Int
     step _ c diag (c', left, up)
@@ -1322,13 +1317,13 @@ applyFixContent content fix =
   foldl applyEdit content (reverse $ fixEdits fix)
   where
     applyEdit txt edit =
-      let span = fixEditSpan edit
+      let theSpan = fixEditSpan edit
           newText = fixEditNewText edit
           linesList = T.lines txt
-          startLine = unLine (srcSpanStartLine span) - 1
-          endLine = unLine (srcSpanEndLine span) - 1
-          startCol = unColumn (srcSpanStartCol span) - 1
-          endCol = unColumn (srcSpanEndCol span) - 1
+          startLine = unLine (srcSpanStartLine theSpan) - 1
+          endLine = unLine (srcSpanEndLine theSpan) - 1
+          startCol = unColumn (srcSpanStartCol theSpan) - 1
+          endCol = unColumn (srcSpanEndCol theSpan) - 1
           before = take startLine linesList
           after = drop (endLine + 1) linesList
           modLine = if startLine == endLine && startLine < length linesList

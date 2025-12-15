@@ -3,7 +3,7 @@
 
 module SecurityIssues where
 
-import Data.Coerce (coerce)
+import Data.Text
 import System.FilePath ((</>)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Random (randomRIO)

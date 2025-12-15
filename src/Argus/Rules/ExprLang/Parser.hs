@@ -95,13 +95,13 @@ parseExpr input =
   case M.parse (spaceConsumer *> exprP <* eof) "" input of
     Left err -> ParseErr $ ParseError
       { peMessage = T.pack $ M.errorBundlePretty err
-      , peLine = getLine err
+      , peLine = getErrLine err
       , peColumn = getCol err
       , peInput = input
       }
     Right expr -> ParseOk expr
   where
-    getLine err = M.unPos $ M.sourceLine $ M.pstateSourcePos $ M.bundlePosState err
+    getErrLine err = M.unPos $ M.sourceLine $ M.pstateSourcePos $ M.bundlePosState err
     getCol err = M.unPos $ M.sourceColumn $ M.pstateSourcePos $ M.bundlePosState err
 
 -- | Parse a value literal
@@ -157,8 +157,8 @@ identifier = lexeme $ do
   return name
 
 -- | Parse constructor (starts with uppercase)
-constructor :: Parser Text
-constructor = lexeme $ do
+_constructor :: Parser Text
+_constructor = lexeme $ do
   first <- upperChar
   rest <- many (alphaNumChar <|> char '_' <|> char '\'')
   return $ T.pack (first : rest)
@@ -224,7 +224,7 @@ compOpP = choice
   , OpGte <$ symbol ">="
   , OpLt <$ symbol "<"
   , OpGt <$ symbol ">"
-  , OpIn <$ (reserved "in" >> return "in")
+  , OpIn <$ reserved "in"
   ]
 
 -- | Parse additive expression
@@ -355,7 +355,7 @@ caseP = do
     pat <- exprP
     void $ symbol "->"
     body <- exprP
-    optional $ symbol ";"
+    void $ optional $ symbol ";"
     return (pat, body)
   return scrut  -- Simplified for now
 
@@ -586,7 +586,7 @@ tupleTypeP = do
   void $ symbol ")"
   case rest of
     [] -> return first
-    _ -> return $ TRecord $ Map.fromList $ zip (map (T.pack . show) [0..]) (first : rest)
+    _ -> return $ TRecord $ Map.fromList $ zip (map (T.pack . show) ([0..] :: [Int])) (first : rest)
 
 --------------------------------------------------------------------------------
 -- Tokenization

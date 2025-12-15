@@ -6,8 +6,57 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module provides the main orchestration for Argus,
--- coordinating parsing, analysis, rule application, and output.
+-- = Overview
+--
+-- This module provides the main orchestration for Argus, coordinating
+-- parsing, analysis, rule application, and output. It is the primary
+-- entry point for programmatic use of Argus.
+--
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                        runArgus Pipeline                            │
+-- │                                                                     │
+-- │  Options ──► Config ──► File Discovery ──► Parallel Analysis       │
+-- │                               │                   │                 │
+-- │                               ▼                   ▼                 │
+-- │                         [FilePath]        ┌─────────────────┐      │
+-- │                                           │  analyzeFile    │      │
+-- │                                           │                 │      │
+-- │                                           │ • Parse         │      │
+-- │                                           │ • Syntactic     │      │
+-- │                                           │ • Semantic      │      │
+-- │                                           │ • Rules         │      │
+-- │                                           └────────┬────────┘      │
+-- │                                                    │               │
+-- │                                                    ▼               │
+-- │                                              ArgusResult           │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Analysis Modes
+--
+-- * 'QuickMode' - Syntactic analysis only (fastest)
+-- * 'FullMode' - Includes HIE-based semantic analysis
+-- * 'PluginMode' - Uses GHC plugin for Template Haskell
+--
+-- = Usage
+--
+-- @
+-- -- Simple analysis
+-- result <- runArgus defaultOptions { optTargetPaths = ["src"] }
+-- print (resultDiagCount result)
+--
+-- -- Single file analysis
+-- diags <- runArgusOnFile "src/Foo.hs"
+--
+-- -- Custom context
+-- let ctx = defaultContext { acConfig = customConfig }
+-- diags <- analyzeFile ctx "src/Foo.hs"
+-- @
+--
+-- @since 1.0.0
 module Argus.Core
   ( -- * Main entry points
     runArgus
@@ -65,7 +114,6 @@ import Argus.HIE.IncrementalLoader
   , defaultLoaderConfig
   , initIncrementalLoader
   , closeIncrementalLoader
-  , getCacheStats
   )
 import Argus.Refactor.Engine
 import Argus.Refactor.ExactPrint
@@ -82,21 +130,40 @@ import Argus.Rules.SpaceLeaks
 import Argus.Suppression (parseSuppressions, applySuppressions)
 import Argus.Types
 import Argus.Utils (isIdentChar, isIdentStart, isOperatorChar)
-import Argus.Internal.DList (DList)
 import Argus.Internal.DList qualified as DL
 
 --------------------------------------------------------------------------------
 -- Analysis Context
 --------------------------------------------------------------------------------
 
--- | Context for analysis
+-- | Context for analysis.
+--
+-- Carries configuration and shared state through the analysis pipeline.
+-- Use 'defaultContext' to create a context with sensible defaults.
+--
+-- = Fields
+--
+-- [@acConfig@]: Loaded configuration from argus.toml
+-- [@acOptions@]: Command-line options (overrides config)
+-- [@acHieData@]: Pre-loaded HIE data for semantic analysis
+-- [@acDepGraph@]: Module dependency graph for cross-module analysis
+-- [@acRulesConfig@]: Configuration for custom/configurable rules
+-- [@acHieLoader@]: Incremental HIE loader for cached queries
+--
+-- @since 1.0.0
 data AnalysisContext = AnalysisContext
   { acConfig      :: Config
+    -- ^ Project configuration
   , acOptions     :: ArgusOptions
-  , acHieData     :: [HieData]        -- ^ Pre-loaded HIE data (for full mode)
-  , acDepGraph    :: Maybe DepGraph   -- ^ Pre-built dependency graph
-  , acRulesConfig :: RulesConfig      -- ^ Configurable rules configuration
-  , acHieLoader   :: Maybe IncrementalLoader  -- ^ HIE incremental loader (for cached queries)
+    -- ^ Runtime options
+  , acHieData     :: [HieData]
+    -- ^ Pre-loaded HIE data (for full mode)
+  , acDepGraph    :: Maybe DepGraph
+    -- ^ Pre-built dependency graph
+  , acRulesConfig :: RulesConfig
+    -- ^ Configurable rules configuration
+  , acHieLoader   :: Maybe IncrementalLoader
+    -- ^ HIE incremental loader (for cached queries)
   }
 
 -- | Input to the analysis pipeline - either a file path or source text
@@ -292,9 +359,9 @@ analyzeSource ctx path source = do
 
 -- | Internal result from parsing (either from file or source)
 data ParsedInput = ParsedInput
-  { piPath        :: FilePath           -- ^ File path (real or virtual)
-  , piSource      :: Text               -- ^ Source content
-  , piParseResult :: Either ParseError ParseResult  -- ^ Parse result
+  { _piPath        :: FilePath           -- ^ File path (real or virtual)
+  , _piSource      :: Text               -- ^ Source content
+  , _piParseResult :: Either ParseError ParseResult  -- ^ Parse result
   }
 
 -- | Read and parse input based on AnalysisInput type

@@ -4,7 +4,8 @@ module Security where
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Text as T (Text)
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import GHC.IO.Unsafe (unsafeDupablePerformIO)
 import System.IO.Unsafe (unsafePerformIO)
@@ -108,7 +109,7 @@ heavilyDebugged x y =
 
 -- | Concatenating user input to file path - path traversal risk
 readUserFile :: FilePath -> IO String
-readUserFile userPath = readFile ("/var/data/" +TIO.readFileFileFileFileFileth)
+readUserFile userPath = readFile ("/var/data/" ++ userPath)
 
 -- | Using user input directly as path
 directPath :: FilePath -> IO String

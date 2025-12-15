@@ -61,7 +61,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad (void)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Char (isUpper)
-import Data.List (nub, sortOn)
+import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes, mapMaybe)
@@ -411,7 +411,7 @@ caseP = do
       pat <- atomP
       void $ symbol "->"
       expr <- patternExprP
-      optional $ symbol ";"
+      void $ optional $ symbol ";"
       return (pat, expr)
 
 -- | Parse do notation
@@ -793,25 +793,26 @@ matchASTPattern astPat source =
       LitBool b -> T.pack (show b) `T.isInfixOf` txt
 
     matchApplication :: ASTPattern -> ASTPattern -> Text -> Int -> [MatchResult]
-    matchApplication f x lineText lineNum =
+    matchApplication _f _x lineText lineNum =
       -- Look for function application pattern: f x
       let stripped = T.strip lineText
           -- Try to find application patterns
           parts = T.words stripped
-      in if length parts >= 2
-         then [ MatchResult
-                  { mrMatched = True
-                  , mrBindings = Map.fromList
-                      [ ("f", mkBinding (head parts) lineNum 1)
-                      , ("x", mkBinding (T.unwords $ tail parts) lineNum (T.length (head parts) + 2))
-                      ]
-                  , mrConstraintResults = Map.empty
-                  }
-              ]
-         else []
+      in case parts of
+           (firstPart : restParts@(_ : _)) ->
+             [ MatchResult
+                 { mrMatched = True
+                 , mrBindings = Map.fromList
+                     [ ("f", mkBinding firstPart lineNum 1)
+                     , ("x", mkBinding (T.unwords restParts) lineNum (T.length firstPart + 2))
+                     ]
+                 , mrConstraintResults = Map.empty
+                 }
+             ]
+           _ -> []
 
     matchLambda :: [Text] -> ASTPattern -> Text -> Int -> [MatchResult]
-    matchLambda params body lineText lineNum
+    matchLambda params _body lineText lineNum
       | "\\" `T.isInfixOf` lineText || "λ" `T.isInfixOf` lineText =
           -- Found a lambda
           let stripped = T.strip lineText
@@ -841,7 +842,7 @@ matchASTPattern astPat source =
       | otherwise = []
 
     matchIfThenElse :: ASTPattern -> ASTPattern -> ASTPattern -> Text -> Int -> [MatchResult]
-    matchIfThenElse cond t f lineText lineNum
+    matchIfThenElse _cond _t _f lineText lineNum
       | "if " `T.isInfixOf` lineText && " then " `T.isInfixOf` lineText =
           let stripped = T.strip lineText
               afterIf = snd $ T.breakOn "if " stripped
@@ -863,7 +864,7 @@ matchASTPattern astPat source =
       | otherwise = []
 
     matchInfix :: ASTPattern -> Text -> ASTPattern -> Text -> Int -> [MatchResult]
-    matchInfix l op r lineText lineNum =
+    matchInfix _l op _r lineText lineNum =
       let stripped = T.strip lineText
           opText = " " <> op <> " "
       in if opText `T.isInfixOf` stripped
@@ -1088,4 +1089,4 @@ ppConstraint = \case
   where
     ppType' (TVar name) = name
     ppType' (TCon name) = name
-    ppType' t = "..."
+    ppType' _t = "..."

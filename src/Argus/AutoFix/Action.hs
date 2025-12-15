@@ -12,6 +12,10 @@
 -- Description : AST and compiler for fix actions
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides a domain-specific language for expressing fix
 -- transformations as an abstract syntax tree (AST). The AST can be:
@@ -21,28 +25,57 @@
 -- * Compiled into actual text transformations
 -- * Serialized for display or storage
 --
--- == Architecture
+-- = Architecture
 --
 -- The 'FixAction' type represents atomic fix operations. These can be
 -- combined using 'FixSequence' for sequential operations or 'FixChoice'
 -- for alternatives. The 'compileAction' function transforms actions
 -- into executable text transformations.
 --
--- == Usage
+-- @
+--                      FixAction
+--                          │
+--          ┌───────────────┼───────────────┐
+--          │               │               │
+--       Replace         Insert          Delete
+--          │               │               │
+--          └───────────────┼───────────────┘
+--                          │
+--                    compileAction
+--                          │
+--                          ▼
+--                   ActionResult
+--                          │
+--                    Success / Error
+-- @
+--
+-- = Action Types
+--
+-- * 'Replace': Replace text at a span with new text
+-- * 'Insert': Insert text at an offset
+-- * 'Delete': Remove text at a span
+-- * 'InsertLine': Insert a new line
+-- * 'DeleteLine': Remove an entire line
+-- * 'Indent': Adjust indentation
+--
+-- = Thread Safety
+--
+-- Action compilation is pure and thread-safe. Actions can be
+-- compiled concurrently from multiple threads.
+--
+-- = Usage
 --
 -- @
 -- -- Define a fix action
--- let action = Replace
---       { raSpan = SrcSpan 1 1 1 10
---       , raOldText = "head xs"
---       , raNewText = "listToMaybe xs"
---       }
+-- let action = Replace span "head xs" "listToMaybe xs" defaultActionMeta
 --
 -- -- Compile and apply
 -- case compileAction action content of
---   Right newContent -> putStrLn newContent
---   Left err -> putStrLn $ "Error: " <> err
+--   Right (ActionSuccess newContent _) -> putStrLn newContent
+--   Left err -> putStrLn $ "Error: " <> show err
 -- @
+--
+-- @since 1.0.0
 module Argus.AutoFix.Action
   ( -- * Core Action Types
     FixAction (..)
@@ -328,7 +361,38 @@ data CompileError
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Compile and apply a single action
+-- | Compile and apply a single action.
+--
+-- Transforms a 'FixAction' into an 'ActionResult' by applying it to
+-- the given content. Verifies that the old text matches before making
+-- replacements.
+--
+-- ==== Parameters
+--
+-- * @action@: The fix action to compile and apply
+-- * @content@: The file content to modify
+--
+-- ==== Returns
+--
+-- * @Right (ActionSuccess newContent delta)@: Successful application
+-- * @Right (ActionVerificationFailed expected actual)@: Old text didn't match
+-- * @Right (ActionOutOfBounds offset len)@: Invalid span
+-- * @Left CompileError@: Compilation error
+--
+-- ==== Example
+--
+-- @
+-- let action = Replace span "head xs" "listToMaybe xs" defaultActionMeta
+-- case compileAction action content of
+--   Right (ActionSuccess newContent delta) ->
+--     putStrLn $ "Changed " ++ show delta ++ " characters"
+--   Right (ActionVerificationFailed expected actual) ->
+--     putStrLn $ "Expected: " ++ expected ++ ", got: " ++ actual
+--   Left err ->
+--     putStrLn $ "Error: " ++ show err
+-- @
+--
+-- @since 1.0.0
 compileAction :: FixAction -> Text -> Either CompileError ActionResult
 compileAction action content = case action of
   Replace raSpan raOldText raNewText _ ->

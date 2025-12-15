@@ -6,9 +6,50 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the index command for building and indexing HIE files.
+-- = Overview
+--
+-- This module implements the @argus index@ command, which builds a project
+-- with HIE file generation enabled and creates an hiedb database for
+-- semantic analysis.
+--
+-- = Execution Flow
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                          runIndex                                    │
+-- │                                                                      │
+-- │  1. Detect Project ──► 2. Detect GHC ──► 3. Build with HIE         │
+-- │         │                    │                   │                  │
+-- │         ▼                    ▼                   ▼                  │
+-- │    Stack/Cabal          Version            .hie files               │
+-- │                                                  │                  │
+-- │                                    4. Find/Install hiedb            │
+-- │                                                  │                  │
+-- │                                                  ▼                  │
+-- │                                    5. Index HIE ──► .hiedb          │
+-- │                                                  │                  │
+-- │                                    6. Create symlink (optional)     │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Project Detection
+--
+-- Automatically detects project type by checking for:
+-- * Stack: @stack.yaml@
+-- * Cabal: @cabal.project@ or @*.cabal@ files
+--
+-- = hiedb Management
+--
+-- If hiedb is not found:
+-- 1. Check system PATH
+-- 2. Prompt to install (unless @--yes@ provided)
+-- 3. Install via @stack install hiedb@ or @cabal install hiedb@
+--
+-- @since 1.0.0
 module Argus.CLI.Index
-  ( runIndex
+  ( -- * Command Entry Point
+    runIndex
+    -- * Types
   , ProjectType(..)
   ) where
 
@@ -21,19 +62,36 @@ import System.Directory (doesFileExist, doesDirectoryExist, listDirectory,
                          getSymbolicLinkTarget, pathIsSymbolicLink)
 import System.Exit (exitFailure, ExitCode(ExitFailure))
 import System.Exit qualified as Exit
-import System.FilePath ((</>), makeRelative, takeDirectory)
+import System.FilePath ((</>), makeRelative)
 import System.IO (hPutStrLn, stderr, hFlush, stdout)
 import System.Process (readProcessWithExitCode, readCreateProcess, createProcess, proc, cwd, std_out, std_err, waitForProcess, StdStream(..))
 import GHC.IO.Handle (hGetContents)
 
 import Argus.CLI.Types
 
--- | Project type
-data ProjectType = StackProject | CabalProject
+-- | Detected Haskell project build system.
+--
+-- @since 1.0.0
+data ProjectType
+  = StackProject
+    -- ^ Project using Stack (has stack.yaml)
+  | CabalProject
+    -- ^ Project using Cabal (has *.cabal or cabal.project)
   deriving stock (Eq, Show)
 
--- | Run index command
--- Builds the project with HIE file generation, then indexes with hiedb
+-- | Run the index command.
+--
+-- Builds the project with HIE file generation enabled, then indexes
+-- the HIE files with hiedb for use by semantic analysis.
+--
+-- = Side Effects
+--
+-- * Builds the project (unless @--no-build@)
+-- * Creates @.hiedb@ database
+-- * Optionally creates @.hie@ symlink
+-- * May install hiedb if not present
+--
+-- @since 1.0.0
 runIndex :: GlobalOptions -> IndexOptions -> IO ()
 runIndex global opts = do
   let verbose = goVerbose global

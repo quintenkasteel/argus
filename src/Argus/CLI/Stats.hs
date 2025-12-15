@@ -6,9 +6,34 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the stats command for showing analysis statistics.
+-- = Overview
+--
+-- This module implements the @argus stats@ command, which generates
+-- aggregate statistics about detected issues.
+--
+-- = Output
+--
+-- Statistics can be grouped by:
+--
+-- * __Severity__: Error, Warning, Info, Suggestion counts
+-- * __Rule__: Top 20 most frequently triggered rules
+-- * __File__: Top 20 files with most issues
+--
+-- = Visualization
+--
+-- Terminal output includes bar charts:
+--
+-- @
+-- By Severity:
+--   Error         15 ( 5%)  ███
+--   Warning      200 (67%)  ████████████████████████████████████████
+--   Suggestion    84 (28%)  ████████████████
+-- @
+--
+-- @since 1.0.0
 module Argus.CLI.Stats
-  ( runStats
+  ( -- * Command Entry Point
+    runStats
   ) where
 
 import Control.Monad (when)
@@ -35,7 +60,11 @@ getDiagRule d = fromMaybe "(no-rule)" (diagCode d)
 getDiagPath :: Diagnostic -> Text
 getDiagPath d = T.pack (srcSpanFile (diagSpan d))
 
--- | Run stats command - show analysis statistics
+-- | Run the stats command.
+--
+-- Runs analysis and outputs aggregate statistics in the requested format.
+--
+-- @since 1.0.0
 runStats :: GlobalOptions -> StatsOptions -> IO ()
 runStats global opts = do
   let targets = if null (stTargets opts) then ["."] else stTargets opts
@@ -70,7 +99,7 @@ runStats global opts = do
 
 -- | Output statistics in terminal format
 outputTerminalStats :: StatsOptions -> Progress.ProgressConfig -> [Diagnostic] -> IO ()
-outputTerminalStats opts _progressCfg diags = do
+outputTerminalStats opts _ diags = do
   TIO.putStrLn $ "\n" <> colorBold "ANALYSIS STATISTICS"
   TIO.putStrLn $ T.replicate 50 "="
 

@@ -190,6 +190,9 @@ module Argus.Rules.Builtin
     -- ** Import/Extension Rules
   , module Argus.Rules.Builtin.Imports
 
+    -- ** OWASP Security Rules
+  , module Argus.Rules.Builtin.OWASP
+
     -- * Rule Set Combinators
   , defaultRules
   , strictRules
@@ -204,8 +207,8 @@ module Argus.Rules.Builtin
 
 import Data.Text (Text)
 
-import Argus.Rules.DSL (Rule(..), Category(..), pattern ManualReview)
-import Argus.Rules.Types (Category(Complexity))
+import Argus.Rules.DSL (Rule(..), pattern ManualReview)
+import Argus.Rules.Types (Category(..))
 import Argus.Types (Severity(..))
 
 import Argus.Rules.Builtin.Safety
@@ -246,6 +249,7 @@ import Argus.Rules.Builtin.Arrow
 import Argus.Rules.Builtin.Monoid
 import Argus.Rules.Builtin.Pattern
 import Argus.Rules.Builtin.Imports
+import Argus.Rules.Builtin.OWASP
 
 --------------------------------------------------------------------------------
 -- All Rules
@@ -297,6 +301,7 @@ allBuiltinRules = mconcat
   , monoidRules
   , patternMatchRules
   , importRules
+  , allOWASPRules
   ]
 
 -- | Total count of all built-in rules.

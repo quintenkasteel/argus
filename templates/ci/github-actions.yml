@@ -1,0 +1,301 @@
+# Argus Haskell Linter - GitHub Actions Integration
+# Copy this file to .github/workflows/argus.yml in your project
+#
+# This workflow runs Argus static analysis on your Haskell codebase
+# and uploads results to GitHub Code Scanning.
+#
+# Prerequisites:
+#   - Stack-based Haskell project
+#   - Argus installed (built from source or from release)
+#
+# Configuration:
+#   - Edit the 'argus-version' input to pin a specific version
+#   - Modify 'paths' to analyze specific directories
+#   - Set 'fail-on-error' to fail the build on lint errors
+
+name: Argus Lint
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '**.hs'
+      - 'package.yaml'
+      - 'stack.yaml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - '**.hs'
+      - 'package.yaml'
+      - 'stack.yaml'
+  workflow_dispatch:
+    inputs:
+      paths:
+        description: 'Paths to analyze (space-separated)'
+        required: false
+        default: 'src/ app/'
+      fail-on-error:
+        description: 'Fail build on lint errors'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: argus-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Argus version to use (set to 'latest' for most recent release)
+  ARGUS_VERSION: 'latest'
+  # Paths to analyze
+  LINT_PATHS: ${{ github.event.inputs.paths || 'src/ app/' }}
+  # Whether to fail on lint errors
+  FAIL_ON_ERROR: ${{ github.event.inputs.fail-on-error || 'true' }}
+
+jobs:
+  argus-lint:
+    name: Argus Static Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-argus-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-argus-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      # Option 1: Build Argus from source (recommended for latest features)
+      - name: Clone and build Argus
+        run: |
+          git clone --depth 1 https://github.com/quintenkasteel/argus.git /tmp/argus
+          cd /tmp/argus
+          stack build --fast
+          echo "ARGUS_BIN=$(stack exec -- which argus)" >> $GITHUB_ENV
+
+      # Option 2: Download pre-built release (uncomment if releases are available)
+      # - name: Download Argus release
+      #   run: |
+      #     curl -sL "https://github.com/quintenkasteel/argus/releases/download/${{ env.ARGUS_VERSION }}/argus-linux-x64" -o argus
+      #     chmod +x argus
+      #     echo "ARGUS_BIN=./argus" >> $GITHUB_ENV
+
+      - name: Initialize Argus configuration
+        run: |
+          if [ ! -f argus.toml ] && [ ! -f linter.toml ]; then
+            ${{ env.ARGUS_BIN }} init --quiet || true
+          fi
+
+      - name: Run Argus analysis
+        id: argus
+        run: |
+          set +e
+          ${{ env.ARGUS_BIN }} check ${{ env.LINT_PATHS }} \
+            --format terminal \
+            --color always \
+            2>&1 | tee argus-results.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          # Count issues by severity
+          ERRORS=$(grep -c "error:" argus-results.txt || echo "0")
+          WARNINGS=$(grep -c "warning:" argus-results.txt || echo "0")
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+          echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+
+      - name: Generate SARIF report
+        if: always()
+        run: |
+          ${{ env.ARGUS_BIN }} check ${{ env.LINT_PATHS }} \
+            --format sarif \
+            > argus-results.sarif 2>&1 || true
+
+          # Validate SARIF is well-formed JSON
+          if [ -f argus-results.sarif ]; then
+            python3 -m json.tool argus-results.sarif > /dev/null 2>&1 || rm -f argus-results.sarif
+          fi
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && hashFiles('argus-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: argus-results.sarif
+          category: argus-lint
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Argus Static Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors | ${{ steps.argus.outputs.errors }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warnings | ${{ steps.argus.outputs.warnings }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.argus.outputs.exit_code }}" = "0" ]; then
+            echo "**Status:** All checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** Issues found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>View Issues</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -100 argus-results.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.argus.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('argus-results.txt', 'utf8');
+            const lines = results.split('\n').slice(0, 50);
+
+            const body = `## Argus Static Analysis
+
+            Found **${{ steps.argus.outputs.errors }}** errors and **${{ steps.argus.outputs.warnings }}** warnings.
+
+            <details>
+            <summary>View Issues</summary>
+
+            \`\`\`
+            ${lines.join('\n')}
+            \`\`\`
+            </details>
+
+            ---
+            *Generated by [Argus](https://github.com/quintenkasteel/argus)*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: argus-results
+          path: |
+            argus-results.txt
+            argus-results.sarif
+          retention-days: 30
+
+      - name: Check for failures
+        if: env.FAIL_ON_ERROR == 'true' && steps.argus.outputs.errors != '0'
+        run: |
+          echo "::error::Argus found ${{ steps.argus.outputs.errors }} error(s)"
+          exit 1
+
+  # Optional: Run Argus auto-fix in a separate job
+  argus-fix:
+    name: Auto-Fix Suggestions
+    runs-on: ubuntu-latest
+    needs: argus-lint
+    if: github.event_name == 'pull_request' && needs.argus-lint.outputs.exit_code != '0'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-argus-${{ hashFiles('stack.yaml.lock') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Build Argus
+        run: |
+          git clone --depth 1 https://github.com/quintenkasteel/argus.git /tmp/argus
+          cd /tmp/argus
+          stack build --fast
+          echo "ARGUS_BIN=$(stack exec -- which argus)" >> $GITHUB_ENV
+
+      - name: Generate fix suggestions
+        run: |
+          ${{ env.ARGUS_BIN }} fix ${{ env.LINT_PATHS }} \
+            --dry-run \
+            --format diff \
+            > fix-suggestions.diff 2>&1 || true
+
+      - name: Comment fix suggestions on PR
+        if: hashFiles('fix-suggestions.diff') != ''
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const diff = fs.readFileSync('fix-suggestions.diff', 'utf8');
+            if (diff.trim().length === 0) return;
+
+            const body = `## Argus Auto-Fix Suggestions
+
+            Argus can automatically fix some of the issues found. Here are the suggested changes:
+
+            <details>
+            <summary>View Diff</summary>
+
+            \`\`\`diff
+            ${diff.slice(0, 5000)}
+            \`\`\`
+            </details>
+
+            To apply these fixes locally, run:
+            \`\`\`bash
+            argus fix src/ app/
+            \`\`\`
+
+            ---
+            *Generated by [Argus](https://github.com/quintenkasteel/argus)*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

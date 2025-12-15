@@ -6,9 +6,22 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the init command for creating configuration files.
+-- = Overview
+--
+-- This module implements the @argus init@ command, which creates a default
+-- configuration file in the current directory.
+--
+-- = Behavior
+--
+-- 1. Check if @argus.toml@ already exists
+-- 2. If exists and @--force@ not set, exit with error
+-- 3. Write default configuration template
+-- 4. Report success
+--
+-- @since 1.0.0
 module Argus.CLI.Init
-  ( runInit
+  ( -- * Command Entry Point
+    runInit
   ) where
 
 import Control.Monad (when)
@@ -21,9 +34,14 @@ import System.IO (hPutStrLn, stderr)
 import Argus.CLI.Types
 import Argus.CLI.Common (defaultConfigToml)
 
--- | Run init command
+-- | Run the init command.
+--
+-- Creates @argus.toml@ with default configuration. Fails if file exists
+-- unless @--force@ is specified.
+--
+-- @since 1.0.0
 runInit :: GlobalOptions -> InitOptions -> IO ()
-runInit _global opts = do
+runInit _ opts = do
   let configPath = "argus.toml"
   exists <- doesFileExist configPath
   when (exists && not (ioForce opts)) $ do

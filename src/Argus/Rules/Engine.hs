@@ -8,30 +8,71 @@
 
 -- |
 -- Module      : Argus.Rules.Engine
--- Description : Unified rule evaluation engine using unified Rule type
+-- Description : Unified rule evaluation engine
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module provides a unified rule evaluation engine that works directly with
--- the unified 'Rule' type from "Argus.Rules.Types". No conversions needed!
+-- = Overview
 --
--- == Architecture
+-- This module provides the unified rule evaluation engine that evaluates 'Rule'
+-- values against source code to produce 'Diagnostic' values.
 --
--- The Engine evaluates 'Rule' directly:
+-- = Architecture
+--
+-- The engine works directly with the unified 'Rule' type:
 --
 -- @
--- Rule → evaluateRule → Diagnostic
+-- Rule → evaluateRules → [Diagnostic]
 -- @
 --
--- No intermediate 'RuleDescriptor' or conversion functions.
+-- __Evaluation Pipeline__:
 --
--- == Features
+-- 1. Build 'RuleEvalContext' from engine, file path, and content
+-- 2. Partition rules into text-based and AST-based
+-- 3. For each text\/regex rule: match pattern against each line
+-- 4. For each AST rule: match pattern against parsed AST
+-- 5. Evaluate side conditions for each match
+-- 6. Generate 'Diagnostic' with optional 'Fix' for successful matches
 --
--- * Evaluates unified Rule type directly (from DSL or TOML)
--- * Multiple matching strategies (text, regex, AST via RulePattern)
--- * Rich metadata (categories, safety levels, fix imports)
--- * Side conditions (unified SideCondition type)
--- * Comment-aware analysis
+-- = Matching Strategies
+--
+-- * __Text patterns__: Simple text with metavariables (@$X@, @$F@)
+-- * __Regex patterns__: Full regex support via TDFA
+-- * __AST patterns__: Structural matching on parsed Haskell AST
+--
+-- = Comment Awareness
+--
+-- The engine can skip matches inside comments ('reCommentAware'):
+--
+-- * Code-targeting rules automatically exclude comments
+-- * Documentation rules target Haddock comments specifically
+-- * Rules can specify explicit targets via 'RuleTarget'
+--
+-- = Parallelism
+--
+-- Multiple parallel strategies are available:
+--
+-- * 'ParallelRules': Evaluate rules concurrently (good for many rules)
+-- * 'ParallelLines': Evaluate lines concurrently (good for large files)
+-- * 'ParallelBoth': Maximum parallelism (both rules and lines)
+--
+-- = Usage
+--
+-- @
+-- -- Basic usage
+-- let engine = defaultEngine
+--     diagnostics = evaluateRules engine filepath moduleName content
+--
+-- -- With AST support (IO)
+-- diagnostics <- evaluateRulesIO engine filepath moduleName content
+--
+-- -- With parallelism
+-- diagnostics <- evaluateRulesParallelIO ParallelRules engine filepath moduleName content
+-- @
+--
+-- @since 1.0.0
 module Argus.Rules.Engine
   ( -- * Core Engine Types
     RuleEngine (..)
@@ -121,7 +162,6 @@ import Argus.Rules.Builtin qualified as Builtin
 import Argus.Analysis.Comments qualified as Comments
 import Argus.Analysis.Comments (CommentIndex, Position(..))
 import Argus.Analysis.Comments qualified as CT (CommentType(..))
-import Argus.Rules.Types qualified as RT (CommentType(..))
 import Argus.Analysis.Syntactic qualified as Syntactic
 import Argus.Rules.ASTMatch qualified as AST
 import Argus.Rules.ASTMatch (HsModule, GhcPs)
@@ -133,38 +173,89 @@ import Argus.Rules.SideConditionHelpers qualified as SCH
 -- Core Engine Types
 --------------------------------------------------------------------------------
 
--- | The unified rule evaluation engine
+-- | The unified rule evaluation engine.
 --
--- Uses the unified 'Rule' type directly - no RuleDescriptor conversion needed!
+-- Holds the collection of rules and configuration for rule evaluation.
+-- Use 'mkRuleEngine' or 'defaultEngine' for construction.
+--
+-- __Configuration Options__:
+--
+-- * 'reEnabledCategories': Filter rules by category
+-- * 'reDisabledRules': Explicitly disable specific rule IDs
+-- * 'reOverrides': Override severity for specific rules
+-- * 'reCommentAware': Skip matches inside comments (recommended)
+--
+-- __Example__:
+--
+-- @
+-- -- Custom engine with only security and performance rules
+-- let engine = (mkRuleEngine myRules)
+--       { reEnabledCategories = Set.fromList [Security, Performance]
+--       , reCommentAware = True
+--       }
+-- @
+--
+-- @since 1.0.0
 data RuleEngine = RuleEngine
-  { reRules             :: [Rule]             -- ^ All loaded rules (unified type!)
-  , reEnabledCategories :: Set Category       -- ^ Enabled categories (unified type!)
-  , reDisabledRules     :: Set Text           -- ^ Explicitly disabled rule IDs
-  , reOverrides         :: Map Text Severity  -- ^ Rule-specific severity overrides
-  , reCommentAware      :: Bool               -- ^ Skip matches in comments
+  { reRules             :: [Rule]
+    -- ^ All loaded rules. Includes builtin rules and user-defined rules.
+  , reEnabledCategories :: Set Category
+    -- ^ Categories that are enabled. Rules in disabled categories are skipped.
+  , reDisabledRules     :: Set Text
+    -- ^ Explicitly disabled rule IDs. Takes precedence over category enable.
+  , reOverrides         :: Map Text Severity
+    -- ^ Per-rule severity overrides. Key is rule ID.
+  , reCommentAware      :: Bool
+    -- ^ If 'True', code-targeting rules skip matches inside comments.
   }
   deriving stock (Show, Generic)
 
--- | Context available during matching
+-- | Context available during pattern matching.
+--
+-- Provides all information needed to evaluate a match, including
+-- file metadata, source content, and captured metavariables.
+--
+-- Created internally by the engine; not typically constructed directly.
+--
+-- @since 1.0.0
 data MatchContext = MatchContext
-  { mcFilePath      :: FilePath          -- ^ Current file path
-  , mcModuleName    :: Text              -- ^ Current module name
-  , mcLineNumber    :: Int               -- ^ Current line number
-  , mcLineText      :: Text              -- ^ Full line text
-  , mcFullContent   :: Text              -- ^ Full file content
-  , mcCommentIndex  :: CommentIndex      -- ^ Proper comment index (multi-line aware)
-  , mcMetavars      :: Map Text Text     -- ^ Captured metavariables
-  , mcMatchColumn   :: Int               -- ^ Column where the match starts (for comment checking)
+  { mcFilePath      :: FilePath
+    -- ^ Path to the source file being analyzed.
+  , mcModuleName    :: Text
+    -- ^ Haskell module name (e.g., @\"Argus.Rules.Engine\"@).
+  , mcLineNumber    :: Int
+    -- ^ Current line number (1-indexed).
+  , mcLineText      :: Text
+    -- ^ Full text of the current line.
+  , mcFullContent   :: Text
+    -- ^ Complete file content (for cross-line analysis).
+  , mcCommentIndex  :: CommentIndex
+    -- ^ Pre-built comment index for efficient comment detection.
+  , mcMetavars      :: Map Text Text
+    -- ^ Captured metavariables from pattern matching.
+    -- Key is metavariable name (e.g., @\"$X\"@), value is captured text.
+  , mcMatchColumn   :: Int
+    -- ^ Column where the match starts (1-indexed, for comment checking).
   }
   deriving stock (Show)
 
--- | Result of a successful match
+-- | Result of a successful rule match.
+--
+-- Contains all information needed to generate a 'Diagnostic':
+-- the matched rule, source location, captured text, and context.
+--
+-- @since 1.0.0
 data RuleMatch = RuleMatch
-  { rmRule       :: Rule                -- ^ The matched rule (unified type!)
-  , rmSpan       :: SrcSpan             -- ^ Source location
-  , rmMatchedText :: Text               -- ^ The matched code
-  , rmMetavars   :: Map Text Text       -- ^ Captured metavariables
-  , rmContext    :: MatchContext        -- ^ Full context
+  { rmRule       :: Rule
+    -- ^ The rule that matched.
+  , rmSpan       :: SrcSpan
+    -- ^ Source location of the match.
+  , rmMatchedText :: Text
+    -- ^ The actual text that was matched.
+  , rmMetavars   :: Map Text Text
+    -- ^ Captured metavariables for substitution in fixes.
+  , rmContext    :: MatchContext
+    -- ^ Full match context (file info, content, etc.).
   }
   deriving stock (Show)
 
@@ -172,25 +263,82 @@ data RuleMatch = RuleMatch
 -- Unified Evaluation Infrastructure
 --------------------------------------------------------------------------------
 
--- | Shared context for rule evaluation (reduces duplication across variants)
+-- | Shared context for rule evaluation.
 --
--- This captures the common setup performed by all evaluation functions:
--- comment extraction, comment index building, and rule filtering.
+-- Captures common setup performed by all evaluation functions: comment
+-- extraction, comment index building, and rule filtering. Using a shared
+-- context eliminates duplicated setup code across evaluation variants.
+--
+-- __Lifecycle__:
+--
+-- 1. Created via 'mkRuleEvalContext'
+-- 2. Passed to evaluation functions ('evaluateTextRulesWithContext', etc.)
+-- 3. May be reused for multiple evaluation strategies on same file
+--
+-- __Invariants__:
+--
+-- * 'recEnabledRules' = 'recTextRules' ++ 'recASTRules' (partitioned)
+-- * 'recCommentIndex' is empty if 'reCommentAware' is 'False'
+-- * Rules are pre-filtered by category, disabled set, and module scope
+--
+-- __Performance Note__:
+--
+-- Building comment indices and filtering rules has non-trivial cost.
+-- Reuse the same context when applying multiple strategies to avoid
+-- redundant computation.
+--
+-- @since 1.0.0
 data RuleEvalContext = RuleEvalContext
-  { recEngine       :: RuleEngine       -- ^ The rule engine configuration
-  , recFilePath     :: FilePath         -- ^ Source file path
-  , recModuleName   :: Text             -- ^ Module name
-  , recContent      :: Text             -- ^ Full source content
-  , recCommentIndex :: CommentIndex     -- ^ Pre-built comment index
-  , recEnabledRules :: [Rule]           -- ^ Pre-filtered enabled rules
-  , recTextRules    :: [Rule]           -- ^ Text/regex pattern rules
-  , recASTRules     :: [Rule]           -- ^ AST pattern rules
+  { recEngine       :: RuleEngine
+    -- ^ The rule engine configuration (categories, overrides, etc.).
+  , recFilePath     :: FilePath
+    -- ^ Source file path (for diagnostics and module matching).
+  , recModuleName   :: Text
+    -- ^ Module name for scope filtering (e.g., @\"Argus.Rules.Engine\"@).
+  , recContent      :: Text
+    -- ^ Full source content (used for cross-line analysis).
+  , recCommentIndex :: CommentIndex
+    -- ^ Pre-built comment index for efficient comment detection.
+    -- Empty if comment-aware mode is disabled.
+  , recEnabledRules :: [Rule]
+    -- ^ All enabled rules after filtering by category, disabled set,
+    -- and module scope. Union of 'recTextRules' and 'recASTRules'.
+  , recTextRules    :: [Rule]
+    -- ^ Rules with 'TextPatternSpec' or 'RegexPatternSpec' patterns.
+    -- Evaluated via line-by-line text matching.
+  , recASTRules     :: [Rule]
+    -- ^ Rules with 'ASTPatternSpec' patterns.
+    -- Evaluated via AST traversal (requires parsing).
   }
 
--- | Build a RuleEvalContext from engine and file data
+-- | Build a 'RuleEvalContext' from engine and file data.
 --
--- This consolidates the common setup logic that was duplicated across
--- evaluateRules, evaluateRulesWithAST, evaluateRulesParallel, etc.
+-- Consolidates common setup logic: extracts comments, builds comment index,
+-- filters rules by category\/scope, and partitions into text vs AST rules.
+--
+-- __Parameters__:
+--
+-- * @engine@: Rule engine with configuration and rule collection
+-- * @filepath@: Source file path (used for module matching and diagnostics)
+-- * @moduleName@: Haskell module name (for scope-based rule filtering)
+-- * @content@: Complete file contents
+--
+-- __Returns__:
+--
+-- A fully initialized context ready for evaluation functions.
+--
+-- __Example__:
+--
+-- @
+-- let ctx = mkRuleEvalContext engine \"src\/Foo.hs\" \"Foo\" content
+-- -- Reuse ctx for multiple strategies
+-- let seqDiags = evaluateTextRulesWithContext ctx
+-- let parDiags = evaluateTextRulesParallelWithContext ParallelRules ctx
+-- @
+--
+-- __Complexity__: O(n) where n is the number of lines (for comment extraction).
+--
+-- @since 1.0.0
 mkRuleEvalContext :: RuleEngine -> FilePath -> Text -> Text -> RuleEvalContext
 mkRuleEvalContext engine filepath moduleName content =
   let comments = Comments.extractComments content
@@ -210,19 +358,73 @@ mkRuleEvalContext engine filepath moduleName content =
     , recASTRules     = astRules
     }
 
--- | Evaluate text-based rules using a pre-built context
+-- | Evaluate text-based rules using a pre-built context.
 --
--- This is the core text rule evaluation function that all variants call into.
--- It eliminates the duplicated line enumeration logic.
--- Uses DList internally for O(1) append during accumulation.
+-- Core text rule evaluation function. Iterates over lines, applies each
+-- text\/regex rule, checks side conditions, and produces diagnostics.
+--
+-- __Implementation Details__:
+--
+-- * Uses 'DList' internally for O(1) append during line iteration
+-- * Skips comment lines for code-targeting rules when comment-aware
+-- * Evaluates side conditions before generating diagnostics
+-- * Generates fix suggestions where rules provide replacements
+--
+-- __Parameters__:
+--
+-- * @ctx@: Pre-built evaluation context from 'mkRuleEvalContext'
+--
+-- __Returns__:
+--
+-- List of diagnostics from text\/regex rule matches.
+-- AST rules in the context are ignored (use 'evaluateRulesWithASTAndContext').
+--
+-- __Example__:
+--
+-- @
+-- let ctx = mkRuleEvalContext engine filepath moduleName content
+-- let diagnostics = evaluateTextRulesWithContext ctx
+-- @
+--
+-- @since 1.0.0
 evaluateTextRulesWithContext :: RuleEvalContext -> [Diagnostic]
 evaluateTextRulesWithContext ctx =
   DL.toList $ foldMap (evaluateRuleDL (recEngine ctx) (recFilePath ctx) (recModuleName ctx)
                                       (recContent ctx) (recCommentIndex ctx))
                       (recTextRules ctx)
 
--- | Evaluate text rules with parallel strategy
--- Uses DList for efficient accumulation in non-parallel paths.
+-- | Evaluate text rules with parallel strategy.
+--
+-- Applies parallelism according to the specified strategy:
+--
+-- * 'SequentialEval': No parallelism (baseline, same as 'evaluateTextRulesWithContext')
+-- * 'ParallelRules': Rules evaluated in parallel via 'parMap'
+-- * 'ParallelLines': Lines evaluated in parallel per rule
+-- * 'ParallelBoth': Both rules and lines in parallel (most aggressive)
+-- * 'ChunkedParallel': Rules processed in chunks
+--
+-- __Parameters__:
+--
+-- * @strategy@: Parallelism strategy to use
+-- * @ctx@: Pre-built evaluation context
+--
+-- __Returns__:
+--
+-- List of diagnostics (order may vary with parallel strategies).
+--
+-- __Performance Guidance__:
+--
+-- * 'ParallelRules': Best for files with many rules but few lines
+-- * 'ParallelLines': Best for large files with few rules
+-- * 'ParallelBoth': Best for large files with many rules
+-- * 'ChunkedParallel': Best for controlling parallelism granularity
+--
+-- __Thread Safety__:
+--
+-- This function uses GHC sparks for parallelism. Ensure the runtime
+-- is compiled with @-threaded@ and invoked with @+RTS -N@.
+--
+-- @since 1.0.0
 evaluateTextRulesParallelWithContext :: ParallelStrategy -> RuleEvalContext -> [Diagnostic]
 evaluateTextRulesParallelWithContext strategy ctx =
   case strategy of
@@ -258,10 +460,43 @@ evaluateTextRulesParallelWithContext strategy ctx =
 -- Side Condition Evaluation
 --------------------------------------------------------------------------------
 
--- | Evaluate a unified SideCondition in context
+-- | Evaluate a 'SideCondition' against a match context (pure version).
 --
--- This evaluates the unified 'SideCondition' type from "Argus.Rules.Types"
--- directly - no conversion needed!
+-- Side conditions refine rule matches by checking additional constraints
+-- that cannot be expressed in the pattern itself. This pure version uses
+-- only syntactic information available in the 'MatchContext'.
+--
+-- __Condition Categories__:
+--
+-- * __Location predicates__: 'NotInComment', 'NotInString', 'InFunctionBody'
+-- * __Type predicates__: 'HasType', 'IsNumeric', 'IsList' (limited without HIE)
+-- * __Expression predicates__: 'IsLiteral', 'IsVariable', 'NotEqual'
+-- * __Context predicates__: 'HasImport', 'HasPragma', 'InModule', 'InTestFile'
+-- * __Combinators__: 'And', 'Or', 'Not', 'Always', 'Never'
+--
+-- __Limitations__:
+--
+-- Many type-aware conditions (e.g., 'HasType', 'HasTypeClass', 'IsPure')
+-- return 'True' (permissive) without HIE data. For accurate type checking,
+-- use 'evalSideConditionIO' with a populated 'HIEContext'.
+--
+-- __Parameters__:
+--
+-- * @ctx@: Match context with captured metavariables and file info
+-- * @cond@: Side condition to evaluate
+--
+-- __Returns__:
+--
+-- 'True' if the condition is satisfied, 'False' otherwise.
+--
+-- __Example__:
+--
+-- @
+-- let cond = And [NotInComment, NotEqual \"$X\" \"$Y\"]
+-- let passes = evalSideCondition matchCtx cond
+-- @
+--
+-- @since 1.0.0
 evalSideCondition :: MatchContext -> SideCondition -> Bool
 evalSideCondition ctx = \case
   -- Location predicates
@@ -352,6 +587,21 @@ evalSideCondition ctx = \case
   InTestFile -> isTestFile (mcFilePath ctx)
   NotInTestFile -> not $ isTestFile (mcFilePath ctx)
 
+  -- Expression structure predicates
+  NotBind _var -> True  -- Would need AST analysis
+  IsEtaReducible _var _func -> True  -- Would need AST analysis
+
+  -- Deriving and pattern analysis predicates
+  NoDerivingStrategy -> True  -- Would need AST analysis
+  WildcardNotLast -> True  -- Would need AST analysis
+  HasPatternOverlap -> True  -- Would need AST analysis
+  IsPatternIncomplete -> True  -- Would need AST analysis
+  HasAmbiguousType -> True  -- Would need HIE data
+  UsesDefaultOptions -> True  -- Would need AST analysis
+
+  -- Context predicates (semantic context detection)
+  InContext _ctx -> True  -- Would need semantic analysis
+
   -- Combinators
   And conds -> all (evalSideCondition ctx) conds
   Or conds -> any (evalSideCondition ctx) conds
@@ -423,10 +673,39 @@ convertCommentType = \case
 -- HIE-Backed Side Condition Evaluation
 --------------------------------------------------------------------------------
 
--- | Evaluate a side condition with HIE support (IO-based)
+-- | Evaluate a side condition with HIE support (IO version).
 --
--- This provides real type-aware evaluation using HIE database.
--- Falls back to syntactic checks when HIE data is unavailable.
+-- Provides accurate type-aware evaluation using the HIE database.
+-- Falls back to syntactic checks when HIE data is unavailable for
+-- a specific symbol or file.
+--
+-- __Type-Aware Conditions__:
+--
+-- These conditions benefit most from HIE data:
+--
+-- * 'HasType': Checks exact type of captured variable
+-- * 'HasTypeClass': Checks if type implements a typeclass
+-- * 'IsPure': Determines if expression has no side effects
+-- * 'IsMonad': Checks if type is a specific monad
+--
+-- __Parameters__:
+--
+-- * @hieCtx@: HIE context with database connection
+-- * @ctx@: Match context with captured metavariables
+-- * @cond@: Side condition to evaluate
+--
+-- __Returns__:
+--
+-- IO action producing 'True' if condition satisfied.
+--
+-- __Example__:
+--
+-- @
+-- hieCtx <- mkHIEContext \".hie\"
+-- passes <- evalSideConditionIO hieCtx matchCtx (HasType \"$X\" \"Int\")
+-- @
+--
+-- @since 1.0.0
 evalSideConditionIO :: HIEContext -> MatchContext -> SideCondition -> IO Bool
 evalSideConditionIO hieCtx ctx cond =
   SC.evalSideConditionIO
@@ -439,11 +718,57 @@ evalSideConditionIO hieCtx ctx cond =
     (mcCommentIndex ctx)
     cond
 
--- | Create an empty HIE context (uses known-types database only)
+-- | Create an empty HIE context with known-types database only.
+--
+-- This context uses a built-in database of common Haskell types
+-- (e.g., @Int@, @String@, @Maybe@) for basic type checking.
+-- Use this when HIE files are unavailable.
+--
+-- __Limitations__:
+--
+-- * No project-specific type information
+-- * Cannot resolve user-defined types
+-- * Type class membership checks are limited
+--
+-- __Example__:
+--
+-- @
+-- let hieCtx = emptyHIEContext
+-- -- Will use known-types for basic checks
+-- passes <- evalSideConditionIO hieCtx ctx (IsNumeric \"$X\")
+-- @
+--
+-- @since 1.0.0
 emptyHIEContext :: HIEContext
 emptyHIEContext = SC.emptyHIEContext
 
--- | Create a HIE context from a database path
+-- | Create a HIE context from a HIE database directory.
+--
+-- Loads type information from HIE files generated by GHC.
+-- HIE files are created when compiling with @-fwrite-ide-info@.
+--
+-- __Parameters__:
+--
+-- * @path@: Directory containing HIE files (typically @.hie@)
+--
+-- __Returns__:
+--
+-- IO action producing a context with loaded type information.
+--
+-- __Preconditions__:
+--
+-- * Directory should exist (returns empty context if not)
+-- * HIE files should match current source (stale files may give wrong results)
+--
+-- __Example__:
+--
+-- @
+-- hieCtx <- mkHIEContext \".hie\"
+-- -- Now has full type information for the project
+-- passes <- evalSideConditionIO hieCtx ctx (HasType \"$X\" \"MyType\")
+-- @
+--
+-- @since 1.0.0
 mkHIEContext :: FilePath -> IO HIEContext
 mkHIEContext = SC.mkHIEContext
 
@@ -451,9 +776,43 @@ mkHIEContext = SC.mkHIEContext
 -- Engine Construction
 --------------------------------------------------------------------------------
 
--- | Create a rule engine with the given rules
+-- | Create a rule engine with the given rules.
 --
--- Uses unified 'Rule' type directly - no conversion needed!
+-- Initializes an engine with all categories enabled, no disabled rules,
+-- no severity overrides, and comment-aware mode on. Customize the
+-- returned engine by modifying its fields.
+--
+-- __Default Configuration__:
+--
+-- * All categories enabled
+-- * No rules disabled
+-- * No severity overrides
+-- * Comment-aware mode enabled
+--
+-- __Parameters__:
+--
+-- * @rules@: List of rules to include in the engine
+--
+-- __Returns__:
+--
+-- A configured 'RuleEngine' ready for evaluation.
+--
+-- __Example__:
+--
+-- @
+-- -- Engine with custom rules only
+-- let engine = mkRuleEngine myCustomRules
+--
+-- -- Engine with filtered categories
+-- let securityEngine = (mkRuleEngine allRules)
+--       { reEnabledCategories = Set.singleton Security }
+--
+-- -- Engine with specific rules disabled
+-- let relaxedEngine = (mkRuleEngine allRules)
+--       { reDisabledRules = Set.fromList [\"partial\/head\", \"partial\/tail\"] }
+-- @
+--
+-- @since 1.0.0
 mkRuleEngine :: [Rule] -> RuleEngine
 mkRuleEngine rules = RuleEngine
   { reRules = rules
@@ -463,7 +822,23 @@ mkRuleEngine rules = RuleEngine
   , reCommentAware = True
   }
 
--- | Default engine with all built-in rules from the Builtin modules
+-- | Default engine with all built-in rules.
+--
+-- Includes all rules from 'Argus.Rules.Builtin':
+--
+-- * Safety rules (partial functions, unsafe operations)
+-- * Performance rules (space leaks, inefficient patterns)
+-- * Security rules (OWASP, injection vulnerabilities)
+-- * Style rules (naming, imports, redundancy)
+-- * Correctness rules (type errors, logic bugs)
+--
+-- __Usage__:
+--
+-- @
+-- let diagnostics = evaluateRules defaultEngine filepath moduleName content
+-- @
+--
+-- @since 1.0.0
 defaultEngine :: RuleEngine
 defaultEngine = mkRuleEngine Builtin.allBuiltinRules
 
@@ -471,10 +846,44 @@ defaultEngine = mkRuleEngine Builtin.allBuiltinRules
 -- Rule Evaluation
 --------------------------------------------------------------------------------
 
--- | Evaluate all rules against source code
+-- | Evaluate all text\/regex rules against source code (pure version).
 --
--- Uses unified 'Rule' type directly - no conversion needed!
--- Now uses the consolidated RuleEvalContext to eliminate duplication.
+-- Main entry point for text-based rule evaluation. For AST rules or
+-- HIE-based type checking, use 'evaluateRulesIO' instead.
+--
+-- __Evaluation Process__:
+--
+-- 1. Builds 'RuleEvalContext' (extracts comments, filters rules)
+-- 2. Iterates through source lines
+-- 3. Applies each text\/regex rule pattern
+-- 4. Checks side conditions for matches
+-- 5. Generates diagnostics with optional fixes
+--
+-- __Parameters__:
+--
+-- * @engine@: Configured rule engine
+-- * @filepath@: Source file path (for diagnostics)
+-- * @moduleName@: Haskell module name (for scope filtering)
+-- * @content@: Complete source file content
+--
+-- __Returns__:
+--
+-- List of diagnostics from matched rules. Empty if no violations found.
+--
+-- __Example__:
+--
+-- @
+-- content <- T.readFile \"src\/Foo.hs\"
+-- let diagnostics = evaluateRules defaultEngine \"src\/Foo.hs\" \"Foo\" content
+-- forM_ diagnostics $ \\diag ->
+--   putStrLn $ show (diagSpan diag) <> \": \" <> diagMessage diag
+-- @
+--
+-- __Note__: This function only evaluates text\/regex patterns. Rules with
+-- 'ASTPatternSpec' are silently skipped. Use 'evaluateRulesIO' for full
+-- rule support.
+--
+-- @since 1.0.0
 evaluateRules :: RuleEngine -> FilePath -> Text -> Text -> [Diagnostic]
 evaluateRules engine filepath moduleName content =
   let ctx = mkRuleEvalContext engine filepath moduleName content
@@ -494,10 +903,31 @@ matchesWithinScope within except moduleName
   | null within = True
   | otherwise = any (matchesGlob moduleName) within
 
--- | Evaluate a single rule
+-- | Evaluate a single rule against source content.
 --
--- Uses unified 'Rule' type and 'RulePattern' directly!
--- Uses DList internally for O(1) append during line iteration.
+-- Lower-level function for evaluating one rule at a time. Typically
+-- called internally by 'evaluateTextRulesWithContext', but exposed for
+-- custom evaluation logic.
+--
+-- __Parameters__:
+--
+-- * @engine@: Rule engine (for severity overrides, comment handling)
+-- * @filepath@: Source file path
+-- * @moduleName@: Haskell module name
+-- * @content@: Complete source content
+-- * @commentIndex@: Pre-built comment index
+-- * @rule@: The rule to evaluate
+--
+-- __Returns__:
+--
+-- List of diagnostics produced by this rule. Empty if no matches.
+--
+-- __Implementation__:
+--
+-- Uses 'DList' internally for O(1) append during line iteration,
+-- converting to list only at the end.
+--
+-- @since 1.0.0
 evaluateRule :: RuleEngine -> FilePath -> Text -> Text -> CommentIndex -> Rule -> [Diagnostic]
 evaluateRule engine filepath moduleName content commentIndex rule =
   DL.toList $ evaluateRuleDL engine filepath moduleName content commentIndex rule
@@ -541,8 +971,8 @@ matchLineDL engine rule filepath moduleName fullContent commentIndex (lineNum, l
      else matchRulePatternDL rule baseCtx (rulePattern rule)
 
 -- | Match using a RulePattern (unified pattern type)
-matchRulePattern :: Rule -> MatchContext -> RulePattern -> [RuleMatch]
-matchRulePattern rule ctx pat = DL.toList $ matchRulePatternDL rule ctx pat
+_matchRulePattern :: Rule -> MatchContext -> RulePattern -> [RuleMatch]
+_matchRulePattern rule ctx pat = DL.toList $ matchRulePatternDL rule ctx pat
 
 -- | Match using a RulePattern, returning DList for efficient accumulation
 matchRulePatternDL :: Rule -> MatchContext -> RulePattern -> DList RuleMatch
@@ -583,11 +1013,11 @@ matchRulePatternDL rule ctx = \case
     DL.empty
 
 -- | Check conditions and build match
-checkConditionsAndBuild :: Rule -> MatchContext -> Text -> [RuleMatch]
-checkConditionsAndBuild rule ctx pat = DL.toList $ checkConditionsAndBuildDL rule ctx pat
+_checkConditionsAndBuild :: Rule -> MatchContext -> Text -> [RuleMatch]
+_checkConditionsAndBuild rule ctx pat = DL.toList $ checkConditionsAndBuildDL rule ctx pat
 
-checkConditionsAndBuild' :: Rule -> MatchContext -> Int -> Text -> [RuleMatch]
-checkConditionsAndBuild' rule ctx col matched = DL.toList $ checkConditionsAndBuildDL' rule ctx col matched
+_checkConditionsAndBuild' :: Rule -> MatchContext -> Int -> Text -> [RuleMatch]
+_checkConditionsAndBuild' rule ctx col matched = DL.toList $ checkConditionsAndBuildDL' rule ctx col matched
 
 -- | Check conditions and build match, returning DList
 checkConditionsAndBuildDL :: Rule -> MatchContext -> Text -> DList RuleMatch
@@ -627,6 +1057,7 @@ matchTextPattern :: Text -> Text -> Bool
 matchTextPattern textPat line =
   let pat = smartWordBoundary textPat
   in T.unpack line =~ T.unpack pat
+{-# INLINE matchTextPattern #-}
 
 -- | Find pattern location in line
 findPatternInLine :: Text -> Text -> Maybe (Int, Text)
@@ -638,6 +1069,7 @@ findPatternInLine textPat line =
     (before, match, _) | not (null match) ->
       Just (length before + 1, T.pack match)
     _ -> Nothing
+{-# INLINE findPatternInLine #-}
 
 -- | Add word boundaries only where appropriate
 smartWordBoundary :: Text -> Text
@@ -651,6 +1083,7 @@ smartWordBoundary textPat =
   where
     isWordChar c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
                 || (c >= '0' && c <= '9') || c == '_' || c == '\''
+{-# INLINE smartWordBoundary #-}
 
 -- | Match regex pattern
 matchRegexPattern :: Text -> Text -> Maybe (Int, Text)
@@ -661,6 +1094,7 @@ matchRegexPattern regexPat line =
     (before, match, _) | not (null match) ->
       Just (length before + 1, T.pack match)
     _ -> Nothing
+{-# INLINE matchRegexPattern #-}
 
 -- | Check if pattern contains metavariables (either $X or _x style)
 hasMetavariables :: Text -> Bool
@@ -736,9 +1170,28 @@ escapeForRegex = T.concatMap escape
 -- Diagnostic Generation
 --------------------------------------------------------------------------------
 
--- | Convert a match to a diagnostic
+-- | Convert a 'RuleMatch' to a 'Diagnostic'.
 --
--- Uses unified 'Rule' type directly!
+-- Transforms a successful rule match into a user-facing diagnostic,
+-- applying severity overrides and generating fix suggestions.
+--
+-- __Transformation Steps__:
+--
+-- 1. Apply severity override if configured for this rule ID
+-- 2. Map rule category to diagnostic kind
+-- 3. Interpolate metavariables in the message
+-- 4. Build fix from replacement template (if present)
+--
+-- __Parameters__:
+--
+-- * @engine@: Rule engine (for severity overrides)
+-- * @match@: The successful rule match
+--
+-- __Returns__:
+--
+-- A 'Diagnostic' ready for output.
+--
+-- @since 1.0.0
 matchToDiagnostic :: RuleEngine -> RuleMatch -> Diagnostic
 matchToDiagnostic engine match =
   let rule = rmRule match
@@ -772,12 +1225,47 @@ buildFix match = do
     , fixSafety = safetyToFixSafety (ruleSafety rule)
     }
 
--- | Interpolate metavariables in message
+-- | Interpolate metavariables in a message or replacement template.
 --
--- Uses proper metavariable-aware substitution that:
--- 1. Only replaces exact metavariable tokens (e.g., $XS, $F)
--- 2. Processes replacements from right to left to avoid position shifting
--- 3. Doesn't corrupt text when replacement values contain pattern-like substrings
+-- Substitutes captured metavariable values into text templates.
+-- Used for both diagnostic messages and fix replacements.
+--
+-- __Supported Metavariable Formats__:
+--
+-- * @$X@, @$Y@, @$Z@: Identifier captures
+-- * @$F@, @$FUNC@: Function name captures
+-- * @$T@, @$TYPE@: Type name captures
+-- * @$N@: Numeric captures
+-- * @_x@, @_foo@: HLint-style captures
+--
+-- __Algorithm__:
+--
+-- 1. Finds all metavariable occurrences with their positions
+-- 2. Sorts by position descending (right-to-left)
+-- 3. Applies substitutions without position shifting
+--
+-- __Parameters__:
+--
+-- * @msg@: Template text with metavariable placeholders
+-- * @vars@: Map from metavariable name to captured value
+--
+-- __Returns__:
+--
+-- Text with all metavariables replaced by their captured values.
+--
+-- __Example__:
+--
+-- @
+-- let vars = Map.fromList [(\"$F\", \"foo\"), (\"$X\", \"bar\")]
+-- interpolateMessage \"Use $F instead of $X\" vars
+-- -- Returns: \"Use foo instead of bar\"
+-- @
+--
+-- __Invariant__:
+--
+-- Metavariable boundaries are respected: @$X@ won't match inside @$XS@.
+--
+-- @since 1.0.0
 interpolateMessage :: Text -> Map Text Text -> Text
 interpolateMessage msg vars
   | Map.null vars = msg
@@ -869,11 +1357,41 @@ categoryToKind = \case
 -- AST-Integrated Rule Evaluation
 --------------------------------------------------------------------------------
 
--- | Evaluate rules with a pre-parsed AST (for when you already have the AST)
+-- | Evaluate rules with a pre-parsed AST.
 --
--- This function combines text-based matching with AST-based matching for rules
--- that specify ASTPatternSpec. Text-based rules are evaluated using the
--- consolidated RuleEvalContext, while AST rules are evaluated via ASTMatch.
+-- Combines text-based and AST-based rule evaluation. Use this when you
+-- already have a parsed AST to avoid redundant parsing.
+--
+-- __Evaluation Flow__:
+--
+-- 1. Evaluates text\/regex rules via line iteration
+-- 2. Evaluates AST rules via tree traversal
+-- 3. Merges results into single diagnostic list
+--
+-- __Parameters__:
+--
+-- * @engine@: Configured rule engine
+-- * @filepath@: Source file path
+-- * @moduleName@: Haskell module name
+-- * @content@: Source content (for text rules and fix generation)
+-- * @hsModule@: Pre-parsed GHC AST
+--
+-- __Returns__:
+--
+-- IO action producing combined diagnostics from all rule types.
+--
+-- __Example__:
+--
+-- @
+-- parseResult <- Syntactic.parseModule filepath content
+-- case parseResult of
+--   Right pr -> do
+--     diagnostics <- evaluateRulesWithAST engine filepath moduleName content (prModule pr)
+--     -- Process diagnostics...
+--   Left err -> -- Handle parse error
+-- @
+--
+-- @since 1.0.0
 evaluateRulesWithAST :: RuleEngine -> FilePath -> Text -> Text -> HsModule GhcPs -> IO [Diagnostic]
 evaluateRulesWithAST engine filepath moduleName content hsModule = do
   let ctx = mkRuleEvalContext engine filepath moduleName content
@@ -883,21 +1401,64 @@ evaluateRulesWithAST engine filepath moduleName content hsModule = do
   astDiagnostics <- AST.applyASTRules (recASTRules ctx) filepath content hsModule
   pure $ textDiagnostics ++ astDiagnostics
 
--- | Evaluate rules with a pre-built context and parsed AST
+-- | Evaluate rules with a pre-built context and parsed AST.
 --
--- This variant accepts a RuleEvalContext directly, avoiding redundant setup
--- when context is already available.
+-- Variant that accepts a 'RuleEvalContext' directly, avoiding redundant
+-- setup when context is already available (e.g., from parallel evaluation).
+--
+-- __Parameters__:
+--
+-- * @ctx@: Pre-built evaluation context
+-- * @hsModule@: Pre-parsed GHC AST
+--
+-- __Returns__:
+--
+-- IO action producing combined diagnostics.
+--
+-- @since 1.0.0
 evaluateRulesWithASTAndContext :: RuleEvalContext -> HsModule GhcPs -> IO [Diagnostic]
 evaluateRulesWithASTAndContext ctx hsModule = do
   let textDiagnostics = evaluateTextRulesWithContext ctx
   astDiagnostics <- AST.applyASTRules (recASTRules ctx) (recFilePath ctx) (recContent ctx) hsModule
   pure $ textDiagnostics ++ astDiagnostics
 
--- | Evaluate rules with automatic parsing (main IO entry point)
+-- | Evaluate all rules with automatic parsing (main IO entry point).
 --
--- This parses the source file and evaluates both text-based and AST-based rules.
--- For files that fail to parse, only text-based rules are evaluated.
--- Uses consolidated RuleEvalContext to eliminate duplication.
+-- Recommended entry point for full rule evaluation. Parses the source
+-- file automatically and evaluates both text-based and AST-based rules.
+--
+-- __Graceful Degradation__:
+--
+-- If parsing fails (syntax errors in source), falls back to text-based
+-- rules only. No diagnostics are lost; AST rules simply don't apply.
+--
+-- __Parameters__:
+--
+-- * @engine@: Configured rule engine
+-- * @filepath@: Source file path
+-- * @moduleName@: Haskell module name
+-- * @content@: Complete source content
+--
+-- __Returns__:
+--
+-- IO action producing all applicable diagnostics.
+--
+-- __Example__:
+--
+-- @
+-- content <- T.readFile \"src\/Foo.hs\"
+-- diagnostics <- evaluateRulesIO defaultEngine \"src\/Foo.hs\" \"Foo\" content
+-- unless (null diagnostics) $
+--   forM_ diagnostics printDiagnostic
+-- @
+--
+-- __Recommended For__:
+--
+-- * CLI tools and CI pipelines
+-- * LSP servers (with caching of parsed AST)
+-- * Any context where full rule coverage is needed
+--
+-- @since 1.0.0
 evaluateRulesIO :: RuleEngine -> FilePath -> Text -> Text -> IO [Diagnostic]
 evaluateRulesIO engine filepath moduleName content = do
   let ctx = mkRuleEvalContext engine filepath moduleName content
@@ -921,13 +1482,52 @@ partitionRules = foldr go ([], [])
 -- Parallel Rule Evaluation
 --------------------------------------------------------------------------------
 
--- | Strategy for parallel rule evaluation
+-- | Strategy for parallel rule evaluation.
+--
+-- Different strategies optimize for different workload characteristics.
+-- Choose based on your file sizes and rule counts.
+--
+-- __Strategy Comparison__:
+--
+-- @
+-- Strategy          | Best For                    | Overhead
+-- ------------------|-----------------------------|---------
+-- SequentialEval    | Small files, few rules      | None
+-- ParallelRules     | Many rules, small files     | Low
+-- ParallelLines     | Large files, few rules      | Medium
+-- ParallelBoth      | Large files, many rules     | High
+-- ChunkedParallel n | Fine-grained control        | Variable
+-- @
+--
+-- __Example__:
+--
+-- @
+-- -- For a large codebase with many rules
+-- diagnostics <- evaluateRulesParallelIO ParallelRules engine fp mod content
+--
+-- -- For a single large file
+-- diagnostics <- evaluateRulesParallelIO ParallelLines engine fp mod content
+--
+-- -- For maximum parallelism on multi-core systems
+-- diagnostics <- evaluateRulesParallelIO ParallelBoth engine fp mod content
+-- @
+--
+-- @since 1.0.0
 data ParallelStrategy
-  = ParallelRules        -- ^ Evaluate rules in parallel (good for many rules)
-  | ParallelLines        -- ^ Evaluate lines in parallel (good for large files)
-  | ParallelBoth         -- ^ Both rules and lines in parallel (most aggressive)
-  | SequentialEval       -- ^ No parallelism (baseline)
-  | ChunkedParallel Int  -- ^ Process rules in chunks of N in parallel
+  = ParallelRules
+    -- ^ Evaluate rules in parallel using 'parMap'. Each rule runs
+    -- independently on the full file. Best for many rules, smaller files.
+  | ParallelLines
+    -- ^ Evaluate lines in parallel per rule. Best for large files
+    -- with fewer rules.
+  | ParallelBoth
+    -- ^ Maximum parallelism: both rules and lines run in parallel.
+    -- Highest overhead but best for large files with many rules.
+  | SequentialEval
+    -- ^ No parallelism (baseline). Best for small files or debugging.
+  | ChunkedParallel Int
+    -- ^ Process rules in chunks of N. Allows fine-grained control
+    -- over parallelism granularity. The 'Int' specifies chunk size.
   deriving stock (Eq, Show, Generic)
 
 instance NFData ParallelStrategy where
@@ -937,19 +1537,43 @@ instance NFData ParallelStrategy where
   rnf SequentialEval       = ()
   rnf (ChunkedParallel n)  = rnf n
 
--- | Default parallel strategy
+-- | Default parallel strategy.
+--
+-- Currently 'ParallelRules', which provides good performance for most
+-- workloads with minimal overhead.
+--
+-- @since 1.0.0
 defaultParallelStrategy :: ParallelStrategy
 defaultParallelStrategy = ParallelRules
 
--- | Evaluate rules in parallel using sparks
+-- | Evaluate text\/regex rules in parallel (pure version).
 --
--- This version evaluates multiple rules concurrently on the same file content.
--- Best for files with many rules to apply.
--- Uses consolidated RuleEvalContext to eliminate duplication.
+-- Applies parallelism to text-based rule evaluation. For full rule
+-- support including AST rules, use 'evaluateRulesParallelIO'.
+--
+-- __Parameters__:
+--
+-- * @strategy@: Parallelism strategy
+-- * @engine@: Configured rule engine
+-- * @filepath@: Source file path
+-- * @moduleName@: Haskell module name
+-- * @content@: Source content
+--
+-- __Returns__:
+--
+-- List of diagnostics (order may vary with parallel strategies).
+--
+-- __Example__:
 --
 -- @
--- diagnostics <- evaluateRulesParallel ParallelRules engine filepath moduleName content
+-- let diagnostics = evaluateRulesParallel ParallelRules engine fp mod content
 -- @
+--
+-- __Thread Safety__:
+--
+-- Requires @-threaded@ RTS and @+RTS -N@ for actual parallelism.
+--
+-- @since 1.0.0
 evaluateRulesParallel :: ParallelStrategy -> RuleEngine -> FilePath -> Text -> Text -> [Diagnostic]
 evaluateRulesParallel strategy engine filepath moduleName content =
   let ctx = mkRuleEvalContext engine filepath moduleName content
@@ -964,10 +1588,42 @@ evaluateRuleParallelLines engine filepath moduleName content commentIndex rule =
         lines'
   in map (matchToDiagnostic engine) matches
 
--- | Parallel rule evaluation with AST support (IO version)
+-- | Parallel rule evaluation with AST support (IO version).
 --
--- This version parses the file and evaluates both text-based and AST-based
--- rules with parallelism support. Uses consolidated RuleEvalContext.
+-- Full-featured parallel evaluation that includes AST-based rules.
+-- Parses the source file and applies both text and AST rules with
+-- the specified parallelism strategy.
+--
+-- __Graceful Degradation__:
+--
+-- If parsing fails, falls back to parallel text-based evaluation only.
+--
+-- __Parameters__:
+--
+-- * @strategy@: Parallelism strategy for text rules
+-- * @engine@: Configured rule engine
+-- * @filepath@: Source file path
+-- * @moduleName@: Haskell module name
+-- * @content@: Source content
+--
+-- __Returns__:
+--
+-- IO action producing combined diagnostics from all rule types.
+--
+-- __Example__:
+--
+-- @
+-- -- Parallel evaluation with AST support
+-- diagnostics <- evaluateRulesParallelIO ParallelBoth engine fp mod content
+-- @
+--
+-- __Recommended For__:
+--
+-- * Performance-critical applications
+-- * Multi-core systems with large codebases
+-- * Build systems with parallel file processing
+--
+-- @since 1.0.0
 evaluateRulesParallelIO :: ParallelStrategy -> RuleEngine -> FilePath -> Text -> Text -> IO [Diagnostic]
 evaluateRulesParallelIO strategy engine filepath moduleName content = do
   let ctx = mkRuleEvalContext engine filepath moduleName content
@@ -982,7 +1638,7 @@ evaluateRulesParallelIO strategy engine filepath moduleName content = do
 -- | Parallel rule evaluation with a parsed AST
 --
 -- Uses consolidated RuleEvalContext to eliminate duplication.
-evaluateRulesParallelWithAST
+_evaluateRulesParallelWithAST
   :: ParallelStrategy
   -> RuleEngine
   -> FilePath
@@ -990,7 +1646,7 @@ evaluateRulesParallelWithAST
   -> Text
   -> HsModule GhcPs
   -> IO [Diagnostic]
-evaluateRulesParallelWithAST strategy engine filepath moduleName content hsModule =
+_evaluateRulesParallelWithAST strategy engine filepath moduleName content hsModule =
   let ctx = mkRuleEvalContext engine filepath moduleName content
   in evaluateRulesParallelWithASTAndContext strategy ctx hsModule
 

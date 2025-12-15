@@ -6,9 +6,40 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the diff command for comparing analysis results.
+-- = Overview
+--
+-- This module implements the @argus diff@ command, which compares current
+-- analysis results against a baseline to identify new and fixed issues.
+--
+-- = Diff Categories
+--
+-- * __New Issues__: Regressions - issues that appeared since baseline
+-- * __Resolved__: Issues that were in baseline but are now fixed
+-- * __Existing__: Issues that match baseline entries (suppressed)
+-- * __Expired__: Baseline entries that no longer match any issue
+--
+-- = Output
+--
+-- @
+-- BASELINE COMPARISON
+-- ==================================================
+--
+-- Summary:
+--   +3 new, -5 resolved, 42 existing
+--
+-- New Issues (Regressions): [3]
+--   + src/Foo.hs:42 [partial/head]
+--     Use of partial function 'head'
+--
+-- Resolved Issues: [5]
+--   - src/Bar.hs:17 [unused/import]
+--     Unused import 'Data.List'
+-- @
+--
+-- @since 1.0.0
 module Argus.CLI.Diff
-  ( runDiff
+  ( -- * Command Entry Point
+    runDiff
   ) where
 
 import Control.Monad (when, unless)
@@ -38,7 +69,12 @@ import Argus.Baseline.Diff
   , summarizeDiff
   )
 
--- | Run diff command - compare current analysis with baseline or git ref
+-- | Run the diff command.
+--
+-- Loads baseline, runs current analysis, and computes diff showing
+-- new, resolved, and existing issues.
+--
+-- @since 1.0.0
 runDiff :: GlobalOptions -> DiffOptions -> IO ()
 runDiff global opts = do
   let targets = if null (dfTargets opts) then ["."] else dfTargets opts
@@ -89,7 +125,7 @@ runDiff global opts = do
 
 -- | Output diff in terminal format
 outputTerminalDiff :: Progress.ProgressConfig -> BaselineDiff -> Bool -> Bool -> IO ()
-outputTerminalDiff _progressCfg diff showNew showFixed = do
+outputTerminalDiff _ diff showNew showFixed = do
   TIO.putStrLn $ "\n" <> colorBold "BASELINE COMPARISON"
   TIO.putStrLn $ T.replicate 50 "="
 

@@ -142,7 +142,6 @@ module Argus.Rules.ExprLang
   , CompiledExpr (..)
   ) where
 
-import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 

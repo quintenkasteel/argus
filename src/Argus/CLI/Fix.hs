@@ -6,14 +6,54 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module implements the fix command for auto-fixing issues.
+-- = Overview
+--
+-- This module implements the @argus fix@ command, which automatically
+-- applies fixes for detected issues with configurable safety levels.
+--
+-- = Execution Flow
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                          runFix                                      │
+-- │                                                                      │
+-- │  1. Scan ──► 2. Collect Fixes ──► 3. Build Graph ──► 4. Apply       │
+-- │      │             │                    │                │          │
+-- │      ▼             ▼                    ▼                ▼          │
+-- │  Diagnostics    Fix List        Conflict Resolution   Files         │
+-- │                                                                      │
+-- │                    ┌─────────────────────────────────┐              │
+-- │                    │     Safe Refactoring Engine     │              │
+-- │                    │                                 │              │
+-- │                    │ • Validates each fix            │              │
+-- │                    │ • Resolves conflicts            │              │
+-- │                    │ • Rollback on failure           │              │
+-- │                    │ • Creates backups               │              │
+-- │                    └─────────────────────────────────┘              │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Fix Modes
+--
+-- * __Interactive__: Prompts for each fix with diff preview
+-- * __Preview__: Shows what would change without applying
+-- * __Auto__: Applies all safe fixes automatically
+--
+-- = Safety Features
+--
+-- * Syntax validation after each fix
+-- * Transactional mode (all-or-nothing)
+-- * Backup file creation
+-- * Conflict detection and resolution
+--
+-- @since 1.0.0
 module Argus.CLI.Fix
-  ( runFix
+  ( -- * Command Entry Point
+    runFix
   ) where
 
 import Control.Monad (when)
 import Data.Map.Strict qualified as Map
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import System.Exit (exitFailure)
@@ -25,7 +65,17 @@ import Argus.Types
 import Argus.Refactor.Engine
 import Argus.Output.Progress qualified as Progress
 
--- | Run fix command
+-- | Run the fix command.
+--
+-- Scans for fixable issues, builds a fix graph, resolves conflicts,
+-- and applies fixes through the safe refactoring engine.
+--
+-- = Exit Codes
+--
+-- * 0: All fixes applied successfully
+-- * 1: Some fixes failed (partial application unless transactional)
+--
+-- @since 1.0.0
 runFix :: GlobalOptions -> FixOptions -> IO ()
 runFix global opts = do
   let progressCfg = mkProgressConfig global True

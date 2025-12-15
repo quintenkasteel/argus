@@ -29,13 +29,12 @@ module Argus.Baseline.Diff
 
 import Data.List (partition, find)
 import Data.Maybe (isJust)
-import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (UTCTime)
 
-import Argus.Types (Diagnostic (..), Severity (..), SrcSpan (..))
+import Argus.Types (Diagnostic (..))
 import Argus.Baseline.Types
 
 --------------------------------------------------------------------------------

@@ -3,7 +3,6 @@
 module ValidationSpec (spec) where
 
 import Test.Hspec
-import Data.Text (Text)
 import Data.Text qualified as T
 
 import Argus.Refactor.Validation

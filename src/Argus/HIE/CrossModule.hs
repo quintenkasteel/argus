@@ -7,9 +7,62 @@
 -- Description : Cross-module reference tracking and analysis
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides functionality for tracking references across modules,
 -- enabling cross-module rename operations and dependency analysis.
+--
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                    CrossModuleContext                               │
+-- │  ┌─────────────┐  ┌──────────────────┐  ┌──────────────────────┐   │
+-- │  │   HieDb     │  │  Module Symbols  │  │  Reference Map       │   │
+-- │  │ (Database)  │  │  Map Text        │  │  Map Text            │   │
+-- │  │             │  │    ModuleSymbols │  │    [SymbolReference] │   │
+-- │  └─────────────┘  └──────────────────┘  └──────────────────────┘   │
+-- │  ┌─────────────────────────────┐  ┌────────────────────────────┐   │
+-- │  │    Dependencies             │  │    Reverse Dependencies    │   │
+-- │  │    Map Text (Set Text)      │  │    Map Text (Set Text)     │   │
+-- │  └─────────────────────────────┘  └────────────────────────────┘   │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Key Operations
+--
+-- * __Reference Tracking__: Find all uses of a symbol across modules
+-- * __Dependency Analysis__: Build and query module dependency graphs
+-- * __Multi-File Fixes__: Coordinate fixes spanning multiple source files
+-- * __Cross-Module Rename__: Safely rename symbols with full reference updates
+--
+-- = Rename Safety
+--
+-- The module provides comprehensive safety checking for renames:
+--
+-- * __Conflict Detection__: Prevent name collisions in target scopes
+-- * __Shadowing Analysis__: Warn about potential import shadowing
+-- * __Type Compatibility__: Verify types remain consistent
+-- * __Export/Import Updates__: Track necessary module list changes
+--
+-- = Enhanced Rename Features
+--
+-- The 'renameWithQualified' function handles complex rename scenarios:
+--
+-- * Qualified references (e.g., @M.foo@ → @M.bar@)
+-- * Re-exported symbols across module boundaries
+-- * Import list updates for explicit imports
+-- * Module export list modifications
+--
+-- = Thread Safety
+--
+-- 'CrossModuleContext' contains immutable data after construction and
+-- is safe for concurrent reads. Building a new context requires IO.
+--
+-- @since 1.0.0
 module Argus.HIE.CrossModule
   ( -- * Cross-Module Analysis
     CrossModuleContext
@@ -58,13 +111,11 @@ import Control.Monad (forM)
 import Data.List (nub, sortBy)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (mapMaybe, catMaybes, fromMaybe, listToMaybe)
+import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
 import Data.Ord (comparing, Down(..))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as TE
 
 import HieDb (HieDb)
 

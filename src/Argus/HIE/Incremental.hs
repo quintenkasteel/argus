@@ -9,18 +9,64 @@
 -- Description : Incremental HIE file watching and analysis
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides incremental HIE file watching capabilities for efficient
 -- re-analysis when HIE files change. It tracks HIE file modifications, maintains
 -- a dependency graph, and intelligently invalidates only affected files.
 --
--- == Features
+-- = Architecture
+--
+-- @
+-- ┌────────────────────────────────────────────────────────────────────┐
+-- │                   HIEIncrementalState                              │
+-- │  ┌────────────────────┐  ┌───────────────────────────────────┐    │
+-- │  │    HIEFileState    │  │       Dependency Graph            │    │
+-- │  │  - Path            │  │  Module A ──► imports ──► [B, C]  │    │
+-- │  │  - ModTime         │  │  Module B ──► imports ──► [D]     │    │
+-- │  │  - ContentHash     │  │                                   │    │
+-- │  │  - Imports         │  │  Reverse: D depended on by [B]    │    │
+-- │  │  - Diagnostics     │  │           B depended on by [A]    │    │
+-- │  └────────────────────┘  └───────────────────────────────────┘    │
+-- └────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Features
 --
 -- * Tracks HIE file modification times and content hashes
 -- * Builds dependency graphs from module imports
 -- * Invalidates transitive dependents when a HIE file changes
 -- * Caches HIE analysis results for unchanged files
 -- * Integrates with file system watching
+--
+-- = Incremental Analysis Flow
+--
+-- @
+-- File Change ──► Detect Changes ──► Invalidate Dependents ──► Re-analyze
+--                      │                     │
+--                      ▼                     ▼
+--               Compare ModTime        Build Transitive
+--               Check Hash             Closure
+-- @
+--
+-- = File System Monitoring
+--
+-- The 'watchHIEDirectory' function provides polling-based monitoring:
+--
+-- * Tracks modification times for change detection (avoids false positives)
+-- * Notifies on created, modified, and deleted HIE files
+-- * Returns a stop action for cleanup
+--
+-- = Thread Safety
+--
+-- 'HIEIncrementalState' is immutable; modifications return new states.
+-- File system watching uses IORef internally and should be used from
+-- a single thread.
+--
+-- @since 1.0.0
 module Argus.HIE.Incremental
   ( -- * Incremental State
     HIEIncrementalState (..)
@@ -56,7 +102,6 @@ module Argus.HIE.Incremental
   ) where
 
 import Control.Concurrent (forkIO, threadDelay, killThread)
-import Control.Concurrent.STM (TVar, newTVarIO, readTVar, writeTVar, atomically, modifyTVar')
 import Control.Exception (try, SomeException)
 import Control.Monad (when, forM, forM_, filterM)
 import Data.Maybe (mapMaybe)
@@ -446,8 +491,9 @@ analyzeHIEIncremental state hiePath analyzeFunc = do
   if not needsAnalysis
     then do
       -- Return cached results
-      let Just hfs = Map.lookup hiePath (hisFiles state)
-      pure (state, hfsDiagnostics hfs)
+      case Map.lookup hiePath (hisFiles state) of
+        Just hfs -> pure (state, hfsDiagnostics hfs)
+        Nothing -> pure (state, [])  -- Shouldn't happen, but handle gracefully
     else do
       -- Need to analyze
       diagnostics <- analyzeFunc hiePath

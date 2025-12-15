@@ -6,6 +6,10 @@
 -- Description : Span adjustment for sequential fix application
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides span adjustment functionality for applying
 -- multiple fixes to the same file sequentially. When a fix is applied,
@@ -13,7 +17,7 @@
 -- spans invalid. This module computes "deltas" that describe how positions
 -- shift, and can adjust spans accordingly.
 --
--- == The Problem
+-- = The Problem
 --
 -- When applying multiple fixes to the same file:
 --
@@ -21,16 +25,35 @@
 -- 2. Fix B targets line 10, which is now actually line 9
 -- 3. Without adjustment, Fix B would edit the wrong location
 --
--- == The Solution
+-- = The Solution
 --
--- After each fix is applied, compute a SpanDelta that describes:
--- - Where the edit occurred
--- - How many lines were added/removed
--- - How columns shifted on affected lines
+-- After each fix is applied, compute a 'SpanDelta' that describes:
+--
+-- * Where the edit occurred
+-- * How many lines were added\/removed
+-- * How columns shifted on affected lines
 --
 -- Then adjust all remaining fix spans using these deltas.
 --
--- == Usage
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                      Span Adjustment Pipeline                       │
+-- │                                                                     │
+-- │  Apply Fix ──► Compute Delta ──► Add to Accumulator ──► Adjust Next │
+-- │       │              │                  │                    │      │
+-- │       ▼              ▼                  ▼                    ▼      │
+-- │   newContent    SpanDelta         [SpanDelta]          adjustedFix  │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Thread Safety
+--
+-- All functions are pure and thread-safe. 'DeltaAccumulator' is mutable
+-- but should be used single-threaded within a fix application session.
+--
+-- = Usage
 --
 -- @
 -- -- Apply first fix
@@ -42,6 +65,8 @@
 --
 -- -- Continue with adjusted fixes
 -- @
+--
+-- @since 1.0.0
 module Argus.Refactor.SpanAdjustment
   ( -- * Delta Types
     SpanDelta (..)
@@ -70,7 +95,7 @@ module Argus.Refactor.SpanAdjustment
   , mergeDeltas
   ) where
 
-import Data.List (sortBy, foldl')
+import Data.List (sortBy)
 import Data.Ord (comparing)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -115,7 +140,7 @@ newtype DeltaAccumulator = DeltaAccumulator { unDeltas :: [SpanDelta] }
 -- @computeDelta span oldText newText@ computes how replacing @oldText@
 -- with @newText@ at @span@ affects subsequent positions.
 computeDelta :: SrcSpan -> Text -> Text -> SpanDelta
-computeDelta span oldText newText =
+computeDelta theSpan oldText newText =
   let oldLines = T.lines oldText
       newLines = T.lines newText
 
@@ -129,9 +154,9 @@ computeDelta span oldText newText =
                  then T.length newText - T.length oldText
                  else 0
 
-      startLine = srcSpanStartLineRaw span
-      startCol = srcSpanStartColRaw span
-      endLine = srcSpanEndLineRaw span
+      startLine = srcSpanStartLineRaw theSpan
+      startCol = srcSpanStartColRaw theSpan
+      endLine = srcSpanEndLineRaw theSpan
 
       -- After replacement, the edit ends at:
       newEndLine = startLine + newLineCount - 1
@@ -142,9 +167,9 @@ computeDelta span oldText newText =
                          xs -> T.length (last xs) + 1
 
   in SpanDelta
-    { sdFile = srcSpanFile span
+    { sdFile = srcSpanFile theSpan
     , sdEditStart = (startLine, startCol)
-    , sdEditEnd = (endLine, srcSpanEndColRaw span)
+    , sdEditEnd = (endLine, srcSpanEndColRaw theSpan)
     , sdLineDelta = lineDelta
     , sdColDelta = colDelta
     , sdNewEndLine = newEndLine
@@ -153,9 +178,9 @@ computeDelta span oldText newText =
 
 -- | Compute delta from a FixEdit, given the original content.
 computeEditDelta :: Text -> FixEdit -> SpanDelta
-computeEditDelta content (FixEdit span newText) =
-  let oldText = extractSpanText content span
-  in computeDelta span oldText newText
+computeEditDelta content (FixEdit theSpan newText) =
+  let oldText = extractSpanText content theSpan
+  in computeDelta theSpan oldText newText
 
 -- | Compute deltas from all edits in a Fix.
 -- Returns deltas sorted by position (for correct sequential application).
@@ -166,12 +191,12 @@ computeFixDelta content fix =
 
 -- | Extract text at a source span from content.
 extractSpanText :: Text -> SrcSpan -> Text
-extractSpanText content span =
+extractSpanText content theSpan =
   let contentLines = T.lines content
-      startLine = srcSpanStartLineRaw span
-      endLine = srcSpanEndLineRaw span
-      startCol = srcSpanStartColRaw span
-      endCol = srcSpanEndColRaw span
+      startLine = srcSpanStartLineRaw theSpan
+      endLine = srcSpanEndLineRaw theSpan
+      startCol = srcSpanStartColRaw theSpan
+      endCol = srcSpanEndColRaw theSpan
 
   in if startLine == endLine
      then -- Single line: extract columns
@@ -190,7 +215,6 @@ extractSpanText content span =
                                [] -> ""
                                (l:_) -> T.take (endCol - 1) l
                   middleParts = case rest of
-                                  [] -> []
                                   [_] -> []
                                   xs -> init xs
               in T.intercalate "\n" ([firstPart] ++ middleParts ++ [lastPart])
@@ -207,30 +231,30 @@ extractSpanText content span =
 -- 3. If span starts after delta edit ends: adjust by line/col delta
 -- 4. If span is on same line as edit end: adjust column
 adjustSpan :: SpanDelta -> SrcSpan -> Maybe SrcSpan
-adjustSpan delta span
+adjustSpan delta theSpan
   -- Different file: no effect
-  | srcSpanFile span /= sdFile delta = Just span
+  | srcSpanFile theSpan /= sdFile delta = Just theSpan
 
   -- Span entirely before edit: no change
-  | spanEndsBefore span (sdEditStart delta) = Just span
+  | spanEndsBefore theSpan (sdEditStart delta) = Just theSpan
 
   -- Span overlaps with edit region: invalid
-  | spansOverlapDelta delta span = Nothing
+  | spansOverlapDelta delta theSpan = Nothing
 
   -- Span starts after edit: apply full adjustment
-  | spanStartsAfter span (sdNewEndLine delta, sdNewEndCol delta) =
-      Just $ adjustSpanFull delta span
+  | spanStartsAfter theSpan (sdNewEndLine delta, sdNewEndCol delta) =
+      Just $ adjustSpanFull delta theSpan
 
   -- Span on same line as edit end: adjust column only
-  | srcSpanStartLineRaw span == sdNewEndLine delta =
-      Just $ adjustSpanColumn delta span
+  | srcSpanStartLineRaw theSpan == sdNewEndLine delta =
+      Just $ adjustSpanColumn delta theSpan
 
   -- Otherwise: no change (this shouldn't happen)
-  | otherwise = Just span
+  | otherwise = Just theSpan
 
 -- | Adjust a span with multiple deltas (applied in order).
 adjustSpanWithDeltas :: [SpanDelta] -> SrcSpan -> Maybe SrcSpan
-adjustSpanWithDeltas deltas span = foldl' applyDelta (Just span) deltas
+adjustSpanWithDeltas deltas theSpan = foldl' applyDelta (Just theSpan) deltas
   where
     applyDelta Nothing _ = Nothing
     applyDelta (Just s) d = adjustSpan d s
@@ -248,8 +272,8 @@ adjustFixes deltas fixes =
 
 -- | Adjust a single fix edit.
 adjustFixEdit :: [SpanDelta] -> FixEdit -> Maybe FixEdit
-adjustFixEdit deltas (FixEdit span newText) = do
-  adjustedSpan <- adjustSpanWithDeltas deltas span
+adjustFixEdit deltas (FixEdit theSpan newText) = do
+  adjustedSpan <- adjustSpanWithDeltas deltas theSpan
   pure $ FixEdit adjustedSpan newText
 
 --------------------------------------------------------------------------------
@@ -276,9 +300,9 @@ getDeltas = unDeltas
 
 -- | Check if a span is affected by a delta.
 spanAffectedByDelta :: SpanDelta -> SrcSpan -> Bool
-spanAffectedByDelta delta span =
-  srcSpanFile span == sdFile delta
-  && not (spanEndsBefore span (sdEditStart delta))
+spanAffectedByDelta delta theSpan =
+  srcSpanFile theSpan == sdFile delta
+  && not (spanEndsBefore theSpan (sdEditStart delta))
 
 -- | Check if a delta affects a specific line.
 deltaAffectsLine :: SpanDelta -> Int -> Bool
@@ -311,46 +335,46 @@ mergeDeltas (d1:d2:rest)
 
 -- | Check if span ends before a position.
 spanEndsBefore :: SrcSpan -> (Int, Int) -> Bool
-spanEndsBefore span (line, col) =
-  srcSpanEndLineRaw span < line
-  || (srcSpanEndLineRaw span == line && srcSpanEndColRaw span <= col)
+spanEndsBefore theSpan (ln, col) =
+  srcSpanEndLineRaw theSpan < ln
+  || (srcSpanEndLineRaw theSpan == ln && srcSpanEndColRaw theSpan <= col)
 
 -- | Check if span starts after a position.
 spanStartsAfter :: SrcSpan -> (Int, Int) -> Bool
-spanStartsAfter span (line, col) =
-  srcSpanStartLineRaw span > line
-  || (srcSpanStartLineRaw span == line && srcSpanStartColRaw span >= col)
+spanStartsAfter theSpan (ln, col) =
+  srcSpanStartLineRaw theSpan > ln
+  || (srcSpanStartLineRaw theSpan == ln && srcSpanStartColRaw theSpan >= col)
 
 -- | Check if span overlaps with the edit region of a delta.
 spansOverlapDelta :: SpanDelta -> SrcSpan -> Bool
-spansOverlapDelta delta span =
+spansOverlapDelta delta theSpan =
   let (editStartLine, editStartCol) = sdEditStart delta
       (editEndLine, editEndCol) = sdEditEnd delta
-      spanStartLine = srcSpanStartLineRaw span
-      spanStartCol = srcSpanStartColRaw span
-      spanEndLine = srcSpanEndLineRaw span
-      spanEndCol = srcSpanEndColRaw span
-  in not (spanEndLine < editStartLine
-          || (spanEndLine == editStartLine && spanEndCol <= editStartCol)
-          || spanStartLine > editEndLine
-          || (spanStartLine == editEndLine && spanStartCol >= editEndCol))
+      theSpanStartLine = srcSpanStartLineRaw theSpan
+      theSpanStartCol = srcSpanStartColRaw theSpan
+      theSpanEndLine = srcSpanEndLineRaw theSpan
+      theSpanEndCol = srcSpanEndColRaw theSpan
+  in not (theSpanEndLine < editStartLine
+          || (theSpanEndLine == editStartLine && theSpanEndCol <= editStartCol)
+          || theSpanStartLine > editEndLine
+          || (theSpanStartLine == editEndLine && theSpanStartCol >= editEndCol))
 
 -- | Apply full line/column adjustment to a span.
 adjustSpanFull :: SpanDelta -> SrcSpan -> SrcSpan
-adjustSpanFull delta span = span
-  { srcSpanStartLine = Line $ srcSpanStartLineRaw span + sdLineDelta delta
-  , srcSpanEndLine = Line $ srcSpanEndLineRaw span + sdLineDelta delta
+adjustSpanFull delta theSpan = theSpan
+  { srcSpanStartLine = Line $ srcSpanStartLineRaw theSpan + sdLineDelta delta
+  , srcSpanEndLine = Line $ srcSpanEndLineRaw theSpan + sdLineDelta delta
   }
 
 -- | Apply column-only adjustment (for spans on the same line as edit end).
 adjustSpanColumn :: SpanDelta -> SrcSpan -> SrcSpan
-adjustSpanColumn delta span
+adjustSpanColumn delta theSpan
   -- Single line span on the affected line
-  | srcSpanStartLineRaw span == srcSpanEndLineRaw span = span
-      { srcSpanStartCol = Column $ srcSpanStartColRaw span + sdColDelta delta
-      , srcSpanEndCol = Column $ srcSpanEndColRaw span + sdColDelta delta
+  | srcSpanStartLineRaw theSpan == srcSpanEndLineRaw theSpan = theSpan
+      { srcSpanStartCol = Column $ srcSpanStartColRaw theSpan + sdColDelta delta
+      , srcSpanEndCol = Column $ srcSpanEndColRaw theSpan + sdColDelta delta
       }
   -- Multi-line span starting on affected line
-  | otherwise = span
-      { srcSpanStartCol = Column $ srcSpanStartColRaw span + sdColDelta delta
+  | otherwise = theSpan
+      { srcSpanStartCol = Column $ srcSpanStartColRaw theSpan + sdColDelta delta
       }

@@ -76,6 +76,9 @@ module Argus.Imports.HIEAnalyzer
   , ReExportInfo (..)
   , findReExports
   , preferredImportModule
+
+    -- * Internal types (exported to silence unused warnings)
+  , ModuleCacheEntry(..)
   ) where
 
 import Control.Monad (forM)
@@ -118,7 +121,7 @@ data HIEImportContext = HIEImportContext
   }
 
 -- | Cached module information (for future caching implementation)
-data ModuleCacheEntry = ModuleCacheEntry_
+data ModuleCacheEntry = ModuleCacheEntry
   { _mceExports      :: [Text]           -- ^ Exported symbols
   , _mceReExports    :: Map Text Text    -- ^ Symbol -> original module
   , _mceImportedFrom :: [Text]           -- ^ Modules this module imports

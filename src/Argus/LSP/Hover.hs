@@ -86,7 +86,7 @@ import Argus.Types
   )
 import Argus.HIE.Types (TypeInfo(..))
 import Argus.HIE.Query (withHieQuery, getSymbolType, findSymbolDefinition)
-import Argus.LSP.RuleInfo (RuleInfo(..), getRuleExplanation, getRuleExplanationByCode, formatRuleInfo)
+import Argus.LSP.RuleInfo (RuleInfo(..), getRuleExplanationByCode, formatRuleInfo)
 
 --------------------------------------------------------------------------------
 -- Hover Configuration

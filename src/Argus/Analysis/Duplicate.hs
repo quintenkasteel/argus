@@ -36,13 +36,11 @@ module Argus.Analysis.Duplicate
 
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.List (sortBy)
 import Data.Ord (comparing, Down(..))
 import Data.Maybe (mapMaybe, listToMaybe)
 import Data.Word (Word64)
-import Data.Set (Set)
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import Data.Aeson (ToJSON, FromJSON)
@@ -252,8 +250,8 @@ extractFunctionName line =
 -- | Create fingerprint for a function
 createFingerprint :: FilePath -> (Text, Text, Int, Int) -> FunctionFingerprint
 createFingerprint path (name, body, startLine, endLine) =
-  let span = mkSrcSpanRaw path startLine 1 endLine 1
-  in fingerprintFunction name body span
+  let srcSpan = mkSrcSpanRaw path startLine 1 endLine 1
+  in fingerprintFunction name body srcSpan
 
 -- | Check if function should be ignored based on patterns
 shouldIgnore :: [Text] -> Text -> Bool
@@ -301,7 +299,7 @@ findStructuralClones threshold fps =
 
 -- | Convert a cluster to a Clone
 clusterToClone :: Double -> [FunctionFingerprint] -> Maybe Clone
-clusterToClone threshold fps
+clusterToClone _threshold fps
   | length fps < 2 = Nothing
   | otherwise =
       let locations = map fpToLocation fps
@@ -516,7 +514,7 @@ cloneToSuggestion Clone{..} =
 
 -- | Generate diagnostics for detected clones
 duplicateDiagnostics :: DuplicateConfig -> DuplicateReport -> [Diagnostic]
-duplicateDiagnostics config report =
+duplicateDiagnostics _config report =
   concatMap cloneToDiagnostics (drClones report)
 
 -- | Convert a clone to diagnostics
@@ -535,7 +533,7 @@ cloneToDiagnostics Clone{..} =
       otherLocations = case cloneLocations of
         [] -> []
         [_] -> []
-        (first:rest) -> rest
+        (_first:rest) -> rest
 
       message loc =
         "Duplicated code (" <> T.pack (show (round (cloneSimilarity * 100) :: Int)) <>

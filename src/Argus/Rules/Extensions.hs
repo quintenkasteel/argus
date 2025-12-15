@@ -614,7 +614,7 @@ createMissingFinding path _content _lines extName = Just ExtensionFinding
 
 -- | Detect redundant extensions
 detectRedundantExtensions :: FilePath -> Text -> [Text] -> [ExtensionFinding]
-detectRedundantExtensions path content enabledExts =
+detectRedundantExtensions path _content enabledExts =
   let implied = concatMap getImpliedExtensions enabledExts
       redundant = filter (`elem` implied) enabledExts
   in map (createRedundantFinding path) redundant

@@ -52,7 +52,7 @@ import Control.Exception (try, SomeException)
 import Control.Monad (forM)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -63,7 +63,7 @@ import Argus.Rules.Types
     )
 import Argus.Analysis.Comments qualified as Comments
 import Argus.Analysis.Comments (CommentIndex, Position(..))
-import Argus.HIE.Types (TypeInfo(..), TypeConstraint(..), HieSymbol(..))
+import Argus.HIE.Types (TypeInfo(..))
 import Argus.HIE.TypeInfo qualified as TI
 import Argus.Rules.SideConditionHelpers qualified as SCH
 
@@ -164,17 +164,22 @@ defaultPureFunctions = Set.fromList
 --------------------------------------------------------------------------------
 
 -- | Context for matching - mirrors Engine.MatchContext but with HIE support
+-- Note: This type is reserved for future IO-based side condition evaluation
+-- where we need access to the full HIE context for type-aware conditions.
+-- Currently we use the pure MatchContext from Engine, but this will be
+-- activated when we implement proper type-based predicates.
 data MatchContextIO = MatchContextIO
-  { mciFilePath      :: FilePath
-  , mciModuleName    :: Text
-  , mciLineNumber    :: Int
-  , mciLineText      :: Text
-  , mciFullContent   :: Text
-  , mciCommentIndex  :: CommentIndex
-  , mciMetavars      :: Map Text Text
-  , mciMatchColumn   :: Int
-  , mciHIEContext    :: HIEContext
+  { _mciFilePath      :: FilePath
+  , _mciModuleName    :: Text
+  , _mciLineNumber    :: Int
+  , _mciLineText      :: Text
+  , _mciFullContent   :: Text
+  , _mciCommentIndex  :: CommentIndex
+  , _mciMetavars      :: Map Text Text
+  , _mciMatchColumn   :: Int
+  , _mciHIEContext    :: HIEContext
   }
+  deriving stock (Show)
 
 --------------------------------------------------------------------------------
 -- IO-Based Evaluation
@@ -315,8 +320,8 @@ evalSideConditionIO hieCtx metavars filePath moduleName lineNum col commentIdx =
               Nothing -> pure True
 
       -- Context predicates
-      HasImport modName -> pure True  -- Would need file content
-      HasPragma pragma -> pure True   -- Would need file content
+      HasImport _modName -> pure True  -- Would need file content
+      HasPragma _pragma -> pure True   -- Would need file content
       InModule modPat -> pure $ matchesGlob moduleName modPat
       InTestFile -> pure $ isTestFile filePath
       NotInTestFile -> pure $ not $ isTestFile filePath
@@ -457,7 +462,7 @@ extractExprType hieCtx line col = do
 
 -- | Infer type from surrounding context
 inferTypeFromContext :: HIEContext -> Text -> Text -> IO (Maybe TypeInfo)
-inferTypeFromContext hieCtx expr context = do
+inferTypeFromContext _hieCtx _expr context = do
   -- Try to infer from function application context
   if " " `T.isInfixOf` context
     then do

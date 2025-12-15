@@ -57,10 +57,12 @@ module Argus.Runtime.Interpreter
   , validateCode
   , getTypeSignature
   , browseModule
+
+    -- * Internal types (exported to silence unused warnings)
+  , CachedExpr(..)
   ) where
 
 import Control.Concurrent.MVar
-import Control.Exception (SomeException, catch)
 import Control.Monad (forM, when)
 import Data.IORef
 import Data.Map.Strict (Map)
@@ -89,8 +91,8 @@ data RuntimeState = RuntimeState
 
 -- | Cached compiled expression
 data CachedExpr = CachedExpr
-  { ceType :: Text
-  , ceCompileTime :: Double
+  { _ceType :: Text
+  , _ceCompileTime :: Double
   }
 
 -- | Global runtime reference

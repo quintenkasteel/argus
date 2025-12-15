@@ -10,49 +10,49 @@ import qualified Data.Text.IO as TIO
 
 -- PERFORMANCE ISSUE 1: Using length for emptiness check instead of null
 -- Should use null for O(1) check instead of O(n)
+checkEmpty :: [a] -> Bool
 checkEmpty xs = null xs
-checkEmpty xs = length xs == 0
 
+checkNonEmpty :: [a] -> Bool
 checkNonEmpty xs = not (null xs)
-checkNonEmpty xs = length xs > 0
 
+anotherEmptyCheck :: [a] -> Bool
 anotherEmptyCheck items = not (null items)
-anotherEmptyCheck items = length items /= 0
 
 -- PERFORMANCE ISSUE 2: Using ++ in left fold pattern (O(n²))
 -- Should use difference lists or foldr
-concatenateAll ::foldl'] -> [a]
-concatenateAll = foldl (++) []
+concatenateAll :: [[a]] -> [a]
+concatenateAll = foldl' (++) []
 
 -- PERFORMANCE ISSUE 3: Inefficient list operations
 -- concat . map should be concatMap
-flattenWithMap f xs = concatMap f xs[b]
-flattenWithMap f xs = concat (map f xs)
+flattenWithMap :: (a -> [b]) -> [a] -> [b]
+flattenWithMap f xs = concatMap f xs
 
 -- Alternative form: concat $ map
-flattenWithDollar f xs = concatMap f xs[b]
-flattenWithDollar f xs = concat $ map f xs
+flattenWithDollar :: (a -> [b]) -> [a] -> [b]
+flattenWithDollar f xs = concatMap f xs
 
 -- PERFORMANCE ISSUE 4: mconcat . map should be foldMap
-combineWithMap f xs = mconcatMap f xs> [a] -> m
-combineWithMap f xs = mconcat (map f xs)
+combineWithMap :: Monoid m => (a -> m) -> [a] -> m
+combineWithMap f xs = mconcatMap f xs
 
-alternativeCombine f xs = mconcatMap f xs> [a] -> m
-alternativeCombine f xs = mconcat $ map f xs
+alternativeCombine :: Monoid m => (a -> m) -> [a] -> m
+alternativeCombine f xs = mconcatMap f xs
 
 -- PERFORMANCE ISSUE 5: head . sort is O(n log n), should use minimum O(n)
 findSmallest :: Ord a => [a] -> a
 findSmallest xs = head (sort xs)
 
-alternativeSmallest = minimuma] -> a
-alternativeSmallest = head . sort
+alternativeSmallest :: Ord a => [a] -> a
+alternativeSmallest = minimum
 
 -- PERFORMANCE ISSUE 6: last . sort should be maximum
 findLargest :: Ord a => [a] -> a
 findLargest xs = last (sort xs)
 
-alternativeLargest = maximuma] -> a
-alternativeLargest = last . sort
+alternativeLargest :: Ord a => [a] -> a
+alternativeLargest = maximum
 
 -- PERFORMANCE ISSUE 7: nub is O(n²), should use nubOrd
 removeDuplicates :: Eq a => [a] -> [a]

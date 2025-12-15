@@ -45,12 +45,11 @@ module Argus.Rules.ASTPatternMatch
   ) where
 
 import Control.DeepSeq (NFData)
-import Control.Monad (forM, guard, when)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Generics (Data, everything, mkQ)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -61,7 +60,7 @@ import "ghc-lib-parser" GHC.Types.SrcLoc qualified as GHC
 import "ghc-lib-parser" GHC.Data.FastString (unpackFS)
 import "ghc-lib-parser" GHC.Types.Name.Reader (RdrName, rdrNameOcc)
 import "ghc-lib-parser" GHC.Types.Name.Occurrence (occNameString)
-import "ghc-lib-parser" GHC.Types.SourceText (IntegralLit(..), FractionalLit(..), rationalFromFractionalLit)
+import "ghc-lib-parser" GHC.Types.SourceText (IntegralLit(..), rationalFromFractionalLit)
 import Text.Regex.TDFA ((=~))
 
 import Argus.Rules.ASTPatternParser
@@ -184,7 +183,7 @@ matchExpr :: ASTPattern -> Text -> HsExpr GhcPs -> [ASTMatchResult]
 matchExpr astPat source expr = case astPat of
   PVar name ->
     -- Metavariable matches any expression
-    [mkMatch name (exprText expr source) (exprSpan expr)]
+    [mkMatchResult name (exprText expr source) (exprSpan expr)]
 
   PWild ->
     -- Wildcard matches anything
@@ -243,10 +242,10 @@ matchExpr astPat source expr = case astPat of
     -- Other patterns - try text matching
     []
   where
-    mkMatch :: Text -> Text -> SrcSpan -> ASTMatchResult
-    mkMatch name txt sp = ASTMatchResult
+    mkMatchResult :: Text -> Text -> SrcSpan -> ASTMatchResult
+    mkMatchResult bindName txt sp = ASTMatchResult
       { amrMatched = True
-      , amrBindings = [ASTBinding name txt sp BindExpr]
+      , amrBindings = [ASTBinding bindName txt sp BindExpr]
       , amrSpan = Just sp
       , amrConstraintsPassed = True
       , amrConstraintResults = Map.empty
@@ -274,7 +273,7 @@ matchExpr astPat source expr = case astPat of
 
 -- | Match literal pattern
 matchLiteral :: LiteralPattern -> HsExpr GhcPs -> Text -> [ASTMatchResult]
-matchLiteral lit expr source = case (lit, expr) of
+matchLiteral lit expr _source = case (lit, expr) of
   (LitInt n, HsLit _ (HsInt _ il)) ->
     [mkLitMatch | il_value il == n]
 
@@ -372,15 +371,17 @@ matchIfExpr pcond pthen pelse expr source = case expr of
     combineAll ms = ASTMatchResult
       { amrMatched = True
       , amrBindings = concatMap amrBindings ms
-      , amrSpan = amrSpan (head ms)
+      , amrSpan = case ms of
+          (m:_) -> amrSpan m
+          []    -> Nothing
       , amrConstraintsPassed = all amrConstraintsPassed ms
       , amrConstraintResults = Map.unions $ map amrConstraintResults ms
       }
 
 -- | Match case expression
 matchCaseExpr :: ASTPattern -> [(ASTPattern, ASTPattern)] -> HsExpr GhcPs -> Text -> [ASTMatchResult]
-matchCaseExpr pscrut palts expr source = case expr of
-  HsCase _ (GHC.L _ scrut) (MG _ (GHC.L _ alts)) ->
+matchCaseExpr pscrut _palts expr source = case expr of
+  HsCase _ (GHC.L _ scrut) (MG _ (GHC.L _ _alts)) ->
     let scrutMatches = matchExpr pscrut source scrut
     in [ m { amrBindings = amrBindings m ++ scrutBindings }
        | m <- scrutMatches, amrMatched m
@@ -478,7 +479,7 @@ matchSection ml op mr expr source = case expr of
 
 -- | Match do expression
 matchDoExpr :: [DoStatement] -> HsExpr GhcPs -> Text -> [ASTMatchResult]
-matchDoExpr pstmts expr source = case expr of
+matchDoExpr pstmts expr _source = case expr of
   HsDo _ _ (GHC.L _ stmts) ->
     -- Simplified: just check if it's a do expression
     if length stmts >= length pstmts
@@ -488,7 +489,7 @@ matchDoExpr pstmts expr source = case expr of
 
 -- | Match type signature expression
 matchTypeSig :: ASTPattern -> TypePattern -> HsExpr GhcPs -> Text -> [ASTMatchResult]
-matchTypeSig pe ptype expr source = case expr of
+matchTypeSig pe _ptype expr source = case expr of
   ExprWithTySig _ (GHC.L _ e) _ ->
     matchExpr pe source e
   _ -> []
@@ -530,7 +531,7 @@ evalConstraint ctx = \case
       Just txt -> isAtomicText txt
       Nothing -> True
 
-  IsPure var ->
+  IsPure _var ->
     -- Would need effect analysis
     True
 
@@ -579,12 +580,12 @@ evalConstraint ctx = \case
     matchTypePattern typ = \case
       TVar _ -> True  -- Type variable matches anything
       TCon name -> name `T.isInfixOf` typ
-      TFun t1 t2 -> "->" `T.isInfixOf` typ
-      TApp t1 t2 -> True  -- Simplified
-      TTuple ts -> "(" `T.isInfixOf` typ && "," `T.isInfixOf` typ
-      TList t -> "[" `T.isPrefixOf` typ
-      TForall _ t -> "forall" `T.isInfixOf` typ
-      TConstraint _ t -> "=>" `T.isInfixOf` typ
+      TFun _t1 _t2 -> "->" `T.isInfixOf` typ
+      TApp _t1 _t2 -> True  -- Simplified
+      TTuple _ts -> "(" `T.isInfixOf` typ && "," `T.isInfixOf` typ
+      TList _t -> "[" `T.isPrefixOf` typ
+      TForall _ _t -> "forall" `T.isInfixOf` typ
+      TConstraint _ _t -> "=>" `T.isInfixOf` typ
 
     isAtomicText :: Text -> Bool
     isAtomicText txt =

@@ -175,7 +175,7 @@ extractExports content =
 
 -- | Extract function signatures with locations
 extractFunctionSignatures :: FilePath -> Text -> [(Text, Int, Bool)]
-extractFunctionSignatures path content =
+extractFunctionSignatures _path content =
   let linesWithNums = zip [1..] (T.lines content)
       findSigs (lineNum, line)
         | " :: " `T.isInfixOf` line && not (isComment line) && not (isInDataDecl line) =
@@ -200,12 +200,12 @@ checkPrecedingDoc lineIdx lines'
 
 -- | Check if function is documented
 checkFunctionDoc :: Text -> (Text, Int, Bool) -> Maybe DocumentationFinding
-checkFunctionDoc content (name, lineNum, hasDoc)
+checkFunctionDoc _content (name, lineNum, hasDoc)
   | hasDoc = Nothing
   | isPrivateHelper name = Nothing
   | otherwise = Just DocumentationFinding
     { dfCategory = MissingFunctionDoc
-    , dfSpan = mkSrcSpanRaw "" lineNum 1 lineNum (fromIntegral (T.length name) + 1)
+    , dfSpan = mkSrcSpanRaw "" lineNum 1 lineNum (T.length name + 1)
     , dfName = name
     , dfExplanation = "Function '" <> name <> "' is exported but has no documentation"
     , dfSeverity = Suggestion
@@ -234,7 +234,7 @@ detectMissingTypeDoc config path content =
 
 -- | Extract type declarations
 extractTypeDeclarations :: FilePath -> Text -> [(Text, Int, Bool)]
-extractTypeDeclarations path content =
+extractTypeDeclarations _path content =
   let linesWithNums = zip [1..] (T.lines content)
       findTypes (lineNum, line)
         | "data " `T.isPrefixOf` T.stripStart line && not (isComment line) =
@@ -283,7 +283,7 @@ checkTypeDoc _ (name, lineNum, hasDoc)
   | hasDoc = Nothing
   | otherwise = Just DocumentationFinding
     { dfCategory = MissingTypeDoc
-    , dfSpan = mkSrcSpanRaw "" lineNum 1 lineNum (fromIntegral (T.length name) + 1)
+    , dfSpan = mkSrcSpanRaw "" lineNum 1 lineNum (T.length name + 1)
     , dfName = name
     , dfExplanation = "Type '" <> name <> "' is missing documentation"
     , dfSeverity = Suggestion
@@ -306,7 +306,7 @@ checkIncompleteLine path (lineNum, line) = catMaybes
        && not ("-- ^" `T.isInfixOf` line) && not (isComment line)
     then Just DocumentationFinding
       { dfCategory = IncompleteDoc
-      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (fromIntegral (T.length line))
+      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (T.length line)
       , dfName = "record field"
       , dfExplanation = "Record field is missing documentation (use -- ^ comment)"
       , dfSeverity = Suggestion
@@ -319,7 +319,7 @@ checkIncompleteLine path (lineNum, line) = catMaybes
        && isInDataDecl line
     then Just DocumentationFinding
       { dfCategory = IncompleteDoc
-      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (fromIntegral (T.length line))
+      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (T.length line)
       , dfName = extractConstructorName line
       , dfExplanation = "Data constructor is missing documentation"
       , dfSeverity = Suggestion
@@ -352,7 +352,7 @@ checkStaleLine path (lineNum, line) = catMaybes
        && isDocComment line
     then Just DocumentationFinding
       { dfCategory = StaleDoc
-      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (fromIntegral (T.length line))
+      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (T.length line)
       , dfName = "date reference"
       , dfExplanation = "Documentation contains old date references"
       , dfSeverity = Suggestion
@@ -364,7 +364,7 @@ checkStaleLine path (lineNum, line) = catMaybes
        && not ("@deprecated" `T.isInfixOf` T.toLower line)
     then Just DocumentationFinding
       { dfCategory = StaleDoc
-      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (fromIntegral (T.length line))
+      , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (T.length line)
       , dfName = "deprecated mention"
       , dfExplanation = "Use @deprecated tag for proper deprecation warnings"
       , dfSeverity = Suggestion
@@ -407,7 +407,7 @@ checkTodoLine path (lineNum, line)
     ("TODO" `T.isInfixOf` T.toUpper line || "FIXME" `T.isInfixOf` T.toUpper line)
   = Just DocumentationFinding
     { dfCategory = TodoInDoc
-    , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (fromIntegral (T.length line))
+    , dfSpan = mkSrcSpanRaw path lineNum 1 lineNum (T.length line)
     , dfName = "TODO/FIXME"
     , dfExplanation = "Documentation contains unresolved TODO or FIXME"
     , dfSeverity = Suggestion

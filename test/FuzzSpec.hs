@@ -160,9 +160,9 @@ patternParserFuzzSpec = describe "Pattern Parser Fuzzing" $ do
       \(NoEqualsText txt) ->
         parseRuleFromText "test" txt `shouldSatisfy` isLeft
 
-    it "handles multiple equals signs" $
+    it "rejects patterns containing '=' character" $
       let result = parseRuleFromText "test" "a = b = c"
-      in result `shouldSatisfy` isRight  -- Should parse as "a" = "b = c"
+      in result `shouldSatisfy` isLeft  -- "b = c" is not a valid pattern
 
 --------------------------------------------------------------------------------
 -- TOML Config Parser Fuzz Tests

@@ -437,34 +437,34 @@ removeImport modName = filter (\pImport -> piModule pImport /= modName)
 removeImportSymbol :: Text -> Text -> [ParsedImport] -> [ParsedImport]
 removeImportSymbol modName sym = map removeIfMatch
   where
-    removeIfMatch pi
-      | piModule pi == modName = pi { piExplicit = filter (/= sym) (piExplicit pi) }
-      | otherwise = pi
+    removeIfMatch pImport
+      | piModule pImport == modName = pImport { piExplicit = filter (/= sym) (piExplicit pImport) }
+      | otherwise = pImport
 
 -- | Qualify an import
 qualifyImport :: Text -> Maybe Text -> [ParsedImport] -> [ParsedImport]
 qualifyImport modName alias = map qualifyIfMatch
   where
-    qualifyIfMatch pi
-      | piModule pi == modName = pi { piQualified = True, piAlias = alias }
-      | otherwise = pi
+    qualifyIfMatch pImport
+      | piModule pImport == modName = pImport { piQualified = True, piAlias = alias }
+      | otherwise = pImport
 
 -- | Remove qualification from an import
 unqualifyImport :: Text -> [ParsedImport] -> [ParsedImport]
 unqualifyImport modName = map unqualifyIfMatch
   where
-    unqualifyIfMatch pi
-      | piModule pi == modName = pi { piQualified = False, piAlias = Nothing }
-      | otherwise = pi
+    unqualifyIfMatch pImport
+      | piModule pImport == modName = pImport { piQualified = False, piAlias = Nothing }
+      | otherwise = pImport
 
 -- | Make an open import explicit by adding specific symbols
 makeImportExplicit :: Text -> [Text] -> [ParsedImport] -> [ParsedImport]
 makeImportExplicit modName syms = map makeExplicitIfMatch
   where
-    makeExplicitIfMatch pi
-      | piModule pi == modName && null (piExplicit pi) =
-          pi { piExplicit = syms }
-      | otherwise = pi
+    makeExplicitIfMatch pImport
+      | piModule pImport == modName && null (piExplicit pImport) =
+          pImport { piExplicit = syms }
+      | otherwise = pImport
 
 -- | Merge two import lists, combining explicit lists for same module
 mergeImports :: [ParsedImport] -> [ParsedImport] -> [ParsedImport]
@@ -581,7 +581,7 @@ findAlphabeticPosition imports newModName =
 sortImports :: [ParsedImport] -> [ParsedImport]
 sortImports = sortBy (comparing sortKey)
   where
-    sortKey pi = (moduleGroup (piModule pi), piModule pi)
+    sortKey pImport = (moduleGroup (piModule pImport), piModule pImport)
 
     moduleGroup modName
       | "Prelude" `T.isInfixOf` modName = 0 :: Int
@@ -626,7 +626,7 @@ deduplicateImports = map mergeGroup . NE.groupBy sameImportStyle . sortBy (compa
   where
     -- Key for sorting: module name, then qualified status, then alias
     importKey :: ParsedImport -> (Text, Bool, Maybe Text)
-    importKey pi = (piModule pi, piQualified pi, piAlias pi)
+    importKey pImport = (piModule pImport, piQualified pImport, piAlias pImport)
 
     -- Only group imports with same module, qualification, and alias
     sameImportStyle :: ParsedImport -> ParsedImport -> Bool
@@ -651,7 +651,7 @@ findImportForSymbol sym = listToMaybe . filter (`importsSymbol` sym)
 
 -- | Check if an import provides a symbol
 importsSymbol :: ParsedImport -> Text -> Bool
-importsSymbol pi sym
-  | null (piExplicit pi) && not (piHiding pi) = True  -- Open import
-  | piHiding pi = sym `notElem` piExplicit pi
-  | otherwise = sym `elem` piExplicit pi
+importsSymbol pImport sym
+  | null (piExplicit pImport) && not (piHiding pImport) = True  -- Open import
+  | piHiding pImport = sym `notElem` piExplicit pImport
+  | otherwise = sym `elem` piExplicit pImport

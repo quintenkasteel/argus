@@ -197,7 +197,7 @@ safeListSpec = describe "Safe List Operations" $ do
       tailMay ([] :: [Int]) `shouldBe` Nothing
 
     it "returns Just tail for non-empty list" $
-      tailMay [1, 2, 3] `shouldBe` Just [2, 3]
+      tailMay ([1, 2, 3] :: [Int]) `shouldBe` Just [2, 3]
 
     prop "is equivalent to tail for non-empty lists" $ \(NonEmpty xs) ->
       tailMay (xs :: [Int]) == Just (tail xs)
@@ -207,7 +207,7 @@ safeListSpec = describe "Safe List Operations" $ do
       lastMay ([] :: [Int]) `shouldBe` Nothing
 
     it "returns Just last element for non-empty list" $
-      lastMay [1, 2, 3] `shouldBe` Just 3
+      lastMay ([1, 2, 3] :: [Int]) `shouldBe` Just 3
 
     prop "is equivalent to last for non-empty lists" $ \(NonEmpty xs) ->
       lastMay (xs :: [Int]) == Just (last xs)
@@ -217,7 +217,7 @@ safeListSpec = describe "Safe List Operations" $ do
       initMay ([] :: [Int]) `shouldBe` Nothing
 
     it "returns Just init for non-empty list" $
-      initMay [1, 2, 3] `shouldBe` Just [1, 2]
+      initMay ([1, 2, 3] :: [Int]) `shouldBe` Just [1, 2]
 
     prop "is equivalent to init for non-empty lists" $ \(NonEmpty xs) ->
       initMay (xs :: [Int]) == Just (init xs)

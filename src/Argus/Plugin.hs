@@ -441,7 +441,7 @@ checkPartialFunction srcSpan name
 
 -- | Create a fix for replacing a partial function
 mkPartialFix :: SrcLoc.SrcSpan -> Text -> Text -> Text -> [Text] -> PluginFix
-mkPartialFix srcSpan original replacement fixModule imports = PluginFix
+mkPartialFix srcSpan original replacement _fixModule imports = PluginFix
   { pfTitle = "Replace '" <> original <> "' with '" <> replacement <> "'"
   , pfSpan = convertSpan srcSpan
   , pfReplacement = replacement

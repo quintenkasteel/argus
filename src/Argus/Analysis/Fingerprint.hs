@@ -155,8 +155,9 @@ pushScope :: AlphaState -> AlphaState
 pushScope st = st { asScopes = Map.empty : asScopes st }
 
 -- | Exit current scope
-popScope :: AlphaState -> AlphaState
-popScope st = st { asScopes = drop 1 (asScopes st) }
+-- Currently unused, but kept for potential future scope management needs
+-- popScope :: AlphaState -> AlphaState
+-- popScope st = st { asScopes = drop 1 (asScopes st) }
 
 -- | Look up a variable in current scope chain
 lookupVar :: Text -> AlphaState -> Maybe Int
@@ -191,7 +192,7 @@ lookupOrCreate name st =
 -- | Create a fingerprint for a function from its source code
 -- Uses ghc-lib-parser for accurate AST parsing
 fingerprintFunction :: Text -> Text -> SrcSpan -> FunctionFingerprint
-fingerprintFunction name code span =
+fingerprintFunction name code span' =
   let normalized = normalizeFromText code
       nodeCount = countNodes normalized
       depth = computeDepth normalized
@@ -199,7 +200,7 @@ fingerprintFunction name code span =
       tokHash = computeTokenHash code
   in FunctionFingerprint
     { fpName = name
-    , fpSpan = span
+    , fpSpan = span'
     , fpHash = structHash
     , fpTokenHash = tokHash
     , fpNormalized = normalized
@@ -356,7 +357,7 @@ normalizeExpr st expr = case expr of
     NList $ map (normalizeExpr st . unLoc) exprs
 
   -- Explicit tuple
-  ExplicitTuple _ args boxity ->
+  ExplicitTuple _ args _boxity ->
     let normArgs = map normalizeTupleArg args
     in NTuple normArgs
     where
@@ -373,7 +374,7 @@ normalizeExpr st expr = case expr of
     in NRecord [(conName, NRecord fieldList)]
 
   -- Record update
-  RecordUpd _ e fields ->
+  RecordUpd _ e _fields ->
     let baseExpr = normalizeExpr st (unLoc e)
     in NApp baseExpr NWildcard  -- Simplified: treat update as application
 
@@ -567,15 +568,15 @@ normalizeLit lit = case lit of
   HsStringPrim _ bs -> NLitString $ T.pack $ show bs
   HsInt _ il -> NLitInt $ il_value il
   HsIntPrim _ i -> NLitInt i
-  HsWordPrim _ w -> NLitInt $ fromIntegral w
-  HsInt8Prim _ i -> NLitInt $ fromIntegral i
-  HsInt16Prim _ i -> NLitInt $ fromIntegral i
-  HsInt32Prim _ i -> NLitInt $ fromIntegral i
-  HsInt64Prim _ i -> NLitInt $ fromIntegral i
-  HsWord8Prim _ w -> NLitInt $ fromIntegral w
-  HsWord16Prim _ w -> NLitInt $ fromIntegral w
-  HsWord32Prim _ w -> NLitInt $ fromIntegral w
-  HsWord64Prim _ w -> NLitInt $ fromIntegral w
+  HsWordPrim _ w -> NLitInt w
+  HsInt8Prim _ i -> NLitInt i
+  HsInt16Prim _ i -> NLitInt i
+  HsInt32Prim _ i -> NLitInt i
+  HsInt64Prim _ i -> NLitInt i
+  HsWord8Prim _ w -> NLitInt w
+  HsWord16Prim _ w -> NLitInt w
+  HsWord32Prim _ w -> NLitInt w
+  HsWord64Prim _ w -> NLitInt w
   HsFloatPrim _ r -> NLitFloat $ fromRational $ rationalFromFractionalLit r
   HsDoublePrim _ r -> NLitFloat $ fromRational $ rationalFromFractionalLit r
   _ -> NLitInt 0  -- Fallback

@@ -5,10 +5,15 @@
 -- Description : World-class safe refactoring with transactional semantics
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module provides enterprise-grade automatic code fixing:
+-- = Overview
 --
--- == Key Features
+-- This module provides enterprise-grade automatic code fixing with
+-- transactional semantics and comprehensive validation.
+--
+-- = Key Features
 --
 -- * __Conflict Detection__: Identifies overlapping, dependent, and semantic conflicts
 -- * __Topological Ordering__: Applies fixes in dependency-safe order
@@ -18,7 +23,28 @@
 -- * __Multi-file Support__: Coordinates fixes across multiple files
 -- * __Import Management__: Automatically adds/removes required imports
 --
--- == Usage
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────┐
+-- │                    SafeRefactor Pipeline                     │
+-- ├─────────────────────────────────────────────────────────────┤
+-- │  1. Extract fixes from diagnostics                          │
+-- │  2. Build fix graph (dependencies, conflicts)               │
+-- │  3. Compute topological order                               │
+-- │  4. Start transaction                                       │
+-- │  5. Apply fixes in order with validation                    │
+-- │  6. Commit on success / Rollback on failure                 │
+-- └─────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Thread Safety
+--
+-- Individual refactoring operations are thread-safe, but concurrent
+-- modifications to the same file should be avoided. Use the transaction
+-- system to coordinate multi-file changes.
+--
+-- = Usage
 --
 -- @
 -- result <- safeApplyFixes defaultSafeOptions diagnostics
@@ -26,6 +52,8 @@
 --   True  -> putStrLn $ "Applied " <> show (length $ srrApplied result) <> " fixes"
 --   False -> mapM_ (putStrLn . show) (srrErrors result)
 -- @
+--
+-- @since 1.0.0
 module Argus.Refactor.SafeRefactor
   ( -- * Safe Refactoring
     safeApplyFixes
@@ -355,7 +383,48 @@ commit tx = do
 -- Main Entry Points
 --------------------------------------------------------------------------------
 
--- | Safely apply fixes from diagnostics
+-- | Safely apply fixes from diagnostics.
+--
+-- This is the main entry point for safe refactoring. It:
+--
+-- 1. Extracts fixes from all diagnostics
+-- 2. Builds a dependency graph to detect conflicts
+-- 3. Computes a safe application order
+-- 4. Applies fixes within a transaction
+-- 5. Validates each fix before proceeding
+-- 6. Rolls back on any failure (if transactional mode is enabled)
+--
+-- ==== Parameters
+--
+-- * @opts@: Configuration options controlling validation, conflict handling, etc.
+-- * @filesDiags@: List of (file path, diagnostics) pairs
+--
+-- ==== Returns
+--
+-- A 'SafeRefactorResult' containing:
+--
+-- * Which fixes were successfully applied
+-- * Which fixes were skipped and why
+-- * Which fixes failed and error messages
+-- * Statistics about the refactoring operation
+--
+-- ==== Example
+--
+-- @
+-- let opts = defaultSafeOptions { sroValidateEachFix = True }
+-- result <- safeApplyFixes opts [("src/Foo.hs", diags)]
+-- when (srrSuccess result) $
+--   putStrLn $ "Applied " ++ show (rsAppliedFixes $ srrStats result) ++ " fixes"
+-- @
+--
+-- ==== Failure Modes
+--
+-- * Returns failure if a circular dependency is detected
+-- * Returns failure if too many conflicts exceed 'sroMaxConflicts'
+-- * Individual fix failures don't fail the entire operation unless
+--   'sroTransactional' causes a rollback
+--
+-- @since 1.0.0
 safeApplyFixes :: SafeRefactorOptions
                -> [(FilePath, [Diagnostic])]
                -> IO SafeRefactorResult
@@ -641,8 +710,8 @@ applyFixSafely opts path content fix = do
           [ veMessage e | e <- vrErrors validation ]
 
 -- | Check if a fix has import changes
-hasImportChanges :: Fix -> Bool
-hasImportChanges fix = not (null (fixAddImports fix)) || not (null (fixRemoveImports fix))
+_hasImportChanges :: Fix -> Bool
+_hasImportChanges fix = not (null (fixAddImports fix)) || not (null (fixRemoveImports fix))
 
 -- | Apply all collected imports from applied fixes to their respective files.
 -- This is called AFTER all code fixes have been applied, to avoid line number

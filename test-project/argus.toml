@@ -27,8 +27,68 @@ check-functions = true
 check-types = true
 check-imports = true
 check-exports = true
-roots = ["^Main.main$", "^Paths_.*"]
-th-roots = []
+check-constructors = true
+check-record-fields = true
+check-local-binds = true
+check-instances = false
+typeclass-roots = true
+derive-roots = true
+min-confidence = 0.5
+
+# Root patterns for entry points
+roots = [
+  "^Main\\.main$",
+  "^Paths_.*",
+  ".*Widget$",           # Widget functions are roots
+  "^.*\\.spec$",         # Test specs
+]
+
+# TH roots - patterns that indicate a function is used by TH-generated code
+# These include Yesod patterns like widgetFile, hamletFile, etc.
+th-roots = [
+  # Aeson JSON derivation
+  "parseJSON",
+  "toJSON",
+  "toEncoding",
+  "deriveJSON",
+  "deriveFromJSON",
+  "deriveToJSON",
+
+  # Lens derivation
+  "makeLenses",
+  "makePrisms",
+  "makeFields",
+  "makeClassy",
+
+  # Yesod Template Haskell (widgetFile, hamletFile, etc.)
+  "widgetFile",
+  "hamletFile",
+  "juliusFile",
+  "luciusFile",
+  "cassiusFile",
+  "whamletFile",
+  "ihamletFile",
+  "shamletFile",
+
+  # Yesod persistence
+  "mkYesod",
+  "mkPersist",
+  "share",
+  "derivePersistField",
+
+  # Simulated patterns for testing
+  "hamlet",
+  "formatUserName",
+  "formatDate",
+  "getDefaultTitle",
+  "userGreeting",
+  "calculateAge",
+]
+
+# Patterns to ignore (known false positives)
+ignore-patterns = [
+  "^_.*",                # Underscore-prefixed names are intentionally unused
+]
 
 # =============================================================================
 # Naming Conventions
@@ -212,3 +272,16 @@ timeout-seconds = 60
 max-retries = 3
 kill-on-timeout = true
 track-per-file = true
+
+# =============================================================================
+# Architecture Analysis
+# =============================================================================
+[architecture]
+enabled = false
+
+# =============================================================================
+# Qualify Import Rules
+# =============================================================================
+[qualify-import]
+enabled = false
+strategy = "last-part"

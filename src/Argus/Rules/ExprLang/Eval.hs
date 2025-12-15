@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -284,7 +285,6 @@ evalIndex env e idx = case (eval env e, eval env idx) of
   (EvalOk v, _) -> EvalErr $ EvalError
     ("Index access requires list or string, got " <> showValueType v) Nothing []
   (EvalErr e', _) -> EvalErr e'
-  (_, EvalErr e') -> EvalErr e'
 
 -- | Evaluate list
 evalList :: EvalEnv -> [Expr] -> EvalResult
@@ -728,6 +728,7 @@ evalBuiltin env builtin args = case builtin of
     [VString _] -> EvalOk VNothing  -- Simplified
     _ -> wrongArgs "read" 1 args
   where
+    wrongArgs :: Text -> Int -> [Value] -> EvalResult
     wrongArgs name expected actual = EvalErr $ EvalError
       (name <> " expected " <> T.pack (show expected) <> " arguments, got " <>
        T.pack (show $ length actual))
@@ -785,7 +786,7 @@ inferType env = \case
     TypeOk t -> TypeOk $ TFunc (replicate (length params) TAny) t
     TypeErr e -> TypeErr e
 
-  ELet bindings body -> inferType env body
+  ELet _bindings body -> inferType env body
 
   EIf cond thenE elseE -> case (inferType env cond, inferType env thenE, inferType env elseE) of
     (TypeOk TBool, TypeOk t1, TypeOk t2)

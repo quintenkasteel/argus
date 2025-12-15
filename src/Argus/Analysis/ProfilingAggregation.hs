@@ -113,7 +113,7 @@ import Data.Aeson (ToJSON(..), FromJSON(..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Encode.Pretty qualified as AesonPretty
 import Data.ByteString.Lazy qualified as LBS
-import Data.List (sortBy, foldl')
+import Data.List (sortBy)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe, catMaybes)

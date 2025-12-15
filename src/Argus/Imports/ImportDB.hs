@@ -70,7 +70,7 @@ module Argus.Imports.ImportDB
   , mtlSymbols
   ) where
 
-import Control.Monad (forM_)
+import Control.Monad ()
 import Data.Aeson (ToJSON, FromJSON, ToJSONKey(..), FromJSONKey(..))
 import Data.Aeson.Types qualified as AT
 import Data.IORef (IORef, newIORef, readIORef, modifyIORef')

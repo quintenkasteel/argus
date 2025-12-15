@@ -7,8 +7,44 @@
 -- Copyright   : (c) 2024
 -- License     : MIT
 --
--- This module provides common utilities, parsers, and helper functions
--- used across CLI commands.
+-- = Overview
+--
+-- This module provides optparse-applicative parsers for all CLI option types,
+-- along with helper functions for parsing mode strings, output formats, and
+-- other common CLI concerns.
+--
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                      CLI Parsing Pipeline                           │
+-- │                                                                     │
+-- │  Command Line ──► Optparse ──► Raw Options ──► Converters ──► Types │
+-- │      Args          Parsers      (Text)         (parse*)     (Enums) │
+-- │                                                                     │
+-- │  ┌──────────────────────────────────────────────────────────────┐   │
+-- │  │ Parsers: parseGlobalOptions, parseCheckOptions, ...          │   │
+-- │  │ Converters: parseMode, parseOutputFormat, parseSeverity      │   │
+-- │  │ Helpers: mkProgressConfig, defaultConfigToml                 │   │
+-- │  └──────────────────────────────────────────────────────────────┘   │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Usage
+--
+-- Parsers are composed using optparse-applicative's 'Parser' applicative:
+--
+-- @
+-- commandParser :: Parser Command
+-- commandParser = hsubparser
+--   ( command "check" (info (CmdCheck \<$\> parseGlobalOptions \<*\> parseCheckOptions)
+--       (progDesc "Run static analysis"))
+--   \<\> command "fix" (info (CmdFix \<$\> parseGlobalOptions \<*\> parseFixOptions)
+--       (progDesc "Auto-fix issues"))
+--   )
+-- @
+--
+-- @since 1.0.0
 module Argus.CLI.Common
   ( -- * Parsers
     parseGlobalOptions
@@ -25,6 +61,8 @@ module Argus.CLI.Common
   , parseLspOptions
   , parseArchitectureOptions
   , parsePackOptions
+  , parseWorkspaceOptions
+  , parseRuleOptions
   , parseValidationLevel
   , parseConflictStrategy
 
@@ -50,7 +88,12 @@ import Argus.Refactor.FixGraph (ConflictStrategy(..))
 -- Global Options Parser
 --------------------------------------------------------------------------------
 
--- | Parse global options
+-- | Parse global options from command-line arguments.
+--
+-- Global options are parsed before the subcommand and apply to all commands.
+-- The parser uses applicative-do notation for cleaner composition.
+--
+-- @since 1.0.0
 parseGlobalOptions :: Parser GlobalOptions
 parseGlobalOptions = do
   goConfigFile <- optional $ strOption
@@ -81,7 +124,12 @@ parseGlobalOptions = do
 -- Command Options Parsers
 --------------------------------------------------------------------------------
 
--- | Parse check command options
+-- | Parse check command options.
+--
+-- Includes basic analysis options plus CI mode options for baseline
+-- comparison and failure thresholds.
+--
+-- @since 1.0.0
 parseCheckOptions :: Parser CheckOptions
 parseCheckOptions = do
   coTargets <- many $ argument str
@@ -159,7 +207,12 @@ parseCheckOptions = do
     )
   pure CheckOptions{..}
 
--- | Parse fix command options
+-- | Parse fix command options.
+--
+-- Includes safe refactoring options for validation level, transactional
+-- mode, and conflict resolution strategy.
+--
+-- @since 1.0.0
 parseFixOptions :: Parser FixOptions
 parseFixOptions = do
   foTargets <- many $ argument str
@@ -226,7 +279,16 @@ parseFixOptions = do
     )
   pure FixOptions{..}
 
--- | Parse validation level
+-- | Parse validation level from string.
+--
+-- = Validation Levels
+--
+-- * @\"none\"@ - No validation (fastest, unsafe)
+-- * @\"structural\"@ - Check AST structure only
+-- * @\"syntax\"@ - Full syntax validation (default)
+-- * @\"semantic\"@ - Type-checking via HIE (slowest, safest)
+--
+-- @since 1.0.0
 parseValidationLevel :: ReadM ValidationLevel
 parseValidationLevel = eitherReader $ \s -> case s of
   "none"       -> Right NoValidation
@@ -235,7 +297,17 @@ parseValidationLevel = eitherReader $ \s -> case s of
   "semantic"   -> Right SemanticValidation
   _            -> Left $ "Unknown validation level: " <> s <> ". Use: none, structural, syntax, semantic"
 
--- | Parse conflict strategy
+-- | Parse conflict resolution strategy from string.
+--
+-- = Strategies
+--
+-- * @\"skip\"@ - Skip all conflicting fixes
+-- * @\"preferred\"@ - Apply higher-priority fix (default)
+-- * @\"first\"@ - Apply first-encountered fix
+-- * @\"severity\"@ - Apply fix for higher-severity issue
+-- * @\"smaller\"@ - Apply smaller (more focused) fix
+--
+-- @since 1.0.0
 parseConflictStrategy :: ReadM ConflictStrategy
 parseConflictStrategy = eitherReader $ \s -> case s of
   "skip"      -> Right SkipAll
@@ -591,18 +663,155 @@ parsePackOptions = do
       <> help "Output file path"
       )
 
+-- | Parse workspace options
+parseWorkspaceOptions :: Parser WorkspaceOptions
+parseWorkspaceOptions = do
+  woAction <- hsubparser
+    ( command "analyze" (info (pure WSAnalyze)
+        (progDesc "Analyze all projects in the workspace"))
+    <> command "init" (info (pure WSInit)
+        (progDesc "Initialize workspace configuration"))
+    <> command "list" (info (pure WSList)
+        (progDesc "List projects in the workspace"))
+    <> command "discover" (info (pure WSDiscover)
+        (progDesc "Auto-discover Haskell projects"))
+    <> command "validate" (info (pure WSValidate)
+        (progDesc "Validate workspace configuration"))
+    )
+  woConfigFile <- optional $ strOption
+    ( long "config"
+    <> short 'c'
+    <> metavar "FILE"
+    <> help "Path to workspace config (default: argus-workspace.toml)"
+    )
+  woProjects <- many $ strOption
+    ( long "project"
+    <> short 'p'
+    <> metavar "NAME"
+    <> help "Specific project to analyze (can be repeated)"
+    )
+  woTags <- many $ strOption
+    ( long "tag"
+    <> short 't'
+    <> metavar "TAG"
+    <> help "Filter projects by tag (can be repeated)"
+    )
+  woOutputFormat <- strOption
+    ( long "format"
+    <> short 'f'
+    <> metavar "FORMAT"
+    <> value "terminal"
+    <> showDefault
+    <> help "Output format: terminal, json, sarif"
+    )
+  woParallel <- switch
+    ( long "parallel"
+    <> help "Enable parallel analysis of projects"
+    )
+  woFailFast <- switch
+    ( long "fail-fast"
+    <> help "Stop on first project failure"
+    )
+  woVerbose <- switch
+    ( long "verbose"
+    <> short 'v'
+    <> help "Verbose output"
+    )
+  pure WorkspaceOptions{..}
+
+-- | Parse rule authoring options
+parseRuleOptions :: Parser RuleOptions
+parseRuleOptions = do
+  roAction <- hsubparser
+    ( command "new" (info (RuleNew <$> ruleNameArg)
+        (progDesc "Create a new rule template"))
+    <> command "validate" (info (RuleValidate <$> ruleFileArg)
+        (progDesc "Validate rule file syntax"))
+    <> command "test" (info (RuleTest <$> ruleFileArg)
+        (progDesc "Test rule against sample code"))
+    <> command "list" (info (pure RuleList)
+        (progDesc "List all available rules"))
+    <> command "explain" (info (RuleExplain <$> ruleIdArg)
+        (progDesc "Get detailed explanation of a rule"))
+    <> command "docs" (info (pure RuleDocs)
+        (progDesc "Export rule documentation"))
+    )
+  roRulesDir <- optional $ strOption
+    ( long "rules-dir"
+    <> short 'd'
+    <> metavar "DIR"
+    <> help "Custom rules directory (default: .argus/rules)"
+    )
+  roSampleFile <- optional $ strOption
+    ( long "sample"
+    <> short 's'
+    <> metavar "FILE"
+    <> help "Sample Haskell file for testing"
+    )
+  roRuleType <- strOption
+    ( long "type"
+    <> short 't'
+    <> metavar "TYPE"
+    <> value "pattern"
+    <> showDefault
+    <> help "Rule type: pattern, ast, semantic"
+    )
+  roCategory <- optional $ strOption
+    ( long "category"
+    <> short 'c'
+    <> metavar "CAT"
+    <> help "Filter rules by category"
+    )
+  roOutputFormat <- strOption
+    ( long "format"
+    <> short 'f'
+    <> metavar "FORMAT"
+    <> value "terminal"
+    <> showDefault
+    <> help "Output format: terminal, json, markdown, html"
+    )
+  roVerbose <- switch
+    ( long "verbose"
+    <> short 'v'
+    <> help "Verbose output"
+    )
+  pure RuleOptions{..}
+  where
+    ruleNameArg = argument str
+      ( metavar "NAME"
+      <> help "Name for the new rule"
+      )
+    ruleFileArg = argument str
+      ( metavar "FILE"
+      <> help "Path to rule file"
+      )
+    ruleIdArg = argument str
+      ( metavar "RULE-ID"
+      <> help "Rule ID to explain (e.g., partial/head)"
+      )
+
 --------------------------------------------------------------------------------
 -- Helper Functions
 --------------------------------------------------------------------------------
 
--- | Parse analysis mode from string
+-- | Parse analysis mode from string.
+--
+-- Converts mode string from CLI to 'AnalysisMode' enum.
+-- Defaults to 'QuickMode' for unrecognized inputs.
+--
+-- @since 1.0.0
 parseMode :: Text -> AnalysisMode
 parseMode "quick"  = QuickMode
 parseMode "full"   = FullMode
 parseMode "plugin" = PluginMode
 parseMode _        = QuickMode
 
--- | Parse output format from string
+-- | Parse output format from string.
+--
+-- Converts format string from CLI to 'OutputFormat' enum.
+-- Defaults to 'TerminalFormat' for unrecognized inputs.
+--
+-- @since 1.0.0
 parseOutputFormat :: Text -> OutputFormat
 parseOutputFormat "json"        = JsonFormat
 parseOutputFormat "sarif"       = SarifFormat
@@ -614,7 +823,12 @@ parseOutputFormat "codeclimate" = CodeClimateFormat
 parseOutputFormat "checkstyle"  = CheckstyleFormat
 parseOutputFormat _             = TerminalFormat
 
--- | Parse severity from text
+-- | Parse severity level from text.
+--
+-- Converts severity string to 'Severity' enum.
+-- Case-insensitive. Defaults to 'Warning'.
+--
+-- @since 1.0.0
 parseSeverity :: Text -> Severity
 parseSeverity t = case T.toLower t of
   "error"      -> Error
@@ -623,7 +837,12 @@ parseSeverity t = case T.toLower t of
   "info"       -> Info
   _            -> Warning
 
--- | Create progress config from global options
+-- | Create progress configuration from global options.
+--
+-- Configures progress display based on terminal capabilities
+-- and user preferences (color, interactive mode).
+--
+-- @since 1.0.0
 mkProgressConfig :: GlobalOptions -> Bool -> Progress.ProgressConfig
 mkProgressConfig global isTerminal = Progress.ProgressConfig
   { Progress.pcEnabled = not (goNoColor global) && isTerminal
@@ -633,7 +852,12 @@ mkProgressConfig global isTerminal = Progress.ProgressConfig
   , Progress.pcWidth = 80
   }
 
--- | Default TOML configuration
+-- | Default TOML configuration template.
+--
+-- Used by @argus init@ to create a starter configuration file.
+-- Includes sensible defaults for all major sections.
+--
+-- @since 1.0.0
 defaultConfigToml :: Text
 defaultConfigToml = T.unlines
   [ "# Argus Configuration - The All-Seeing Haskell Static Analyzer"

@@ -44,10 +44,10 @@ import Data.Aeson (ToJSON, FromJSON)
 -- GHC imports
 import "ghc-lib-parser" GHC.Hs (HsModule, GhcPs)
 
-import Argus.Analysis.TextProcessing (isCodeLine, extractCode, patternInCode)
+import Argus.Analysis.TextProcessing (isCodeLine, patternInCode)
 import Argus.Types hiding (FixSafety(..))
 import Argus.Rules.ASTMatch qualified as AST
-import Argus.Rules.Types (Rule(..), SafetyLevel(..), Category(..), SideCondition(..), RulePattern(..))
+import Argus.Rules.Types (Rule(..), SafetyLevel(..), Category(..), RulePattern(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -720,9 +720,9 @@ detectPattern filepath lineNum lineText prefix suffix message code
 mkDiagnostic :: FilePath -> Int -> Text -> Text -> Text -> Text -> Diagnostic
 mkDiagnostic filepath lineNum lineText needle message code =
   let col = case T.breakOn needle lineText of
-              (before, _) -> fromIntegral (T.length before) + 1
+              (before, _) -> T.length before + 1
   in Diagnostic
-    { diagSpan = mkSrcSpanRaw filepath lineNum col lineNum (col + fromIntegral (T.length needle))
+    { diagSpan = mkSrcSpanRaw filepath lineNum col lineNum (col + T.length needle)
     , diagSeverity = Warning
     , diagKind = CodePattern
     , diagMessage = message
@@ -736,19 +736,19 @@ mkDiagnostic filepath lineNum lineText needle message code =
 --------------------------------------------------------------------------------
 
 -- | Convert finding to diagnostic
-findingToDiagnostic :: RedundantFinding -> Diagnostic
-findingToDiagnostic RedundantFinding{..} = Diagnostic
+_findingToDiagnostic :: RedundantFinding -> Diagnostic
+_findingToDiagnostic RedundantFinding{..} = Diagnostic
   { diagSpan = rfSpan
   , diagSeverity = rfSeverity
   , diagKind = CodePattern
   , diagMessage = rfExplanation <> ". Replace with: " <> rfReplacement
-  , diagCode = Just $ "redundant/" <> categoryCode rfCategory
+  , diagCode = Just $ "redundant/" <> _categoryCode rfCategory
   , diagFixes = rfAutoFix
   , diagRelated = []
   }
 
-categoryCode :: RedundantCategory -> Text
-categoryCode = \case
+_categoryCode :: RedundantCategory -> Text
+_categoryCode = \case
   BooleanSimplification -> "boolean"
   RedundantConstruct -> "construct"
   EtaReduction -> "eta"

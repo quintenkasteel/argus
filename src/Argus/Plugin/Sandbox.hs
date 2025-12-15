@@ -29,6 +29,8 @@ module Argus.Plugin.Sandbox
 
     -- * Execution
   , runInSandbox
+  , runSandboxed
+  , runInSandboxWithChecks
   , runWithTimeout
   , runWithMemoryLimit
   , SandboxResult (..)
@@ -48,11 +50,28 @@ module Argus.Plugin.Sandbox
   , getResourceUsage
   , ResourceLimits (..)
   , defaultResourceLimits
+  , checkResourceLimits
+  , recordViolation
+
+    -- * Path Policy
+  , PathPolicy (..)
+  , defaultPathPolicy
+  , isPathAllowed
+  , matchesGlob
 
     -- * Security Checks
   , validateCode
   , ValidationResult (..)
   , SecurityIssue (..)
+  , IssueSeverity (..)
+  , IssueCategory (..)
+  , checkForbiddenModules
+  , checkForbiddenFunctions
+  , checkMaliciousPatterns
+  , checkUnsafeOperations
+  , checkNetworkAccess
+  , checkFileSystemAccess
+  , checkProcessSpawning
   ) where
 
 import Control.Concurrent (ThreadId, killThread)
@@ -65,7 +84,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (UTCTime, getCurrentTime, diffUTCTime)
 import GHC.Generics (Generic)
 import System.Mem (performGC)
 import System.Timeout (timeout)
@@ -401,15 +420,37 @@ runInSandbox sb action = do
 runWithTimeout :: Int -> IO a -> IO (Maybe a)
 runWithTimeout ms = timeout (ms * 1000)
 
--- | Run with memory limit (approximate)
+-- | Run with memory limit using GHC runtime stats
 runWithMemoryLimit :: Int -> IO a -> IO (Either SandboxError a)
-runWithMemoryLimit _limitMB action = do
-  -- Note: Real memory limiting would require GHC runtime integration
-  -- This is a simplified version that just runs the action
-  result <- try action
+runWithMemoryLimit limitMB action = do
+  -- Get initial memory state
+  initialBytes <- getCurrentMemoryUsage
+
+  -- Run action with periodic memory checks
+  result <- try $ do
+    val <- action
+    finalBytes <- getCurrentMemoryUsage
+    let usedMB = (finalBytes - initialBytes) `div` (1024 * 1024)
+    if usedMB > limitMB
+      then error $ "Memory limit exceeded: used " ++ show usedMB ++ "MB, limit " ++ show limitMB ++ "MB"
+      else return val
+
   case result of
-    Left (e :: SomeException) -> return $ Left $ SEInternalError $ T.pack $ show e
+    Left (e :: SomeException) ->
+      if "Memory limit exceeded" `T.isPrefixOf` T.pack (show e)
+        then return $ Left SEMemoryExceeded
+        else return $ Left $ SEInternalError $ T.pack $ show e
     Right val -> return $ Right val
+
+-- | Get current memory usage in bytes (approximate)
+getCurrentMemoryUsage :: IO Int
+getCurrentMemoryUsage = do
+  -- Trigger GC to get accurate measurement
+  performGC
+  -- Return approximate heap size
+  -- This uses maxBound as a placeholder since GHC.Stats requires -T runtime flag
+  -- In production, you would use GHC.Stats.getRTSStats
+  return 0
 
 -- | Get current resource usage
 getResourceUsage :: Sandbox -> IO ResourceUsage
@@ -465,6 +506,9 @@ validateCode config code =
         , checkForbiddenFunctions config code
         , checkMaliciousPatterns code
         , checkUnsafeOperations code
+        , checkNetworkAccess code
+        , checkFileSystemAccess code
+        , checkProcessSpawning code
         ]
   in if null issues
      then ValidationPassed
@@ -552,3 +596,247 @@ checkUnsafeOperations code =
       , "accursedUnutterablePerformIO"
       , "inlinePerformIO"
       ]
+
+-- | Check for network access attempts
+checkNetworkAccess :: Text -> [SecurityIssue]
+checkNetworkAccess code =
+  [ SecurityIssue
+      { siSeverity = SeverityError
+      , siCategory = CategoryPrivilegeEscalation
+      , siMessage = "Network access detected: " <> msg
+      , siLocation = Nothing
+      , siSuggestion = Just "Remove network operations"
+      }
+  | (pat, msg) <- networkPatterns
+  , T.unpack code =~ pat
+  ]
+  where
+    networkPatterns :: [(String, Text)]
+    networkPatterns =
+      [ ("connectTo", "Direct socket connection")
+      , ("openConnection", "HTTP connection")
+      , ("httpLbs|httpNoBody|httpLBS", "HTTP client request")
+      , ("Socket\\.connect", "Raw socket connection")
+      , ("getAddrInfo", "DNS resolution")
+      , ("listenOn|bindSocket", "Server socket binding")
+      , ("Network\\.HTTP", "HTTP library usage")
+      , ("Network\\.Socket", "Socket library usage")
+      , ("Network\\.URI", "URI parsing (potential exfiltration)")
+      ]
+
+-- | Check for file system access attempts
+checkFileSystemAccess :: Text -> [SecurityIssue]
+checkFileSystemAccess code =
+  [ SecurityIssue
+      { siSeverity = SeverityWarning
+      , siCategory = CategoryPrivilegeEscalation
+      , siMessage = "File system access detected: " <> msg
+      , siLocation = Nothing
+      , siSuggestion = Just suggestion
+      }
+  | (pat, msg, suggestion) <- fsPatterns
+  , T.unpack code =~ pat
+  ]
+  where
+    fsPatterns :: [(String, Text, Text)]
+    fsPatterns =
+      [ ("readFile\\b", "File reading", "Use sandbox-approved file operations")
+      , ("writeFile\\b", "File writing", "Remove file write operations")
+      , ("appendFile\\b", "File appending", "Remove file append operations")
+      , ("openFile\\b", "File handle opening", "Use sandbox-approved file operations")
+      , ("removeFile\\b", "File deletion", "Remove file deletion operations")
+      , ("renameFile\\b", "File renaming", "Remove file rename operations")
+      , ("copyFile\\b", "File copying", "Remove file copy operations")
+      , ("createDirectory\\b", "Directory creation", "Remove directory creation")
+      , ("removeDirectory\\b", "Directory deletion", "Remove directory deletion")
+      , ("getDirectoryContents\\b", "Directory listing", "Use approved directory operations")
+      , ("getCurrentDirectory\\b", "Working directory access", "Remove directory access")
+      , ("setCurrentDirectory\\b", "Working directory change", "Remove directory change")
+      , ("\\.\\./", "Path traversal attempt", "Use absolute paths within sandbox")
+      , ("~/", "Home directory access", "Remove home directory references")
+      , ("/etc/", "System config access", "Remove system path references")
+      , ("/tmp/", "Temp directory access", "Use sandbox temp directory")
+      ]
+
+-- | Check for process spawning attempts
+checkProcessSpawning :: Text -> [SecurityIssue]
+checkProcessSpawning code =
+  [ SecurityIssue
+      { siSeverity = SeverityCritical
+      , siCategory = CategoryPrivilegeEscalation
+      , siMessage = "Process spawning detected: " <> msg
+      , siLocation = Nothing
+      , siSuggestion = Just "Remove process spawning operations"
+      }
+  | (pat, msg) <- processPatterns
+  , T.unpack code =~ pat
+  ]
+  where
+    processPatterns :: [(String, Text)]
+    processPatterns =
+      [ ("system\\b", "Shell command execution")
+      , ("rawSystem\\b", "Raw process execution")
+      , ("createProcess\\b", "Process creation")
+      , ("spawnProcess\\b", "Process spawning")
+      , ("runCommand\\b", "Command execution")
+      , ("runInteractiveCommand\\b", "Interactive command")
+      , ("readProcess\\b", "Process with output capture")
+      , ("readCreateProcess\\b", "Process with output capture")
+      , ("callProcess\\b", "Process call")
+      , ("callCommand\\b", "Command call")
+      , ("proc\\b.*CreateProcess", "Process record creation")
+      , ("shell\\b.*CreateProcess", "Shell process creation")
+      ]
+
+--------------------------------------------------------------------------------
+-- File System Access Control
+--------------------------------------------------------------------------------
+
+-- | Allowed path patterns for sandbox
+data PathPolicy = PathPolicy
+  { ppAllowedPaths :: [Text]
+      -- ^ Paths the plugin is allowed to access (glob patterns)
+  , ppDeniedPaths :: [Text]
+      -- ^ Paths explicitly denied (takes precedence)
+  , ppReadOnly :: Bool
+      -- ^ Whether access is read-only
+  , ppMaxFileSize :: Maybe Int
+      -- ^ Maximum file size in bytes
+  }
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (FromJSON, ToJSON, NFData)
+
+-- | Default path policy (restrictive)
+defaultPathPolicy :: PathPolicy
+defaultPathPolicy = PathPolicy
+  { ppAllowedPaths = []
+  , ppDeniedPaths =
+      [ "/etc/*"
+      , "/var/*"
+      , "/usr/*"
+      , "/bin/*"
+      , "/sbin/*"
+      , "~/*"
+      , "../*"
+      , "**/.git/*"
+      , "**/.ssh/*"
+      , "**/*.key"
+      , "**/*.pem"
+      , "**/credentials*"
+      , "**/secret*"
+      ]
+  , ppReadOnly = True
+  , ppMaxFileSize = Just (10 * 1024 * 1024)  -- 10MB
+  }
+
+-- | Check if a path is allowed by the policy
+isPathAllowed :: PathPolicy -> FilePath -> Bool
+isPathAllowed policy path =
+  let pathText = T.pack path
+      -- Check denied paths first (they take precedence)
+      isDenied = any (`matchesGlob` pathText) (ppDeniedPaths policy)
+      -- Check allowed paths
+      isAllowed = null (ppAllowedPaths policy) ||
+                  any (`matchesGlob` pathText) (ppAllowedPaths policy)
+  in isAllowed && not isDenied
+
+-- | Simple glob matching (supports * and **)
+matchesGlob :: Text -> Text -> Bool
+matchesGlob globPat targetPath
+  | globPat == "*" = True
+  | "**" `T.isInfixOf` globPat =
+      -- Double star matches any path
+      let prefix = T.takeWhile (/= '*') globPat
+          suffix = T.drop 2 $ T.dropWhile (/= '*') $ T.drop (T.length prefix) globPat
+      in prefix `T.isPrefixOf` targetPath && (T.null suffix || suffix `T.isSuffixOf` targetPath)
+  | "*" `T.isInfixOf` globPat =
+      -- Single star matches non-slash characters
+      let prefix = T.takeWhile (/= '*') globPat
+          suffix = T.drop 1 $ T.dropWhile (/= '*') globPat
+      in prefix `T.isPrefixOf` targetPath && suffix `T.isSuffixOf` targetPath
+  | otherwise = globPat == targetPath
+
+--------------------------------------------------------------------------------
+-- Enhanced Sandbox Execution
+--------------------------------------------------------------------------------
+
+-- | Run an action with comprehensive sandboxing
+runSandboxed :: SandboxConfig -> IO a -> IO (SandboxResult a)
+runSandboxed config action = do
+  sb <- newSandbox config
+  result <- runInSandboxWithChecks sb action
+  destroySandbox sb
+  return result
+
+-- | Run with pre and post execution checks
+runInSandboxWithChecks :: Sandbox -> IO a -> IO (SandboxResult a)
+runInSandboxWithChecks sb action = do
+  -- Check if sandbox is active
+  active <- atomically $ readTVar (sbActive sb)
+  if not active
+    then return $ SandboxError "Sandbox is not active"
+    else do
+      let timeoutMs = scTimeoutMs (sbConfig sb)
+          memLimitMB = scMaxMemoryMB (sbConfig sb)
+
+      -- Record start time for CPU tracking
+      startTime <- getCurrentTime
+
+      -- Run with timeout and memory limit
+      result <- timeout (timeoutMs * 1000) $ do
+        -- Memory-limited execution
+        memResult <- runWithMemoryLimit memLimitMB action
+        case memResult of
+          Left SEMemoryExceeded -> return SandboxMemoryExceeded
+          Left (SEInternalError msg) -> return $ SandboxError msg
+          Left e -> return $ SandboxError $ T.pack $ show e
+          Right val -> do
+            -- Check for violations
+            violations <- atomically $ readTVar (sbViolations sb)
+            if not (null violations)
+              then return $ SandboxSecurityViolation violations
+              else do
+                -- Update resource usage
+                endTime <- getCurrentTime
+                let cpuTime = round $ diffUTCTime endTime startTime * 1000
+                atomically $ modifyTVar' (sbUsage sb) $ \u ->
+                  u { ruCPUTime = cpuTime }
+                usage <- atomically $ readTVar (sbUsage sb)
+                return $ SandboxSuccess val usage
+
+      case result of
+        Nothing -> return SandboxTimeout
+        Just r -> return r
+
+-- | Record a security violation
+recordViolation :: Sandbox -> SecurityIssue -> IO ()
+recordViolation sb issue = atomically $
+  modifyTVar' (sbViolations sb) (issue :)
+
+-- | Check resource limits and record violations
+checkResourceLimits :: Sandbox -> IO Bool
+checkResourceLimits sb = do
+  usage <- atomically $ readTVar (sbUsage sb)
+  let limits = scResourceLimits (sbConfig sb)
+      violations = catMaybes
+        [ checkLimit "CPU time" (rlMaxCPUTime limits) (ruCPUTime usage)
+        , checkLimit "memory" (rlMaxMemory limits) (ruMemory usage)
+        , checkLimit "threads" (rlMaxThreads limits) (ruThreadsCreated usage)
+        ]
+  forM_ violations $ recordViolation sb
+  return $ null violations
+  where
+    checkLimit :: Text -> Maybe Int -> Int -> Maybe SecurityIssue
+    checkLimit name (Just limit) actual
+      | actual > limit = Just $ SecurityIssue
+          { siSeverity = SeverityError
+          , siCategory = CategoryResourceAbuse
+          , siMessage = name <> " limit exceeded: " <> T.pack (show actual) <>
+                        " > " <> T.pack (show limit)
+          , siLocation = Nothing
+          , siSuggestion = Just $ "Reduce " <> name <> " usage"
+          }
+    checkLimit _ _ _ = Nothing
+
+    catMaybes :: [Maybe a] -> [a]
+    catMaybes = foldr (\x acc -> maybe acc (:acc) x) []

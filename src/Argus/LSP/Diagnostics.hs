@@ -638,7 +638,10 @@ generateBatchPreview :: Text -> [Fix] -> [FixPreview]
 generateBatchPreview content fixes =
   -- Filter out fixes with no edits, then sort by position
   let validFixes = filter (not . null . fixEdits) fixes
-      sorted = sortBy (comparing (srcSpanStartLine . fixEditSpan . head . fixEdits)) validFixes
+      getFirstSpan f = case fixEdits f of
+        (e:_) -> srcSpanStartLine (fixEditSpan e)
+        [] -> Line 0
+      sorted = sortBy (comparing getFirstSpan) validFixes
   in map (generatePreview content) sorted
 
 --------------------------------------------------------------------------------

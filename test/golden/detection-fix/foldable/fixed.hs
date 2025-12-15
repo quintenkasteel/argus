@@ -2,12 +2,12 @@
 
 module FoldablePatterns where
 
-import Data.Foldable (fold, foldMap, foldr, foldl, foldl', any, all, sum, product, length, null, elem, notElem, maximum, minimum, maximumBy, minimumBy, traverse_, for_)
-import Data.Foldable (all, any, elem, fold, foldMap, foldl, foldl', foldr, for_, length, maximum, maximumBy, minimum, minimumBy, notElem, null, product, sequenceA_, sum, traverse_)
+import Control.Monad (forM, forM_, mapM, mapM_, sequence, sequence_)
+import Data.Foldable (all, any, elem, fold, foldMap, foldl, foldl', foldr, for_, length, maximum, maximumBy, minimum, minimumBy, notElem, null, product, sum, traverse_)
 import Data.Functor (void)
 import Data.List (foldl')
 import Data.Map
-import Data.Map.Strict (comparing)
+import Data.Ord (comparing)
 import Data.Set
 import Data.Traversable (for, sequenceA, traverse)
 

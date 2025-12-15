@@ -25,7 +25,6 @@ module Argus.Rules.Naming
   , extractReplacementParts
   ) where
 
-import Data.Char (isAlphaNum)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -261,25 +260,3 @@ extractReplacementParts pat =
 --------------------------------------------------------------------------------
 -- Variable replacement in source
 --------------------------------------------------------------------------------
-
--- | Replace a variable in source text, respecting word boundaries (unused - commented out)
--- replaceVariable :: Text -> Text -> Text -> Text
-_replaceVariable :: Text -> Text -> Text -> Text
-_replaceVariable from to text =
-  T.pack $ go (T.unpack text) (T.unpack from) (T.unpack to)
-  where
-    go [] _ _ = []
-    go str@(c:cs) fromStr toStr
-      | fromStr `startsWith` str && notWordContinuation =
-          toStr ++ go (drop (length fromStr) str) fromStr toStr
-      | otherwise = c : go cs fromStr toStr
-      where
-        afterMatch = drop (length fromStr) str
-        notWordContinuation = case afterMatch of
-          [] -> True
-          (h:_) -> not (isWordChar h)
-        isWordChar ch = isAlphaNum ch || ch == '_'
-
-    startsWith [] _ = True
-    startsWith _ [] = False
-    startsWith (p:ps) (s:ss) = p == s && startsWith ps ss

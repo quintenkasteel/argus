@@ -21,7 +21,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
-import Argus.Types hiding (Custom, Category, categoryToText)
+import Argus.Types hiding (Custom)
 import Argus.Rules.Engine
 import Argus.Rules.Types
 import Argus.Analysis.Comments (emptyCommentIndex)

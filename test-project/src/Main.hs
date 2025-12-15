@@ -2,7 +2,7 @@ module Main where
 
 import Lib (usedFunction)
 import Utils (helperUsed)
-import PartialFunctions (unsafeHead, safeHead)
+import PartialFunctions (safeHead, safeHeadAlt)
 import Performance (checkEmpty, getMinimum)
 import SpaceLeaks (sumWithLazyFold)
 import Complexity (classifyNumber)
@@ -20,9 +20,9 @@ main = do
   -- Demonstrate some functions (these have issues Argus should detect)
   let numbers = [3, 1, 4, 1, 5, 9, 2, 6]
 
-  -- Partial function usage
-  putStrLn $ "Unsafe head: " ++ show (unsafeHead numbers)
+  -- Safe alternatives to partial functions
   putStrLn $ "Safe head: " ++ show (safeHead numbers)
+  putStrLn $ "Safe head alt: " ++ show (safeHeadAlt numbers)
 
   -- Performance issues
   putStrLn $ "Is empty (using length): " ++ show (checkEmpty numbers)

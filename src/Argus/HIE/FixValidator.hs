@@ -7,6 +7,10 @@
 -- Description : Type-aware fix validation using HIE information
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides type-aware validation for fixes using HIE data.
 -- It ensures that fixes preserve type correctness by checking:
@@ -15,6 +19,42 @@
 -- * Symbol shadowing and conflicts
 -- * Cross-module safety
 -- * Semantic preservation
+--
+-- = Validation Pipeline
+--
+-- @
+-- Fix ──► Constraint Check ──► Symbol Safety ──► Type Preservation ──► Result
+--             │                    │                   │
+--             ▼                    ▼                   ▼
+--         [Ord a?]           [Shadowing?]        [Type match?]
+--         [Eq a?]            [Conflicts?]        [Compatible?]
+-- @
+--
+-- = Configuration Modes
+--
+-- * __Default Mode__: Balanced safety and usability, allows partial type info
+-- * __Strict Mode__: Maximum safety, fails on warnings, requires full types
+--
+-- = Constraint Inference
+--
+-- The validator infers required constraints from fix patterns:
+--
+-- * @ordNub@ / @Set.fromList@ → requires @Ord@ instance
+-- * @HashMap.fromList@ → requires @Hashable@ instance
+-- * @fold@ → requires @Monoid@ instance
+-- * @\<\>@ → requires @Semigroup@ instance
+--
+-- = Validation Results
+--
+-- * __Errors__: Block fix application (constraint violations, conflicts)
+-- * __Warnings__: Allow application with caveats (partial info, deprecations)
+--
+-- = Thread Safety
+--
+-- Validation functions are IO-based and not thread-safe due to HIE queries.
+-- Use separate database connections for concurrent validation.
+--
+-- @since 1.0.0
 module Argus.HIE.FixValidator
   ( -- * Fix Validation
     validateFix

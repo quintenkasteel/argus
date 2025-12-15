@@ -368,7 +368,7 @@ quickSimilarityCheck fp1 fp2 =
   let sizeDiff = abs (fpNodeCount fp1 - fpNodeCount fp2)
       maxSize = max (fpNodeCount fp1) (fpNodeCount fp2)
       -- If sizes differ by more than 50%, skip detailed comparison
-  in maxSize > 0 && fromIntegral sizeDiff / fromIntegral maxSize < 0.5
+  in maxSize > 0 && (fromIntegral sizeDiff / fromIntegral maxSize :: Double) < 0.5
 
 -- | Build clusters from similar pairs using union-find
 buildClusters :: [FunctionFingerprint] -> [(Int, Int)] -> [[FunctionFingerprint]]

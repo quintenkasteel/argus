@@ -121,8 +121,6 @@ import Data.Time (UTCTime, getCurrentTime)
 import GHC.Generics (Generic)
 import System.Directory (doesDirectoryExist)
 
-import HieDb (HieDb, withHieDb, HieModuleRow(..))
-import HieDb.Types (modInfoSrcFile)
 
 import Argus.Types
   ( SrcSpan (..)
@@ -293,7 +291,7 @@ data HieModuleInfo = HieModuleInfo
 
 -- | Load HIE context from a directory
 loadHieContext :: FilePath -> IO HieContext
-loadHieContext hieDir = do
+loadHieContext _hieDir = do
   now <- getCurrentTime
   -- For now, return empty context - full implementation would scan HIE files
   pure HieContext
@@ -328,7 +326,7 @@ refreshHieContext engine = do
     diffTimeSeconds :: UTCTime -> UTCTime -> Double
     diffTimeSeconds t1 t2 =
       let diff = diffUTCTime t1 t2
-      in realToFrac diff
+      in diff
 
     diffUTCTime :: UTCTime -> UTCTime -> Double
     diffUTCTime _ _ = 0  -- Simplified for now
@@ -432,18 +430,18 @@ generateSemanticFix ctx = do
 generateTypeSignatureFixes :: SemanticFixContext -> IO [SemanticFixCandidate]
 generateTypeSignatureFixes ctx = do
   let diag = sfcDiagnostic ctx
-      span = diagSpan diag
+      theSpan = diagSpan diag
 
   -- Try to infer the type from HIE data
-  mTypeInfo <- inferTypeAtLocation ctx (srcSpanFile span)
-                                       (unLine $ srcSpanStartLine span)
-                                       (unColumn $ srcSpanStartCol span)
+  mTypeInfo <- inferTypeAtLocation ctx (srcSpanFile theSpan)
+                                       (unLine $ srcSpanStartLine theSpan)
+                                       (unColumn $ srcSpanStartCol theSpan)
 
   case mTypeInfo of
     Just typeInfo -> do
       let fix = mkFixWithImports
             ("Add type signature: " <> tiType typeInfo)
-            [FixEdit span (tiType typeInfo <> "\n")]
+            [FixEdit theSpan (tiType typeInfo <> "\n")]
             True
             []
             []
@@ -475,12 +473,12 @@ generateImportStyleFixes ctx = do
 generateUnusedImportFixes :: SemanticFixContext -> IO [SemanticFixCandidate]
 generateUnusedImportFixes ctx = do
   let diag = sfcDiagnostic ctx
-      span = diagSpan diag
+      theSpan = diagSpan diag
 
   -- Generate a fix to remove the unused import
   let fix = mkFixWithImports
         "Remove unused import"
-        [FixEdit span ""]
+        [FixEdit theSpan ""]
         True
         []
         []
@@ -500,7 +498,7 @@ generatePartialFunctionFixes :: SemanticFixContext -> IO [SemanticFixCandidate]
 generatePartialFunctionFixes ctx = do
   let diag = sfcDiagnostic ctx
       msg = diagMessage diag
-      span = diagSpan diag
+      theSpan = diagSpan diag
 
   -- Common partial function replacements
   let replacements =
@@ -521,7 +519,7 @@ generatePartialFunctionFixes ctx = do
               else [mkFixImport modName [ImportSymbol replacement ISTFunction []]]
         let fix = mkFixWithImports
               ("Replace " <> partial <> " with " <> replacement)
-              [FixEdit span replacement]
+              [FixEdit theSpan replacement]
               True
               imports
               []
@@ -565,13 +563,13 @@ generateTypeConstraintFix :: SemanticFixContext
                           -> IO (Maybe SemanticFixCandidate)
 generateTypeConstraintFix ctx className typeVar = do
   let diag = sfcDiagnostic ctx
-      span = diagSpan diag
+      theSpan = diagSpan diag
 
   -- Generate a fix that adds the constraint
   let constraintText = className <> " " <> typeVar <> " => "
   let fix = mkFixWithImports
         ("Add constraint: " <> className <> " " <> typeVar)
-        [FixEdit span constraintText]
+        [FixEdit theSpan constraintText]
         True
         []
         []
@@ -594,10 +592,10 @@ generateInstanceFix :: SemanticFixContext
 generateInstanceFix ctx className typeName = do
   -- Generate a fix that adds an instance declaration
   let instanceText = "instance " <> className <> " " <> typeName <> " where\n"
-  let span = diagSpan (sfcDiagnostic ctx)
+  let theSpan = diagSpan (sfcDiagnostic ctx)
   let fix = mkFixWithImports
         ("Add instance: " <> className <> " " <> typeName)
-        [FixEdit span instanceText]
+        [FixEdit theSpan instanceText]
         False  -- Not preferred, needs review
         []
         []
@@ -616,7 +614,7 @@ generateInstanceFix ctx className typeName = do
 generateQualificationFix :: SemanticFixContext -> IO [SemanticFixCandidate]
 generateQualificationFix ctx = do
   let diag = sfcDiagnostic ctx
-      span = diagSpan diag
+      theSpan = diagSpan diag
       msg = diagMessage diag
 
   -- Try to find potential qualifications from the symbol table
@@ -634,7 +632,7 @@ generateQualificationFix ctx = do
             let qualifiedName = modName <> "." <> name
             let fix = mkFixWithImports
                   ("Qualify as " <> qualifiedName)
-                  [FixEdit span qualifiedName]
+                  [FixEdit theSpan qualifiedName]
                   True
                   []
                   []
@@ -712,7 +710,7 @@ generateRefactoringFix :: SemanticFixContext
                        -> [(SrcSpan, Text)]  -- ^ Edits
                        -> Double       -- ^ Confidence
                        -> IO (Maybe SemanticFixCandidate)
-generateRefactoringFix ctx description edits confidence = do
+generateRefactoringFix _ctx description edits confidence = do
   let fix = mkFixWithImports
         description
         (map (uncurry FixEdit) edits)
@@ -916,8 +914,8 @@ data TypeInference = TypeInference
 
 -- | Infer the type of an expression
 inferExpressionType :: HieContext -> FilePath -> SrcSpan -> IO TypeInference
-inferExpressionType ctx _path span = do
-  let key = (srcSpanFile span, unLine (srcSpanStartLine span), unColumn (srcSpanStartCol span))
+inferExpressionType ctx _path theSpan = do
+  let key = (srcSpanFile theSpan, unLine (srcSpanStartLine theSpan), unColumn (srcSpanStartCol theSpan))
       mType = Map.lookup key (hcTypeInfo ctx)
   pure TypeInference
     { tiInferredType = mType
@@ -1127,13 +1125,13 @@ applyFixToContent content fix =
       compare (srcSpanStartLine $ fixEditSpan e2) (srcSpanStartLine $ fixEditSpan e1)
 
     applyEdit edit txt =
-      let span = fixEditSpan edit
+      let theSpan = fixEditSpan edit
           newText = fixEditNewText edit
           linesList = T.lines txt
-          startLine = unLine (srcSpanStartLine span) - 1
-          endLine = unLine (srcSpanEndLine span) - 1
-          startCol = unColumn (srcSpanStartCol span) - 1
-          endCol = unColumn (srcSpanEndCol span) - 1
+          startLine = unLine (srcSpanStartLine theSpan) - 1
+          endLine = unLine (srcSpanEndLine theSpan) - 1
+          startCol = unColumn (srcSpanStartCol theSpan) - 1
+          endCol = unColumn (srcSpanEndCol theSpan) - 1
 
           before = take startLine linesList
           after = drop (endLine + 1) linesList

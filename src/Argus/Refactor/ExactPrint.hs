@@ -5,10 +5,38 @@
 -- Description : Format-preserving code transformations
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides format-preserving code transformations.
 -- It ensures that modifications to the AST preserve the original
 -- formatting, comments, and whitespace as much as possible.
+--
+-- = Architecture
+--
+-- The module uses a text-based approach for applying edits, which is
+-- simpler and more robust than AST-based transformations. Edits are
+-- sorted and applied in reverse order (end-to-start) so that earlier
+-- edits don't affect the positions of later ones.
+--
+-- @
+-- Original Text → Sort Edits (reverse) → Apply Each Edit → Result Text
+-- @
+--
+-- = Key Functions
+--
+-- * 'applyFix': Apply a single fix to source text
+-- * 'applyEdits': Apply multiple edits to source text
+-- * 'replaceExpr': Replace text at a source span
+-- * 'insertImport': Insert an import statement
+--
+-- = Thread Safety
+--
+-- All functions in this module are pure and thread-safe.
+--
+-- @since 1.0.0
 module Argus.Refactor.ExactPrint
   ( -- * Transformation context
     TransformT
@@ -37,7 +65,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.State.Strict (StateT, runStateT, modify)
 import Data.ByteString qualified as BS
 import Data.Functor.Identity (Identity, runIdentity)
-import Data.List (foldl', sortBy)
+import Data.List (sortBy)
 import Data.Ord (comparing, Down (..))
 import Data.Text (Text)
 import Data.Text qualified as T

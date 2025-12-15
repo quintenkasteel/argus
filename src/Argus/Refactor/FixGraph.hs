@@ -5,13 +5,51 @@
 -- Description : Dependency graph for fixes with topological ordering
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module provides sophisticated dependency analysis for fixes:
--- - Builds a graph of fix dependencies
--- - Detects cycles (impossible to resolve)
--- - Topologically sorts fixes for safe application order
--- - Groups independent fixes for parallel application
--- - Handles multi-file fix coordination
+-- = Overview
+--
+-- This module provides sophisticated dependency analysis for fixes,
+-- building graphs to detect conflicts, order dependencies, and enable
+-- safe parallel application.
+--
+-- = Architecture
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────────┐
+-- │                          FixGraph                                   │
+-- │  ┌─────────────┐  ┌──────────────────┐  ┌──────────────────────┐   │
+-- │  │  fgFixes    │  │  fgDependencies  │  │    fgConflicts       │   │
+-- │  │ Map FixId   │  │  Map FixId       │  │  [FixConflict]       │   │
+-- │  │     Fix     │  │      [FixId]     │  │                      │   │
+-- │  └─────────────┘  └──────────────────┘  └──────────────────────┘   │
+-- │  ┌─────────────────────────────┐  ┌────────────────────────────┐   │
+-- │  │    fgDependents             │  │    fgByFile                │   │
+-- │  │    Map FixId [FixId]        │  │    Map FilePath [FixId]    │   │
+-- │  └─────────────────────────────┘  └────────────────────────────┘   │
+-- └─────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Key Operations
+--
+-- * __Graph Building__: 'buildFixGraph' constructs dependency graph from fixes
+-- * __Cycle Detection__: 'hasCycles' and 'getCycles' identify unresolvable dependencies
+-- * __Ordering__: 'getApplyOrder' returns topologically sorted fixes
+-- * __Grouping__: 'getIndependentGroups' enables parallel application
+-- * __Conflict Detection__: 'detectConflicts' finds overlapping/incompatible fixes
+--
+-- = Dependency Types
+--
+-- * __Spatial__: Fixes that modify overlapping source spans
+-- * __Semantic__: Fixes where one's output affects another's applicability
+-- * __Rule-based__: Explicit dependencies declared in rule definitions
+--
+-- = Thread Safety
+--
+-- 'FixGraph' is immutable after construction and safe for concurrent reads.
+--
+-- @since 1.0.0
 module Argus.Refactor.FixGraph
   ( -- * Fix Graph
     FixGraph (..)
@@ -327,7 +365,7 @@ fixAffectsPosition fix1 fix2 =
 
     -- Check if an edit changes the text length
     changesLength e1 s1 =
-      fromIntegral (T.length (fixEditNewText e1)) /= spanLength s1
+      T.length (fixEditNewText e1) /= spanLength s1
 
     spanLength s =
       if srcSpanStartLine s == srcSpanEndLine s

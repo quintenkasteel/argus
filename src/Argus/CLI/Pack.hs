@@ -14,7 +14,6 @@ module Argus.CLI.Pack
 import Control.Monad (forM, forM_, unless)
 import Data.Aeson qualified as AE
 import Data.ByteString.Lazy qualified as BL
-import Data.Text (Text)
 import Data.Text qualified as T
 import System.Exit (exitWith, ExitCode(ExitFailure), exitFailure)
 import System.IO (hPutStrLn, stderr)
@@ -24,7 +23,7 @@ import Argus.Rules.Pack qualified as Pack
 
 -- | Run pack management commands
 runPack :: GlobalOptions -> PackOptions -> IO ()
-runPack _global opts = do
+runPack _ opts = do
   registry <- Pack.newPackRegistry
   case poAction opts of
     PackList -> do

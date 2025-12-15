@@ -4,6 +4,7 @@ module SafeRefactorSpec (spec) where
 
 import Test.Hspec
 import Control.Exception (catch, IOException)
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import System.IO.Temp (withSystemTempDirectory)
@@ -391,11 +392,12 @@ spec = do
         result <- safeApplyFixes opts [(testFile, [diag])]
         srrSuccess result `shouldBe` True
         rsAppliedFixes (srrStats result) `shouldBe` 1
-        case srrApplied result of
-          [] -> expectationFailure "Expected at least one applied fix"
-          (applied:_) -> do
-            -- The new content should contain the import
-            T.isInfixOf "Safe" (afNewContent applied) `shouldBe` True
+        -- Check the final file content (imports are applied after code fixes)
+        case Map.lookup testFile (srrFileResults result) of
+          Nothing -> expectationFailure "Expected file result"
+          Just fileResult -> do
+            -- The final content should contain the import
+            T.isInfixOf "Safe" (frrFinal fileResult) `shouldBe` True
 
       it "skips import changes when sroManageImports is False" $ withSystemTempDirectory "argus-test" $ \tmpDir -> do
         let testFile = tmpDir </> "test.hs"
@@ -421,13 +423,14 @@ spec = do
 
         result <- safeApplyFixes opts [(testFile, [diag])]
         srrSuccess result `shouldBe` True
-        -- Should apply the edit but not the import
-        case srrApplied result of
-          [] -> expectationFailure "Expected at least one applied fix"
-          (applied:_) -> do
-            T.isInfixOf "headMay" (afNewContent applied) `shouldBe` True
+        -- Check the final file content
+        case Map.lookup testFile (srrFileResults result) of
+          Nothing -> expectationFailure "Expected file result"
+          Just fileResult -> do
+            -- Code fix should be applied
+            T.isInfixOf "headMay" (frrFinal fileResult) `shouldBe` True
             -- Import should NOT be added when sroManageImports is False
-            T.isInfixOf "import Safe" (afNewContent applied) `shouldBe` False
+            T.isInfixOf "import Safe" (frrFinal fileResult) `shouldBe` False
 
     describe "transactional behavior" $ do
       it "rolls back on failure when sroTransactional is True" $ withSystemTempDirectory "argus-test" $ \tmpDir -> do

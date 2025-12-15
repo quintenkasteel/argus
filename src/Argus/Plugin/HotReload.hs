@@ -312,7 +312,7 @@ loadTomlPlugin path = do
   result <- try $ readFile path
   case result of
     Left (e :: SomeException) -> return $ Left $ T.pack $ show e
-    Right content ->
+    Right _content ->
       -- Parse TOML and extract plugin info
       return $ Right ([], ["rules"])
 
@@ -322,7 +322,7 @@ loadYamlPlugin path = do
   result <- try $ readFile path
   case result of
     Left (e :: SomeException) -> return $ Left $ T.pack $ show e
-    Right content ->
+    Right _content ->
       return $ Right ([], ["rules"])
 
 -- | Load a Haskell plugin

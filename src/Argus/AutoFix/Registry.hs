@@ -12,6 +12,10 @@
 -- Description : Central registry for fix engines
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides a central registry for managing multiple fix engines.
 -- The registry enables:
@@ -21,13 +25,35 @@
 -- * Coordinating fix application across engines
 -- * Collecting statistics across all engines
 --
--- == Architecture
+-- = Architecture
 --
 -- The 'FixRegistry' is the central hub for all fix operations. It maintains
 -- a collection of engines wrapped in existential types, allowing heterogeneous
 -- engine types to coexist.
 --
--- == Usage
+-- @
+-- ┌─────────────────────────────────────────────────────────┐
+-- │                     FixRegistry                         │
+-- │  ┌───────────────┐  ┌───────────────┐  ┌─────────────┐ │
+-- │  │ BooleanEngine │  │  ListEngine   │  │ PartialFix  │ │
+-- │  └───────────────┘  └───────────────┘  └─────────────┘ │
+-- │                          │                              │
+-- │                    Conflict Resolution                  │
+-- │                    Dependency Ordering                  │
+-- │                    Fix Validation                       │
+-- └─────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Thread Safety
+--
+-- The registry uses 'TVar' for thread-safe engine management and statistics
+-- tracking. Multiple threads can safely:
+--
+-- * Register and unregister engines
+-- * Find fixes concurrently
+-- * Apply fixes (though the same file should not be modified concurrently)
+--
+-- = Usage
 --
 -- @
 -- -- Create a registry with some engines
@@ -41,6 +67,8 @@
 -- -- Apply fixes
 -- (newContent, results) <- applyAllFixes registry filePath content fixes
 -- @
+--
+-- @since 1.0.0
 module Argus.AutoFix.Registry
   ( -- * Registry Type
     FixRegistry (..)
@@ -167,11 +195,45 @@ data ConflictStrategy
   deriving stock (Eq, Show, Enum, Bounded, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Create a new empty fix registry
+-- | Create a new empty fix registry with default configuration.
+--
+-- Uses 'defaultRegistryConfig' which allows up to 100 engines,
+-- enables parallel finding, validates before applying, and
+-- skips conflicting fixes.
+--
+-- ==== Returns
+--
+-- A new empty 'FixRegistry' ready for engine registration.
+--
+-- ==== Example
+--
+-- @
+-- registry <- newFixRegistry
+-- registerEngine registry myEngine
+-- @
+--
+-- @since 1.0.0
 newFixRegistry :: IO FixRegistry
 newFixRegistry = newFixRegistryWith defaultRegistryConfig
 
--- | Create a new fix registry with custom configuration
+-- | Create a new fix registry with custom configuration.
+--
+-- ==== Parameters
+--
+-- * @config@: Registry configuration specifying limits and behavior
+--
+-- ==== Returns
+--
+-- A new empty 'FixRegistry' configured according to the provided settings.
+--
+-- ==== Example
+--
+-- @
+-- let config = defaultRegistryConfig { rcMaxEngines = 50 }
+-- registry <- newFixRegistryWith config
+-- @
+--
+-- @since 1.0.0
 newFixRegistryWith :: RegistryConfig -> IO FixRegistry
 newFixRegistryWith config = do
   engines <- newTVarIO Map.empty
@@ -190,8 +252,43 @@ newFixRegistryWith config = do
 
 -- | Register a fix engine with the registry.
 --
--- Returns False if an engine with the same name is already registered
--- or if the maximum engine count has been reached.
+-- Adds a new engine to the registry. The engine is wrapped in an existential
+-- type, allowing different engine implementations to coexist.
+--
+-- ==== Parameters
+--
+-- * @registry@: The registry to register with
+-- * @engine@: The engine to register (must implement 'FixEngine')
+--
+-- ==== Returns
+--
+-- * @True@ if the engine was successfully registered
+-- * @False@ if registration failed (duplicate name or limit reached)
+--
+-- ==== Failure Conditions
+--
+-- * An engine with the same name is already registered
+-- * The maximum engine count has been reached
+--
+-- ==== Example
+--
+-- @
+-- data MyEngine = MyEngine
+-- instance FixEngine MyEngine where ...
+--
+-- registry <- newFixRegistry
+-- success <- registerEngine registry MyEngine
+-- if success
+--   then putStrLn "Engine registered"
+--   else putStrLn "Registration failed"
+-- @
+--
+-- ==== Thread Safety
+--
+-- This function is thread-safe; multiple engines can be registered
+-- concurrently from different threads.
+--
+-- @since 1.0.0
 registerEngine :: FixEngine e => FixRegistry -> e -> IO Bool
 registerEngine registry engine = do
   now <- getCurrentTime
@@ -247,7 +344,34 @@ hasEngine registry name = do
 -- Finding Fixes
 --------------------------------------------------------------------------------
 
--- | Find all fixes from all engines for a file
+-- | Find all fixes from all engines for a file.
+--
+-- Queries all registered engines for fixes applicable to the given file.
+-- Results are aggregated and statistics are updated.
+--
+-- ==== Parameters
+--
+-- * @registry@: The fix registry containing engines
+-- * @path@: File path (used for engine context and filtering)
+-- * @content@: File content to analyze
+--
+-- ==== Returns
+--
+-- List of all 'EnrichedFix' values from all engines.
+--
+-- ==== Example
+--
+-- @
+-- fixes <- findAllFixes registry "src/MyModule.hs" content
+-- putStrLn $ "Found " ++ show (length fixes) ++ " fixes"
+-- @
+--
+-- ==== Performance
+--
+-- Engines are queried sequentially by default. Use 'rcParallelFinding'
+-- configuration to enable parallel queries.
+--
+-- @since 1.0.0
 findAllFixes :: FixRegistry -> FilePath -> Text -> IO [EnrichedFix]
 findAllFixes registry path content = do
   engines <- getAllEngines registry
@@ -301,7 +425,41 @@ data ApplyStrategy
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Apply all fixes from all engines
+-- | Apply all fixes from all engines.
+--
+-- Applies all provided fixes to the content, handling conflicts and
+-- dependencies automatically. Uses the registry's configured conflict
+-- resolution strategy.
+--
+-- ==== Parameters
+--
+-- * @registry@: The fix registry
+-- * @path@: File path for context
+-- * @content@: Current file content
+-- * @fixes@: List of fixes to apply
+--
+-- ==== Returns
+--
+-- A tuple of:
+--
+-- * Final content after all fixes applied
+-- * List of 'FixApplicationResult' for each fix attempt
+--
+-- ==== Example
+--
+-- @
+-- fixes <- findAllFixes registry path content
+-- (newContent, results) <- applyAllFixes registry path content fixes
+-- let successes = length [r | r\@ApplySuccess{} <- results]
+-- putStrLn $ "Applied " ++ show successes ++ " fixes"
+-- @
+--
+-- ==== Fix Ordering
+--
+-- Fixes are applied in dependency order. Conflicting fixes are
+-- resolved according to 'ConflictStrategy' in the registry config.
+--
+-- @since 1.0.0
 applyAllFixes :: FixRegistry
               -> FilePath
               -> Text

@@ -24,7 +24,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Data.Word (Word)
+import Data.Word ()
 import GHC.Generics (Generic)
 import Numeric (showHex)
 

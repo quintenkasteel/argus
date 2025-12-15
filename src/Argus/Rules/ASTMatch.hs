@@ -166,7 +166,6 @@ import Data.Generics (everywhere, mkT, listify, everything, mkQ)
 
 import Argus.Types hiding (SrcSpan, noSrcSpan, srcSpanFile, srcSpanStartLine, srcSpanEndLine, srcSpanStartCol, srcSpanEndCol, FixSafety(..))
 import Argus.Types qualified as AT
-import Argus.Types (Line(..), Column(..))
 import Argus.Rules.Types
     ( Rule(..), SafetyLevel(..), SideCondition(..)
     , RulePattern(..), categoryToFixCategory, safetyToFixSafety
@@ -1357,8 +1356,8 @@ findInExpr pat sideCond mRule target =
     checkSide (Just sc) subst = evalSideCondition subst sc
 
 -- | Find all matches using multiple rules (using unified Rule type)
-findAllMatchesRules :: [Rule] -> LHsExpr GhcPs -> IO [MatchResult]
-findAllMatchesRules rules expr = do
+_findAllMatchesRules :: [Rule] -> LHsExpr GhcPs -> IO [MatchResult]
+_findAllMatchesRules rules expr = do
   results <- mapM (`findMatchesRule` expr) (filter ruleEnabled rules)
   pure $ concat results
 

@@ -375,6 +375,15 @@ defaultWatchCallback event = case event of
   FileDeleted path ->
     TIO.putStrLn $ "  Deleted: " <> T.pack path
 
+  HIEFileModified path ->
+    TIO.putStrLn $ "  HIE Modified: " <> T.pack path
+
+  HIEFileCreated path ->
+    TIO.putStrLn $ "  HIE Created: " <> T.pack path
+
+  HIEFileDeleted path ->
+    TIO.putStrLn $ "  HIE Deleted: " <> T.pack path
+
   AnalysisStarted files ->
     TIO.putStrLn $ "Analyzing " <> T.pack (show (length files)) <> " file(s)..."
 
@@ -385,8 +394,8 @@ defaultWatchCallback event = case event of
                  <> T.pack (show warnCount) <> " warning(s) in "
                  <> T.pack (show elapsed) <> "s"
 
-  WatchError msg ->
-    TIO.putStrLn $ "Watch error: " <> msg
+  WatchError errMsg ->
+    TIO.putStrLn $ "Watch error: " <> errMsg
 
 --------------------------------------------------------------------------------
 -- Helpers

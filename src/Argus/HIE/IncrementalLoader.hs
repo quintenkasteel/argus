@@ -9,6 +9,10 @@
 -- Description : Incremental HIE file loading with persistent caching
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides incremental HIE file loading capabilities that:
 --
@@ -17,7 +21,29 @@
 -- * Invalidate cache based on file changes
 -- * Load only necessary HIE data for changed files
 --
--- == Performance Benefits
+-- = Architecture
+--
+-- @
+-- ┌───────────────────────────────────────────────────────────────────────┐
+-- │                      IncrementalLoader                                │
+-- │  ┌─────────────────────────────────────────────────────────────────┐ │
+-- │  │                      LoaderState (TVar)                         │ │
+-- │  │  ┌────────────────┐  ┌──────────────────┐  ┌────────────────┐  │ │
+-- │  │  │ ModuleStates   │  │   CacheState     │  │  FileHashes    │  │ │
+-- │  │  │ Map Text       │  │ Symbols, Types   │  │ Map FilePath   │  │ │
+-- │  │  │   LoadState    │  │ Defs, Refs       │  │   Text         │  │ │
+-- │  │  └────────────────┘  └──────────────────┘  └────────────────┘  │ │
+-- │  └─────────────────────────────────────────────────────────────────┘ │
+-- │                                                                       │
+-- │  ┌─────────────┐  ┌───────────────────────┐  ┌─────────────────────┐ │
+-- │  │  HieDb      │  │   Cached Queries      │  │   Persistence       │ │
+-- │  │ (Database)  │  │   (Type, Symbol,      │  │   (JSON Cache)      │ │
+-- │  │             │  │    Def, Ref)          │  │                     │ │
+-- │  └─────────────┘  └───────────────────────┘  └─────────────────────┘ │
+-- └───────────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Performance Benefits
 --
 -- By caching HIE query results and tracking module load state:
 --
@@ -25,23 +51,39 @@
 -- * Reduced memory usage through lazy module loading
 -- * Faster startup for large codebases
 --
--- == Usage
+-- = Cache Statistics
+--
+-- The loader tracks cache hit/miss rates and provides statistics via 'getCacheStats':
+--
+-- * Modules loaded
+-- * Symbols/types/definitions/references cached
+-- * Total queries and hit rate percentage
+-- * Approximate cache size in bytes
+--
+-- = Thread Safety
+--
+-- The 'IncrementalLoader' uses 'TVar' for atomic state updates and is safe for
+-- concurrent queries. Cache updates are performed atomically via STM.
+--
+-- = Usage
 --
 -- @
 -- import Argus.HIE.IncrementalLoader
 --
 -- -- Initialize the incremental loader
--- loader <- initIncrementalLoader ".argus-hie-cache" defaultLoaderConfig (Just ".hiedb")
+-- loader <- initIncrementalLoader ".argus-hie-cache" defaultLoaderConfig
 --
 -- -- Load HIE data for specific files (only loads if needed)
 -- symbols <- loadModuleSymbols loader ["src/Main.hs", "src/Lib.hs"]
 --
 -- -- Query with caching
--- typeInfo <- cachedTypeQuery loader "head" (Just "Data.List")
+-- typeInfo <- cachedTypeQuery loader "head" (Just "Data.List") actualQuery
 --
 -- -- Save cache on shutdown
 -- saveLoaderState loader
 -- @
+--
+-- @since 1.0.0
 module Argus.HIE.IncrementalLoader
   ( -- * Configuration
     LoaderConfig (..)
@@ -87,11 +129,10 @@ module Argus.HIE.IncrementalLoader
 
 import Control.Concurrent.STM
 import Control.DeepSeq (NFData)
-import Control.Exception (try, SomeException, bracket)
+import Control.Exception (try, SomeException)
 import Control.Monad (when, forM)
 import Crypto.Hash qualified as Hash
 import Data.Aeson (ToJSON(..), FromJSON(..), encode, decode)
-import Data.ByteString qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -102,7 +143,7 @@ import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime)
 import GHC.Generics (Generic)
 import System.Directory (doesFileExist, createDirectoryIfMissing, getModificationTime)
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath (takeDirectory)
 
 import HieDb (HieDb)
 import HieDb qualified
@@ -822,7 +863,7 @@ preloadAllModules loader = do
           result <- try @SomeException $ HieDb.withHieDb dbPath $ \db -> do
             modules <- getAllModules db
             let moduleNames = map moduleInfoName modules
-            forM moduleNames $ \modName -> loadModuleSymbolsIfNeeded loader modName
+            _ <- forM moduleNames $ \modName -> loadModuleSymbolsIfNeeded loader modName
             pure $ length moduleNames
           case result of
             Left _ -> pure 0

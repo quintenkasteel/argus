@@ -45,12 +45,11 @@ import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Data.Text qualified as T
 import Data.Time.Clock (UTCTime, getCurrentTime)
-import Data.Time.Clock.POSIX (POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
 import GHC.Generics (Generic)
 import System.Directory (doesFileExist, getModificationTime, createDirectoryIfMissing)
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath (takeDirectory)
 
 import Argus.Types
 

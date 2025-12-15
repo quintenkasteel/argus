@@ -5,8 +5,8 @@ module ImportsExamples where
 -- Should warn: implicit Prelude import
 import Data.List
 import Data.Maybe
-import Data.Map.Strict (Map)
-import qualified Data.Map as Map
+import Data.Map (Map)
+import qualified Data.Map as M
 import qualified Data.Set as Set
 
 -- Should warn: redundant import

@@ -234,6 +234,31 @@ ruleSeverityToSeverity = \case
   RSSuggestion -> Suggestion
   RSInfo       -> Info
 
+-- | Convert unified Severity to RuleSeverity
+severityToRuleSeverity :: Severity -> RuleSeverity
+severityToRuleSeverity = \case
+  Error      -> RSError
+  Warning    -> RSWarning
+  Suggestion -> RSSuggestion
+  Info       -> RSInfo
+
+-- | Convert RT.Rule back to PatternRule for serialization
+ruleToPatternRule :: RT.Rule -> PatternRule
+ruleToPatternRule rule = PatternRule
+  { prName     = stripPatternPrefix (RT.ruleId rule)
+  , prMatch    = extractPatternText (RT.rulePattern rule)
+  , prFix      = RT.ruleReplacement rule
+  , prWhere    = extractWhereCondition (RT.ruleConditions rule)
+  , prSeverity = severityToRuleSeverity (RT.ruleSeverity rule)
+  , prMessage  = RT.ruleMessage rule
+  }
+  where
+    stripPatternPrefix t = fromMaybe t (T.stripPrefix "pattern/" t)
+    extractPatternText = RT.rulePatternToText
+    extractWhereCondition [] = Nothing
+    extractWhereCondition (RT.HasType _ t : _) = Just t
+    extractWhereCondition (_ : rest) = extractWhereCondition rest
+
 -- | Import configuration
 data ImportsConfig = ImportsConfig
   { importsRemoveUnused   :: Bool
@@ -651,7 +676,7 @@ instance FromJSON VariableRule where
 instance ToJSON PatternsConfig where
   toJSON PatternsConfig{..} = object
     [ "enabled" AE..= patternsEnabled
-    , "rules" AE..= patternsRules
+    , "rules" AE..= map ruleToPatternRule patternsRules
     ]
 
 instance FromJSON PatternsConfig where

@@ -11,22 +11,36 @@
 -- Description : Unified type system for Argus rules
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 --
--- This module is the SINGLE SOURCE OF TRUTH for all rule-related types in Argus.
+-- = Overview
+--
+-- This module is the __single source of truth__ for all rule-related types in Argus.
 -- All rules, whether defined in TOML configuration or Haskell DSL, use these types.
 --
--- == Architecture
+-- = Architecture
 --
 -- The unified type system eliminates the previous fragmentation across modules:
 --
 -- * One 'Category' enum (replaces DSL.Category, RuleTypes.RuleCategory, Types.FixCategory)
 -- * One 'SafetyLevel' enum (replaces DSL.SafetyLevel, RuleTypes.FixSafety, Types.FixSafety)
 -- * One 'SideCondition' type (replaces DSL.SideCondition, ASTMatch.SideCondition)
--- * One 'Pattern' type (replaces DSL.Pattern, Rules/Types.Pattern)
+-- * One 'Pattern' type (replaces DSL.Pattern, Rules\/Types.Pattern)
 -- * One 'ImportSpec' type (replaces DSL.ImportSpec, Types.FixImport)
--- * One 'Rule' type (replaces DSL.Rule, Rules/Types.Rule, ASTMatch.ASTRule)
+-- * One 'Rule' type (replaces DSL.Rule, Rules\/Types.Rule, ASTMatch.ASTRule)
 --
--- == Usage
+-- = Rule Lifecycle
+--
+-- 1. __Definition__: Rules are defined in TOML config or Haskell DSL
+-- 2. __Parsing__: TOML is parsed into 'Rule' values; DSL produces 'Rule' directly
+-- 3. __Registration__: Rules are registered in the engine's rule registry
+-- 4. __Matching__: Engine evaluates 'rulePattern' against source code
+-- 5. __Conditions__: Side conditions ('ruleConditions') are checked
+-- 6. __Diagnosis__: Matching rules produce 'Diagnostic' values
+-- 7. __Fixing__: If 'ruleReplacement' is set, a 'Fix' is generated
+--
+-- = Usage
 --
 -- Import this module in any code that defines or evaluates rules:
 --
@@ -35,8 +49,20 @@
 --
 -- -- Define a rule
 -- myRule :: Rule
--- myRule = Rule { ruleId = "my-rule", ... }
+-- myRule = defaultRule
+--   { ruleId = "my-rule"
+--   , ruleCategory = Performance
+--   , ruleMessage = "Prefer foldl' over foldl"
+--   , rulePattern = TextPatternSpec "foldl $F $Z $XS"
+--   , ruleReplacement = Just "foldl' $F $Z $XS"
+--   }
 -- @
+--
+-- = Thread Safety
+--
+-- All types in this module are immutable and safe for concurrent access.
+--
+-- @since 1.0.0
 module Argus.Rules.Types
   ( -- * The Unified Rule Type
     Rule (..)
@@ -124,29 +150,72 @@ import Argus.Types qualified as AT
 -- Rule Categories
 --------------------------------------------------------------------------------
 
--- | Unified rule categories for grouping and bulk enable/disable.
+-- | Unified rule categories for grouping and bulk enable\/disable.
 --
--- This enum combines all previously separate category types:
--- * DSL.Category (9 values)
--- * RuleTypes.RuleCategory (13 values)
--- * Types.FixCategory (9 values)
+-- Categories serve multiple purposes:
+--
+-- * __Filtering__: Users can enable\/disable entire categories
+-- * __Reporting__: Diagnostics are grouped by category in reports
+-- * __Targeting__: Some categories imply default targets (e.g., 'Documentation' → Haddock)
+--
+-- __CLI Usage__:
+--
+-- @
+-- # Enable only security and performance rules
+-- argus check --category security,performance src/
+--
+-- # Disable documentation rules
+-- argus check --disable-category documentation src/
+-- @
+--
+-- __TOML Configuration__:
+--
+-- @
+-- [rules]
+-- # Disable entire categories
+-- disable_categories = ["style", "naming"]
+--
+-- # Per-rule category override
+-- [[rules.custom]]
+-- id = "my-rule"
+-- category = "performance"
+-- @
+--
+-- @since 1.0.0
 data Category
-  = Performance      -- ^ Performance anti-patterns (O(n²), unnecessary allocations)
-  | SpaceLeaks       -- ^ Space leak patterns (lazy accumulation, thunk buildup)
-  | Security         -- ^ Security vulnerabilities (injection, unsafe IO)
-  | Safety           -- ^ Partial functions, unsafe operations
-  | Style            -- ^ Code style and formatting
-  | Correctness      -- ^ Logic errors, law violations
-  | Modernization    -- ^ Use newer APIs/patterns (Applicative over Monad)
-  | Imports          -- ^ Import organization and style
-  | Naming           -- ^ Naming conventions
-  | Extensions       -- ^ Language extension usage
-  | Complexity       -- ^ Code complexity (cyclomatic, nesting depth)
-  | Concurrency      -- ^ Concurrency anti-patterns (STM, async, race conditions)
-  | ErrorHandling    -- ^ Error handling best practices
-  | Documentation    -- ^ Documentation completeness and quality
-  | Redundant        -- ^ Redundant/unnecessary code
-  | Custom Text      -- ^ User-defined category
+  = Performance
+    -- ^ Performance anti-patterns (O(n²), unnecessary allocations, inefficient patterns).
+  | SpaceLeaks
+    -- ^ Space leak patterns (lazy accumulation, thunk buildup, missing strictness).
+  | Security
+    -- ^ Security vulnerabilities (injection, unsafe IO, hardcoded secrets).
+  | Safety
+    -- ^ Partial functions, unsafe operations that can crash at runtime.
+  | Style
+    -- ^ Code style and formatting (readability, idioms, consistency).
+  | Correctness
+    -- ^ Logic errors, typeclass law violations, semantic bugs.
+  | Modernization
+    -- ^ Use newer APIs\/patterns (Applicative over Monad, Text over String).
+  | Imports
+    -- ^ Import organization, qualification, and redundancy.
+  | Naming
+    -- ^ Naming convention violations (camelCase, PascalCase, etc.).
+  | Extensions
+    -- ^ Language extension usage (unnecessary, missing, or dangerous extensions).
+  | Complexity
+    -- ^ Code complexity metrics (cyclomatic complexity, nesting depth).
+  | Concurrency
+    -- ^ Concurrency anti-patterns (STM misuse, deadlock risks, race conditions).
+  | ErrorHandling
+    -- ^ Error handling best practices (exception safety, partial functions).
+  | Documentation
+    -- ^ Documentation completeness and quality (Haddock coverage).
+    -- Rules with this category target documentation comments by default.
+  | Redundant
+    -- ^ Redundant\/unnecessary code (dead code, identity operations).
+  | Custom Text
+    -- ^ User-defined category from plugins or custom rules.
   deriving stock (Eq, Ord, Show, Generic)
 
 -- | Convert category to text representation for serialization
@@ -231,15 +300,49 @@ allCategories =
 
 -- | Safety level of an automated fix.
 --
--- This enum combines all previously separate safety types:
--- * DSL.SafetyLevel (Safe, MostlySafe, Unsafe, ManualReview)
--- * RuleTypes.FixSafety (Safe, Unsafe, Manual)
--- * Types.FixSafety (FSAlways, FSMostly, FSReview, FSUnsafe)
+-- Determines whether a fix can be applied automatically or requires human review.
+-- The @--safe-only@ CLI flag restricts auto-fix to 'Safe' level only.
+--
+-- __Ordering__: 'Safe' < 'MostlySafe' < 'NeedsReview' < 'Unsafe'
+-- (safest to least safe).
+--
+-- __CLI Integration__:
+--
+-- @
+-- # Apply only guaranteed-safe fixes
+-- argus fix --safe-only src/
+--
+-- # Apply safe and mostly-safe fixes
+-- argus fix --safety-level mostly-safe src/
+--
+-- # Preview unsafe fixes without applying
+-- argus fix --preview --safety-level unsafe src/
+-- @
+--
+-- __Rule Definition__:
+--
+-- @
+-- myRule = defaultRule
+--   { ruleId = "use-foldl-prime"
+--   , ruleSafety = MostlySafe  -- Safe unless laziness is intentional
+--   , ...
+--   }
+-- @
+--
+-- @since 1.0.0
 data SafetyLevel
-  = Safe           -- ^ Always safe to apply automatically
-  | MostlySafe     -- ^ Safe in most contexts, rare edge cases
-  | NeedsReview    -- ^ Requires human review before applying
-  | Unsafe         -- ^ May change semantics, manual only
+  = Safe
+    -- ^ Always safe to apply automatically. Guaranteed not to change
+    -- program semantics. Example: @id x@ → @x@, removing redundant parens.
+  | MostlySafe
+    -- ^ Safe in the vast majority of cases; rare edge cases may exist.
+    -- Example: @foldl@ → @foldl'@ (safe unless laziness is intentional).
+  | NeedsReview
+    -- ^ Requires human review before applying. The fix is likely correct
+    -- but context-dependent. Example: removing apparently unused code.
+  | Unsafe
+    -- ^ May change program semantics. Should only be applied with explicit
+    -- user confirmation. Example: changing evaluation order.
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
 
 -- | Convert safety level to text for serialization
@@ -360,11 +463,41 @@ data CommentType
 
 -- | Side conditions for constraining when a rule matches.
 --
--- This is the comprehensive union of all side condition types:
--- * DSL.SideCondition (TypeCondition, ContextCondition, ExprCondition)
--- * ASTMatch.SideCondition (IsAtom, IsLiteral, HasType, etc.)
+-- After a pattern matches, side conditions are evaluated to determine if
+-- the match should produce a diagnostic. This allows rules to be precise
+-- about when they apply, reducing false positives.
 --
--- Side conditions allow rules to be more precise about when they apply.
+-- __Evaluation__:
+--
+-- Side conditions are evaluated in order. Evaluation short-circuits on
+-- the first failure (for 'And') or success (for 'Or').
+--
+-- __HIE Dependency__:
+--
+-- Some conditions require HIE (Haskell Interface Extended) data for accurate
+-- evaluation. In 'QuickMode', these conditions are evaluated conservatively:
+--
+-- * Type conditions ('HasType', 'HasTypeClass', 'IsMonad') → assumed true
+-- * Location conditions ('NotInComment', 'InFunctionBody') → evaluated from source
+--
+-- __Example Usage__:
+--
+-- @
+-- -- Rule that only matches if $X is not a literal
+-- myRule = defaultRule
+--   { rulePattern = TextPatternSpec "length $X == 0"
+--   , ruleReplacement = Just "null $X"
+--   , ruleConditions = [Not (IsLiteral "$X")]
+--   }
+--
+-- -- Rule with type constraint (requires FullMode for accuracy)
+-- typedRule = defaultRule
+--   { rulePattern = TextPatternSpec "show $X"
+--   , ruleConditions = [HasType "$X" "Int"]
+--   }
+-- @
+--
+-- @since 1.0.0
 data SideCondition
   -- Location predicates (where in the code)
   = NotInComment                    -- ^ Match must not be inside a comment
@@ -518,21 +651,61 @@ mkImportSpec modName symbols = ImportSpec
 -- The Unified Rule Type
 --------------------------------------------------------------------------------
 
--- | THE unified rule type for Argus.
+-- | The unified rule type for Argus.
 --
--- This is the SINGLE rule type used throughout the system:
+-- This is the single rule type used throughout the entire system:
+--
 -- * TOML configuration parses into this type
 -- * Haskell DSL produces this type
 -- * Engine evaluates this type
 -- * All builtin rules use this type
 --
--- Previously there were 4 different Rule types:
--- * DSL.Rule
--- * Rules/Types.Rule
--- * ASTMatch.ASTRule
--- * Config.PatternRule
+-- __Invariants__:
 --
--- All are now unified into this single type.
+-- * 'ruleId' must be unique across all rules
+-- * 'ruleId' should follow the pattern @\"category\/name\"@ (e.g., @\"performance\/length-null\"@)
+-- * 'rulePattern' must be parseable by the pattern engine
+-- * If 'ruleReplacement' is set, metavariables must match those in 'rulePattern'
+--
+-- __Lifecycle__:
+--
+-- 1. Created via TOML parsing, DSL, or direct construction
+-- 2. Validated for pattern syntax and condition consistency
+-- 3. Registered in the rule engine
+-- 4. Evaluated against source files during analysis
+-- 5. Produces 'Diagnostic' values when matched
+--
+-- __Construction__:
+--
+-- Use 'defaultRule' as a starting point and override fields:
+--
+-- @
+-- myRule :: Rule
+-- myRule = defaultRule
+--   { ruleId = "performance/length-null"
+--   , ruleCategory = Performance
+--   , ruleSeverity = Warning
+--   , ruleMessage = "Use null instead of length comparison"
+--   , rulePattern = TextPatternSpec "length $X == 0"
+--   , ruleReplacement = Just "null $X"
+--   , ruleSafety = Safe
+--   }
+-- @
+--
+-- __TOML Definition__:
+--
+-- @
+-- [[rules.custom]]
+-- id = "performance/length-null"
+-- category = "performance"
+-- severity = "warning"
+-- message = "Use null instead of length comparison"
+-- pattern = "length $X == 0"
+-- replacement = "null $X"
+-- safety = "safe"
+-- @
+--
+-- @since 1.0.0
 data Rule = Rule
   { -- | Unique rule identifier (e.g., "performance/length-null")
     ruleId            :: Text
@@ -613,7 +786,27 @@ data Rule = Rule
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Default rule with all optional fields set to sensible defaults
+-- | Default rule with all optional fields set to sensible defaults.
+--
+-- Use this as a starting point for rule definitions:
+--
+-- @
+-- myRule = defaultRule
+--   { ruleId = "my-category/my-rule"
+--   , ruleMessage = "Description of the issue"
+--   , rulePattern = TextPatternSpec "pattern to match"
+--   }
+-- @
+--
+-- __Default Values__:
+--
+-- * 'ruleCategory': 'Style'
+-- * 'ruleSeverity': 'Warning'
+-- * 'ruleSafety': 'Safe'
+-- * 'ruleEnabled': 'True'
+-- * 'ruleTarget': 'Nothing' (inferred from category)
+--
+-- @since 1.0.0
 defaultRule :: Rule
 defaultRule = Rule
   { ruleId = ""
@@ -749,10 +942,24 @@ fixImportToImportSpec AT.FixImport{..} = ImportSpec
 -- Pattern AST Types (for internal pattern matching)
 --------------------------------------------------------------------------------
 
--- | Pattern variable with optional type constraint
+-- | Pattern variable with optional type constraint.
+--
+-- Represents a metavariable in a pattern that can match and capture
+-- expressions from the source code.
+--
+-- __Naming Convention__:
+--
+-- * @$X@, @$Y@, @$Z@: General expression metavariables
+-- * @$F@, @$G@: Function metavariables
+-- * @$XS@, @$YS@: List\/collection metavariables
+-- * @$$X@: Repeated metavariable (must match same expression)
+--
+-- @since 1.0.0
 data PatternVar = PatternVar
-  { pvName       :: Text           -- ^ Variable name (e.g., "$X", "xs")
-  , pvConstraint :: Maybe Text     -- ^ Optional type constraint
+  { pvName       :: Text
+    -- ^ Variable name (e.g., @\"$X\"@, @\"xs\"@).
+  , pvConstraint :: Maybe Text
+    -- ^ Optional type constraint for type-aware matching.
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -760,10 +967,34 @@ data PatternVar = PatternVar
 -- | Pattern AST for parsed patterns.
 --
 -- This is the internal representation of patterns after parsing.
--- It's different from the 'Pattern' type which specifies how patterns
+-- It's different from 'RulePattern' which specifies how patterns
 -- are defined in rules (TextPattern, RegexPattern, ASTPattern).
 --
--- These constructors represent the structure of Haskell expressions:
+-- __Pattern Matching__:
+--
+-- Each constructor matches the corresponding Haskell syntax:
+--
+-- @
+-- PWildcard         → _              (matches anything)
+-- PVar (PatternVar "$X" Nothing) → captures expression as $X
+-- PLiteral "42"     → 42             (matches literal)
+-- PApplication f x  → f x            (function application)
+-- PInfix x "+" y    → x + y          (infix operator)
+-- @
+--
+-- __Example__:
+--
+-- The pattern @\"foldl $F $Z $XS\"@ parses to:
+--
+-- @
+-- PApplication
+--   (PApplication
+--     (PApplication (PVar "foldl") (PVar "$F"))
+--     (PVar "$Z"))
+--   (PVar "$XS")
+-- @
+--
+-- @since 1.0.0
 data PatternAST
   = PWildcard                              -- ^ Wildcard: _ (matches anything)
   | PVar PatternVar                        -- ^ Variable: $X, x (captures binding)
@@ -797,39 +1028,87 @@ type Pattern = PatternAST
 -- Bindings (for pattern substitution)
 --------------------------------------------------------------------------------
 
--- | A single binding from a metavariable to its captured value
+-- | A single binding from a metavariable to its captured value.
+--
+-- When a pattern matches, each metavariable (e.g., @$X@) captures the
+-- corresponding source text. These bindings are used for:
+--
+-- * Substitution in replacement patterns
+-- * Side condition evaluation
+-- * Fix generation
+--
+-- @since 1.0.0
 data Binding = Binding
-  { bindingValue :: Text           -- ^ The captured text
-  , bindingSpan  :: Maybe (Int, Int)  -- ^ Optional source span (start, end)
+  { bindingValue :: Text
+    -- ^ The captured source text.
+  , bindingSpan  :: Maybe (Int, Int)
+    -- ^ Optional source span (start offset, end offset) for precise location.
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Map of metavariable names to their bindings
+-- | Map of metavariable names to their bindings.
+--
+-- Used during pattern matching to accumulate captured expressions,
+-- and during replacement to substitute metavariables with their values.
+--
+-- __Example__:
+--
+-- For pattern @\"foldl $F $Z $XS\"@ matching @\"foldl (+) 0 xs\"@:
+--
+-- @
+-- bindings = Map.fromList
+--   [ ("$F", Binding "(+)" Nothing)
+--   , ("$Z", Binding "0" Nothing)
+--   , ("$XS", Binding "xs" Nothing)
+--   ]
+-- @
+--
+-- @since 1.0.0
 type Bindings = Map Text Binding
 
--- | Create a simple binding (no span info)
+-- | Create a simple binding without span information.
+--
+-- @since 1.0.0
 mkBinding :: Text -> Binding
 mkBinding val = Binding
   { bindingValue = val
   , bindingSpan = Nothing
   }
 
--- | Create a binding with span information
+-- | Create a binding with source span information.
+--
+-- The span is byte offsets into the source file.
+--
+-- @since 1.0.0
 mkBindingWithSpan :: Text -> Int -> Int -> Binding
 mkBindingWithSpan val start end = Binding
   { bindingValue = val
   , bindingSpan = Just (start, end)
   }
 
--- | Empty bindings
+-- | Empty bindings map.
+--
+-- Starting point for pattern matching accumulation.
+--
+-- @since 1.0.0
 emptyBindings :: Bindings
 emptyBindings = Map.empty
 
--- | Add a binding
-addBinding' :: Text -> Text -> Bindings -> Bindings
+-- | Add a binding to the map.
+--
+-- If the name already exists, the new value replaces the old.
+--
+-- @since 1.0.0
+addBinding' :: Text  -- ^ Metavariable name (e.g., @\"$X\"@)
+            -> Text  -- ^ Captured value
+            -> Bindings -> Bindings
 addBinding' name val = Map.insert name (mkBinding val)
 
--- | Lookup a binding's value
+-- | Lookup a binding's value by metavariable name.
+--
+-- Returns 'Nothing' if the metavariable was not captured.
+--
+-- @since 1.0.0
 lookupBinding :: Text -> Bindings -> Maybe Text
 lookupBinding name bindings = bindingValue <$> Map.lookup name bindings

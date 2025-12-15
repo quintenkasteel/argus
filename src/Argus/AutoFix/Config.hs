@@ -12,12 +12,54 @@
 -- Copyright   : (c) Quinten, 2024
 -- License     : MIT
 -- Maintainer  : quinten@example.com
--- Stability   : experimental
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides comprehensive configuration support for the auto-fix
 -- system, including TOML-based configuration loading, engine-specific settings,
 -- and pipeline customization.
-
+--
+-- = Configuration Sources
+--
+-- Configuration is loaded from multiple sources in order of priority:
+--
+-- 1. @argus.toml@ (project root)
+-- 2. @linter.toml@ (project root)
+-- 3. @.argus.toml@ (hidden config)
+--
+-- = Key Configuration Sections
+--
+-- * __Global settings__: Enable/disable, dry-run mode, backup options
+-- * __Engine configuration__: Per-engine settings (boolean, list, monad, partial)
+-- * __Pipeline configuration__: Filtering, sorting, deduplication
+-- * __Safety configuration__: Type checking, parsing validation
+-- * __Output configuration__: Diff format, verbosity, logging
+--
+-- = Example Configuration (TOML)
+--
+-- @
+-- enabled = true
+-- dry_run = false
+-- min_confidence = 70
+-- max_fixes_per_file = 100
+--
+-- [engines.boolean]
+-- enabled = true
+-- simplify_not = true
+-- simplify_and = true
+--
+-- [pipeline]
+-- deduplicate = true
+-- validate_all = true
+--
+-- [safety]
+-- require_type_check = true
+-- preserve_comments = true
+-- @
+--
+-- @since 1.0.0
 module Argus.AutoFix.Config
   ( -- * Main Configuration Types
     AutoFixConfig (..)

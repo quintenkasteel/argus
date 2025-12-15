@@ -37,15 +37,12 @@ module Argus.Runtime.Sandbox
   , enforceResourceLimits
   ) where
 
-import Control.Monad (forM_)
-import Data.Char (isAlphaNum, isSpace)
+import Data.Char (isAlphaNum)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Regex.TDFA ((=~))
-
-import Argus.Runtime.Types
 
 --------------------------------------------------------------------------------
 -- Sandbox Configuration

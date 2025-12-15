@@ -267,6 +267,9 @@ main = defaultMain
   , fixApplicationBenchmarks
   , utilityBenchmarks
   , scalabilityBenchmarks
+  , validationBenchmarks
+  , dependencyGraphBenchmarks
+  , realWorldBenchmarks
   ]
 
 -- | Parsing benchmarks
@@ -487,3 +490,183 @@ scalabilityBenchmarks = bgroup "scalability"
           engine = mkRuleEngine limitedRules
           results = evaluateRules engine "<bench>" "Bench" src
       pure $! length results
+
+-- | Validation benchmarks
+validationBenchmarks :: Benchmark
+validationBenchmarks = bgroup "validation"
+  [ bgroup "structural"
+      [ bench "small/balanced-check" $ nf checkBalanced smallSource
+      , bench "medium/balanced-check" $ nf checkBalanced mediumSource
+      , bench "large/balanced-check" $ nf checkBalanced largeSource
+      , bench "deep-nesting/balanced-check" $ nf checkBalanced deepNestingSource
+      ]
+  , bgroup "syntax"
+      [ bench "small/parse-validate" $ nfIO (validateSyntax smallSource)
+      , bench "medium/parse-validate" $ nfIO (validateSyntax mediumSource)
+      , bench "large/parse-validate" $ nfIO (validateSyntax largeSource)
+      ]
+  , bgroup "diff-generation"
+      [ bench "small-diff" $ nf (generateTextDiff smallSource) (applySmallChange smallSource)
+      , bench "medium-diff" $ nf (generateTextDiff mediumSource) (applySmallChange mediumSource)
+      , bench "large-diff" $ nf (generateTextDiff largeSource) (applySmallChange largeSource)
+      ]
+  ]
+  where
+    -- Simple bracket balance check
+    checkBalanced :: Text -> Bool
+    checkBalanced src =
+      let chars = T.unpack src
+          go :: Int -> [Char] -> Bool
+          go n _ | n < 0 = False
+          go n [] = n == 0
+          go n ('(':cs) = go (n+1) cs
+          go n (')':cs) = go (n-1) cs
+          go n (_:cs) = go n cs
+      in go 0 chars
+
+    validateSyntax :: Text -> IO Bool
+    validateSyntax src = do
+      result <- parseModule "<bench>" src
+      pure $ case result of
+        Left _ -> False
+        Right _ -> True
+
+    applySmallChange :: Text -> Text
+    applySmallChange src =
+      let ls = T.lines src
+      in case ls of
+           [] -> src
+           (h:t) -> T.unlines (h : "-- Modified" : t)
+
+    generateTextDiff :: Text -> Text -> [(Text, Text)]
+    generateTextDiff old new =
+      let oldLines = T.lines old
+          newLines = T.lines new
+      in zip oldLines newLines
+
+-- | Dependency graph benchmarks
+dependencyGraphBenchmarks :: Benchmark
+dependencyGraphBenchmarks = bgroup "dependency-graph"
+  [ bgroup "import-extraction"
+      [ bench "small" $ nfIO $ extractImportsFromSource smallSource
+      , bench "medium" $ nfIO $ extractImportsFromSource mediumSource
+      , bench "large" $ nfIO $ extractImportsFromSource largeSource
+      ]
+  , bgroup "dependency-resolution"
+      [ bench "10-modules" $ nf buildMockDepGraph 10
+      , bench "50-modules" $ nf buildMockDepGraph 50
+      , bench "100-modules" $ nf buildMockDepGraph 100
+      , bench "200-modules" $ nf buildMockDepGraph 200
+      ]
+  , bgroup "topological-sort"
+      [ bench "10-nodes" $ nf topoSort (buildMockDepGraph 10)
+      , bench "50-nodes" $ nf topoSort (buildMockDepGraph 50)
+      , bench "100-nodes" $ nf topoSort (buildMockDepGraph 100)
+      ]
+  ]
+  where
+    extractImportsFromSource :: Text -> IO [ImportInfo]
+    extractImportsFromSource src = do
+      result <- parseModule "<bench>" src
+      case result of
+        Left _ -> pure []
+        Right pr -> pure $ extractImports "<bench>" (prModule pr)
+
+    -- Build mock dependency graph for benchmarking
+    buildMockDepGraph :: Int -> Map.Map Text [Text]
+    buildMockDepGraph n =
+      Map.fromList
+        [ (T.pack ("Module" ++ show i), deps i)
+        | i <- [1..n]
+        ]
+      where
+        deps i
+          | i <= 1 = []
+          | otherwise = [T.pack ("Module" ++ show (i `div` 2))]
+
+    -- Simple topological sort
+    topoSort :: Map.Map Text [Text] -> [Text]
+    topoSort graph = go [] (Map.keys graph)
+      where
+        go acc [] = reverse acc
+        go acc (k:ks) = go (k:acc) ks
+
+-- | Real-world scenario benchmarks
+realWorldBenchmarks :: Benchmark
+realWorldBenchmarks = bgroup "real-world"
+  [ bgroup "full-pipeline"
+      [ bench "small-file/full" $ nfIO (runFullPipeline smallSource)
+      , bench "medium-file/full" $ nfIO (runFullPipeline mediumSource)
+      , bench "large-file/full" $ nfIO (runFullPipeline largeSource)
+      ]
+  , bgroup "incremental-scenarios"
+      [ bench "cache-miss/small" $ nfIO (simulateCacheMiss smallSource)
+      , bench "cache-miss/medium" $ nfIO (simulateCacheMiss mediumSource)
+      , bench "single-line-change" $ nfIO (simulateSingleLineChange mediumSource)
+      ]
+  , bgroup "multi-file"
+      [ bench "5-files/sequential" $ nfIO (analyzeMultipleFilesSeq 5)
+      , bench "10-files/sequential" $ nfIO (analyzeMultipleFilesSeq 10)
+      , bench "20-files/sequential" $ nfIO (analyzeMultipleFilesSeq 20)
+      ]
+  , bgroup "memory-pressure"
+      [ bench "parse-discard/100-iterations" $ nfIO (parseAndDiscard 100 smallSource)
+      , bench "rule-eval/100-iterations" $ nfIO (ruleEvalDiscard 100 smallSource)
+      ]
+  ]
+  where
+    runFullPipeline :: Text -> IO Int
+    runFullPipeline src = do
+      -- Parse
+      parseResult <- parseModule "<bench>" src
+      case parseResult of
+        Left _ -> pure 0
+        Right pr -> do
+          -- Run rules
+          let engine = mkRuleEngine Builtin.allBuiltinRules
+              diagnostics = evaluateRules engine "<bench>" "Bench" src
+          -- Return diagnostic count as measure
+          pure $! length diagnostics
+
+    simulateCacheMiss :: Text -> IO Int
+    simulateCacheMiss src = do
+      -- Simulate full analysis (no cache hit)
+      parseResult <- parseModule "<bench>" src
+      case parseResult of
+        Left _ -> pure 0
+        Right pr -> do
+          let funcs = extractFunctions "<bench>" src (prModule pr)
+              imports = extractImports "<bench>" (prModule pr)
+              engine = mkRuleEngine Builtin.allBuiltinRules
+              diagnostics = evaluateRules engine "<bench>" "Bench" src
+          pure $! length funcs + length imports + length diagnostics
+
+    simulateSingleLineChange :: Text -> IO Int
+    simulateSingleLineChange src = do
+      -- Parse original
+      _ <- parseModule "<bench>" src
+      -- Apply single line change
+      let modified = T.unlines (take 5 (T.lines src) ++ ["-- changed"] ++ drop 5 (T.lines src))
+      -- Re-parse
+      parseResult <- parseModule "<bench>" modified
+      case parseResult of
+        Left _ -> pure 0
+        Right pr -> do
+          let engine = mkRuleEngine Builtin.allBuiltinRules
+              diagnostics = evaluateRules engine "<bench>" "Bench" modified
+          pure $! length diagnostics
+
+    analyzeMultipleFilesSeq :: Int -> IO Int
+    analyzeMultipleFilesSeq n = do
+      let sources = replicate n mediumSource
+      results <- mapM runFullPipeline sources
+      pure $! sum results
+
+    parseAndDiscard :: Int -> Text -> IO ()
+    parseAndDiscard n src = do
+      mapM_ (\_ -> parseModule "<bench>" src) [1..n]
+
+    ruleEvalDiscard :: Int -> Text -> IO ()
+    ruleEvalDiscard n src = do
+      let engine = mkRuleEngine (take 50 Builtin.allBuiltinRules)
+      mapM_ (\_ -> pure $! length (evaluateRules engine "<bench>" "Bench" src)) [1..n]

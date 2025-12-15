@@ -2,11 +2,6 @@
 
 module WatchSpec (spec) where
 
-import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM (readTVarIO, atomically, writeTVar, readTVar)
-import Data.IORef (readIORef)
-import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -15,7 +10,7 @@ import System.IO.Silently (capture_)
 import Test.Hspec
 
 import Argus.Watch
-import Argus.Types (Diagnostic(..), Severity(..), SrcSpan(..), DiagnosticKind(..), mkSrcSpanRaw)
+import Argus.Types (Diagnostic(..), Severity(..), DiagnosticKind(..), mkSrcSpanRaw)
 
 spec :: Spec
 spec = do

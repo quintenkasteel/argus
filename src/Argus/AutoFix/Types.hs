@@ -10,37 +10,65 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
 
 -- |
 -- Module      : Argus.AutoFix.Types
 -- Description : Core types for the extensible auto-fix infrastructure
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module defines the core type infrastructure for Argus's extensible
--- auto-fix system. It provides:
+-- auto-fix system. It provides the foundation for creating, validating,
+-- and applying code fixes.
 --
--- * The 'FixEngine' typeclass for implementing fix engines
--- * 'EnrichedFix' for fixes with comprehensive metadata
--- * 'FixId' for type-safe fix identification
--- * 'FixValidation' for fix validation results
--- * 'FixConflict' for detecting fix conflicts
--- * 'FixDependency' for managing fix dependencies
+-- = Key Types
 --
--- == Architecture
+-- * 'FixEngine': Typeclass for implementing fix engines
+-- * 'EnrichedFix': Fixes with comprehensive metadata
+-- * 'FixId': Type-safe fix identification
+-- * 'FixValidation': Fix validation results
+-- * 'FixConflict': Conflict detection between fixes
+-- * 'FixDependency': Dependency management between fixes
+--
+-- = Architecture
 --
 -- The auto-fix system is built around three core concepts:
 --
--- 1. **Fix Engines**: Implementations of 'FixEngine' that can find and apply
+-- 1. __Fix Engines__: Implementations of 'FixEngine' that can find and apply
 --    fixes for specific categories of issues.
 --
--- 2. **Enriched Fixes**: Fixes wrapped with metadata about safety, confidence,
---    dependencies, and conflicts.
+-- 2. __Enriched Fixes__: Basic 'Fix' values wrapped with metadata about safety,
+--    confidence, dependencies, and conflicts.
 --
--- 3. **Fix Registry**: A central registry (see 'Argus.AutoFix.Registry') that
---    manages multiple fix engines.
+-- 3. __Fix Registry__: A central registry (see "Argus.AutoFix.Registry") that
+--    manages multiple fix engines and coordinates fix application.
 --
--- == Example
+-- = Fix Lifecycle
+--
+-- @
+-- Diagnostic → FixEngine.findFixes → [EnrichedFix]
+--                                        │
+--                                        ▼
+--                              FixEngine.validateFix
+--                                        │
+--                                        ▼
+--                              detectConflicts \/ resolveDependencies
+--                                        │
+--                                        ▼
+--                              FixEngine.applyFix → FixApplicationResult
+-- @
+--
+-- = Thread Safety
+--
+-- Types in this module are immutable and thread-safe. 'FixEngine' implementations
+-- should document their thread safety guarantees.
+--
+-- = Implementing a Fix Engine
 --
 -- @
 -- data MyFixEngine = MyFixEngine { ... }
@@ -48,12 +76,19 @@
 -- instance FixEngine MyFixEngine where
 --   type EngineConfig MyFixEngine = MyConfig
 --   type EngineCategory MyFixEngine = MyCategory
---   engineName _ = "my-fix-engine"
+--   engineName _ = \"my-fix-engine\"
 --   engineCategories _ = [CategoryA, CategoryB]
 --   findFixes engine fp content = ...
 --   applyFix engine fp content fix = ...
 --   validateFix engine fix content = ...
 -- @
+--
+-- @since 1.0.0
+--
+-- Copyright   : (c) 2024
+-- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
 module Argus.AutoFix.Types
   ( -- * Fix Engine Typeclass
     FixEngine (..)
@@ -181,11 +216,49 @@ instance FromJSON FixId where
       Just fid -> pure fid
       Nothing  -> fail $ "Invalid FixId format: " <> T.unpack t
 
--- | Create a FixId from engine name and local ID
+-- | Create a FixId from engine name and local ID.
+--
+-- ==== Parameters
+--
+-- * @engineName@: Name of the fix engine (e.g., "boolean-fix", "list-fix")
+-- * @localId@: Unique identifier within the engine (e.g., "not-true-001")
+--
+-- ==== Returns
+--
+-- A 'FixId' combining the engine name and local identifier.
+--
+-- ==== Example
+--
+-- @
+-- let fixId = mkFixId "partial-fix" "head-to-listToMaybe"
+-- -- Result: FixId { fixIdEngine = "partial-fix", fixIdLocal = "head-to-listToMaybe" }
+-- @
+--
+-- @since 1.0.0
 mkFixId :: Text -> Text -> FixId
 mkFixId = FixId
 
--- | Parse a FixId from its text representation
+-- | Parse a FixId from its text representation.
+--
+-- The expected format is @"engine-name/local-id"@.
+--
+-- ==== Parameters
+--
+-- * @text@: Text in the format "engine-name/local-id"
+--
+-- ==== Returns
+--
+-- * @Just FixId@ if the text contains a "/" separator
+-- * @Nothing@ if the format is invalid
+--
+-- ==== Example
+--
+-- @
+-- parseFixId "boolean-fix/simplify-not"  -- Just (FixId "boolean-fix" "simplify-not")
+-- parseFixId "invalid"                   -- Nothing
+-- @
+--
+-- @since 1.0.0
 parseFixId :: Text -> Maybe FixId
 parseFixId t = case T.breakOn "/" t of
   (engine, rest)
@@ -213,27 +286,81 @@ instance FromJSON Confidence where
 instance Hashable Confidence where
   hashWithSalt salt (Confidence c) = hashWithSalt salt (round (c * 1000) :: Int)
 
--- | Create a confidence value, clamping to [0.0, 1.0]
+-- | Create a confidence value, clamping to [0.0, 1.0].
+--
+-- Values outside the valid range are automatically clamped:
+--
+-- * Negative values become 0.0
+-- * Values > 1.0 become 1.0
+--
+-- ==== Parameters
+--
+-- * @value@: Confidence value (ideally between 0.0 and 1.0)
+--
+-- ==== Returns
+--
+-- A 'Confidence' value guaranteed to be in the range [0.0, 1.0].
+--
+-- ==== Example
+--
+-- @
+-- mkConfidence 0.95   -- Confidence 0.95
+-- mkConfidence 1.5    -- Confidence 1.0 (clamped)
+-- mkConfidence (-0.1) -- Confidence 0.0 (clamped)
+-- @
+--
+-- @since 1.0.0
 mkConfidence :: Double -> Confidence
 mkConfidence x = Confidence $ max 0.0 (min 1.0 x)
 
--- | Extract confidence value
+-- | Extract the underlying 'Double' value from a 'Confidence'.
+--
+-- @since 1.0.0
 unConfidence :: Confidence -> Double
 unConfidence = unConfidenceValue
 
--- | High confidence (>= 0.9)
+-- | High confidence level (0.95).
+--
+-- Use for fixes that are almost certainly correct, such as:
+--
+-- * Simple boolean simplifications (@not (not x)@ → @x@)
+-- * Redundant code removal
+-- * Import organization
+--
+-- @since 1.0.0
 highConfidence :: Confidence
 highConfidence = Confidence 0.95
 
--- | Medium confidence (0.7 - 0.9)
+-- | Medium confidence level (0.8).
+--
+-- Use for fixes that are likely correct but may need review:
+--
+-- * Performance optimizations
+-- * Refactoring suggestions
+-- * Style improvements
+--
+-- @since 1.0.0
 mediumConfidence :: Confidence
 mediumConfidence = Confidence 0.8
 
--- | Low confidence (< 0.7)
+-- | Low confidence level (0.5).
+--
+-- Use for fixes that may be correct but require careful review:
+--
+-- * Complex transformations
+-- * Context-dependent fixes
+-- * Fixes with multiple valid alternatives
+--
+-- @since 1.0.0
 lowConfidence :: Confidence
 lowConfidence = Confidence 0.5
 
--- | Unknown confidence (0.0)
+-- | Unknown confidence level (0.0).
+--
+-- Use when confidence cannot be determined, typically for
+-- user-provided fixes or external suggestions.
+--
+-- @since 1.0.0
 unknownConfidence :: Confidence
 unknownConfidence = Confidence 0.0
 
@@ -312,7 +439,38 @@ data FixDependency = FixDependency
 
 -- | Resolve dependencies and return fixes in order of application.
 --
--- Returns Left with cycle information if dependencies form a cycle.
+-- This function performs topological sorting of fixes based on their
+-- dependency relationships. Fixes are ordered so that dependencies
+-- are applied before the fixes that depend on them.
+--
+-- ==== Parameters
+--
+-- * @fixIds@: List of fix identifiers to order
+-- * @deps@: List of dependency relationships between fixes
+--
+-- ==== Returns
+--
+-- * @Right [FixId]@: Successfully ordered list (dependencies first)
+-- * @Left [FixId]@: Cycle detected, returns the cycle path
+--
+-- ==== Example
+--
+-- @
+-- let fixIds = [fix1Id, fix2Id, fix3Id]
+-- let deps = [FixDependency fix2Id fix1Id MustApplyBefore Nothing]
+-- case resolveDependencies fixIds deps of
+--   Right ordered -> applyInOrder ordered
+--   Left cycle    -> error $ "Dependency cycle: " ++ show cycle
+-- @
+--
+-- ==== Dependency Types
+--
+-- * 'MustApplyBefore': Source fix must be applied before target
+-- * 'MustApplyAfter': Source fix must be applied after target
+-- * 'Requires': Source requires target to also be applied
+-- * 'MutuallyExclusive': Only one can be applied (handled separately)
+--
+-- @since 1.0.0
 resolveDependencies :: [FixId] -> [FixDependency] -> Either [FixId] [FixId]
 resolveDependencies fixIds deps =
   case topologicalSort fixIds (buildGraph deps) of
@@ -401,7 +559,36 @@ data FixConflict = FixConflict
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Detect conflicts between a set of enriched fixes
+-- | Detect conflicts between a set of enriched fixes.
+--
+-- This function performs pairwise conflict detection, checking for:
+--
+-- * __Overlapping spans__: Two fixes modify overlapping source regions
+-- * __Declared conflicts__: Fixes that explicitly declare conflicts with each other
+--
+-- ==== Parameters
+--
+-- * @fixes@: List of enriched fixes to check for conflicts
+--
+-- ==== Returns
+--
+-- List of 'FixConflict' values describing each detected conflict.
+--
+-- ==== Example
+--
+-- @
+-- let fixes = [fix1, fix2, fix3]
+-- let conflicts = detectConflicts fixes
+-- if conflictsExist conflicts
+--   then putStrLn $ "Found " ++ show (length conflicts) ++ " conflicts"
+--   else putStrLn "No conflicts"
+-- @
+--
+-- ==== Complexity
+--
+-- O(n²) where n is the number of fixes (pairwise comparison).
+--
+-- @since 1.0.0
 detectConflicts :: [EnrichedFix] -> [FixConflict]
 detectConflicts fixes = concatMap (uncurry checkPair) pairs
   where
@@ -545,7 +732,34 @@ data EnrichedFix = EnrichedFix
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Create an enriched fix from a basic fix
+-- | Create an enriched fix from a basic fix.
+--
+-- Creates a new 'EnrichedFix' with default metadata. The resulting fix has:
+--
+-- * High confidence (0.95)
+-- * Safe safety level
+-- * No dependencies or conflicts
+-- * No validation result
+--
+-- ==== Parameters
+--
+-- * @fixId@: Unique identifier for this fix
+-- * @fix@: The underlying fix to enrich
+-- * @category@: Category for organizing fixes
+--
+-- ==== Returns
+--
+-- A new 'EnrichedFix' with default metadata settings.
+--
+-- ==== Example
+--
+-- @
+-- let fix = Fix { fixTitle = "Simplify not", ... }
+-- let fixId = mkFixId "boolean" "simplify-not"
+-- let enriched = mkEnrichedFix fixId fix Performance
+-- @
+--
+-- @since 1.0.0
 mkEnrichedFix :: FixId -> Fix -> Category -> EnrichedFix
 mkEnrichedFix fid fix cat = EnrichedFix
   { efId = fid
@@ -622,7 +836,7 @@ setConflicts confs ef = ef { efConflicts = confs }
 -- -- Result: FixId { fixIdEngine = "configurable-rules", fixIdLocal = "partial/head" }
 -- @
 ruleIdToFixId :: Text -> Text -> FixId
-ruleIdToFixId engineName ruleId = mkFixId engineName ruleId
+ruleIdToFixId engName ruleId = mkFixId engName ruleId
 
 --------------------------------------------------------------------------------
 -- Fix Application Results

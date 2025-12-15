@@ -98,10 +98,10 @@ module Argus.Rules.SideConditions.Parser
   , describeCondition
   ) where
 
-import Data.Char (isSpace, isDigit, isAlphaNum)
+import Data.Char ()
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, isJust, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Read (readMaybe)
@@ -110,7 +110,6 @@ import Argus.Rules.Types (SideCondition(..))
 import Argus.Rules.SideConditionHelpers qualified as SCH
 import Argus.HIE.TypeInfo qualified as TI
   ( checkKnownInstance
-  , isListType
   , isMaybeType
   , isIOType
   , isMonadType
@@ -319,13 +318,16 @@ parsePredicate text =
 parseInlineOperator :: Text -> Maybe SideCondition
 parseInlineOperator text
   | " != " `T.isInfixOf` text =
-      let [a, b] = T.splitOn " != " text
-      in Just $ NotEqual (T.strip a) (T.strip b)
+      case T.splitOn " != " text of
+        [a, b] -> Just $ NotEqual (T.strip a) (T.strip b)
+        _ -> Nothing
   | " == " `T.isInfixOf` text =
-      let [a, b] = T.splitOn " == " text
-          av = T.strip a
-          bv = T.strip b
-      in Just $ Not (NotEqual av bv)  -- Equal = Not NotEqual
+      case T.splitOn " == " text of
+        [a, b] ->
+          let av = T.strip a
+              bv = T.strip b
+          in Just $ Not (NotEqual av bv)  -- Equal = Not NotEqual
+        _ -> Nothing
   | otherwise = Nothing
 
 --------------------------------------------------------------------------------

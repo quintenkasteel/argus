@@ -13,7 +13,7 @@ import System.IO
 
 -- Should warn: readFile uses String
 stringReadFile :: FilePath -> IO String
-stringReadFile = readFile
+stringReadFile = TIO.readFile
 
 -- Should warn: writeFile uses String
 stringWriteFile :: FilePath -> String -> IO ()
@@ -30,23 +30,23 @@ stringWriteFile = writeFile
 -- Should warn: file handle not properly closed
 unsafeFileRead :: FilePath -> IO String
 unsafeFileRead path = do
-  h <- openFilTIO.hGetContentsode
-  contents <- hGetContents h
+  h <- openFile path ReadMode
+  contents <- TIO.hGetContents h
   hClose h
   pure contents
 
 -- Good: using bracket
 safeFileRead :: FilePath -> IO String
-safeFileRead path =TIO.hGetContents
-  bracket (openFile path ReadMode) hClose hGetContents
+safeFileRead path =
+  bracket (openFile path ReadMode) hClose TIO.hGetContents
 
 --------------------------------------------------------------------------------
 -- Avoid lazy IO
 --------------------------------------------------------------------------------
 
 -- Should warn: hGetContents is lazy
-lazyRead :: HTIO.hGetContentsString
-lazyRead h = hGetContents h
+lazyRead :: Handle -> IO String
+lazyRead h = TIO.hGetContents h
 
 -- Better: use strict IO
 strictRead :: Handle -> IO String

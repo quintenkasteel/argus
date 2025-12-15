@@ -8,23 +8,64 @@
 -- Description : Type information extraction and constraint checking from HIE files
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides functionality for extracting type information
 -- from HIE data and checking type constraints. It enables type-aware
 -- fix generation by verifying that fixes preserve type correctness.
 --
--- == Type Extraction
+-- = Architecture
+--
+-- @
+-- ┌───────────────────────────────────────────────────────────────────┐
+-- │                      Type Information Flow                        │
+-- │                                                                   │
+-- │  Source Code ──► GHC ──► HIE Files ──► HieDb ──► TypeInfo        │
+-- │                                           │                       │
+-- │                              ┌────────────┴────────────┐          │
+-- │                              │                         │          │
+-- │                        extractType            checkConstraint     │
+-- │                        extractExprType        hasOrdInstance      │
+-- │                        extractBindingType     validateFixTypes    │
+-- └───────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Type Extraction
 --
 -- Type extraction uses the hiedb library for querying indexed HIE files.
 -- HIE files contain complete type information for every expression
 -- in the source code. This module provides functions to extract that
 -- information and use it for analysis and refactoring validation.
 --
--- == Implementation Notes
+-- = Known Types Database
+--
+-- The module maintains a database of known types for common Prelude and
+-- base functions. This provides fast type lookup without HIE access for
+-- standard library functions, improving performance and reliability.
+--
+-- = Constraint Checking
+--
+-- Type class constraint checking uses a combination of:
+--
+-- * __Known instances__: Pre-populated database of standard instances
+-- * __HIE queries__: Dynamic instance lookup from indexed modules
+-- * __Parameterized inference__: Deriving list/Maybe instances from elements
+--
+-- = Thread Safety
+--
+-- The 'HieTypeCache' uses 'IORef' for mutable state and is not thread-safe.
+-- Use separate cache instances for concurrent operations.
+--
+-- = Implementation Notes
 --
 -- This implementation uses hiedb queries rather than direct HIE file reading
 -- to avoid GHC version-specific API changes. The hiedb library provides a
 -- stable interface across GHC versions.
+--
+-- @since 1.0.0
 module Argus.HIE.TypeInfo
   ( -- * Type Extraction
     extractType
@@ -200,7 +241,7 @@ extractTypeFromHIE name mModule = do
 -- | Extract type at a specific source span from HIE files
 -- Uses hiedb to look up type information at the given location
 extractTypeFromSpan :: FilePath -> SrcSpan -> IO (Maybe TypeInfo)
-extractTypeFromSpan hieDir span = do
+extractTypeFromSpan hieDir theSpan = do
   let dbPath = hieDir </> ".hiedb"
   exists <- doesDirectoryExist hieDir
   if not exists
@@ -208,9 +249,9 @@ extractTypeFromSpan hieDir span = do
     else do
       result <- try @SomeException $ withHieDb dbPath $ \db -> do
         -- Query for definitions at this location
-        let srcFile = srcSpanFile span
-            startLine = unLine (srcSpanStartLine span)
-            startCol = unColumn (srcSpanStartCol span)
+        let srcFile = srcSpanFile theSpan
+            startLine = unLine (srcSpanStartLine theSpan)
+            startCol = unColumn (srcSpanStartCol theSpan)
         extractTypeFromHieDb db srcFile startLine startCol
       case result of
         Left _ -> pure Nothing
@@ -1004,12 +1045,12 @@ validateFixTypes fix = do
     -- Extract original text from edit span by reading the source file
     getEditOriginal :: FixEdit -> IO Text
     getEditOriginal edit = do
-      let span = fixEditSpan edit
-          filePath = srcSpanFile span
-          startLine = unLine $ srcSpanStartLine span
-          startCol = unColumn $ srcSpanStartCol span
-          endLine = unLine $ srcSpanEndLine span
-          endCol = unColumn $ srcSpanEndCol span
+      let theSpan = fixEditSpan edit
+          filePath = srcSpanFile theSpan
+          startLine = unLine $ srcSpanStartLine theSpan
+          startCol = unColumn $ srcSpanStartCol theSpan
+          endLine = unLine $ srcSpanEndLine theSpan
+          endCol = unColumn $ srcSpanEndCol theSpan
 
       -- Handle empty/invalid spans
       if null filePath || startLine <= 0
@@ -1080,9 +1121,9 @@ checkFixTypePreservation oldExpr newExpr = do
 
 -- | Validate type preservation for a replacement
 validateTypePreservation :: FilePath -> SrcSpan -> Text -> Text -> IO TypeValidation
-validateTypePreservation hieDir span _oldText newText = do
+validateTypePreservation hieDir theSpan _oldText newText = do
   -- Get the type of the original expression
-  mOldType <- extractTypeFromSpan hieDir span
+  mOldType <- extractTypeFromSpan hieDir theSpan
 
   case mOldType of
     Nothing -> pure TypesUnknown  -- Cannot determine original type
@@ -1100,7 +1141,7 @@ validateTypePreservation hieDir span _oldText newText = do
           | otherwise -> pure $ TypesIncompatible ValidationIssue
               { viKind = "type-mismatch"
               , viMessage = "Type would change from '" <> tiType oldType <> "' to '" <> tiType newType <> "'"
-              , viLocation = span
+              , viLocation = theSpan
               , viExpected = Just (tiType oldType)
               , viActual = Just (tiType newType)
               , viSuggestion = Nothing

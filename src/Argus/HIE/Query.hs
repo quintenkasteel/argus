@@ -8,10 +8,59 @@
 -- Description : Type-safe HIE database queries
 -- Copyright   : (c) 2024
 -- License     : MIT
+-- Stability   : stable
+-- Portability : GHC
+--
+-- = Overview
 --
 -- This module provides type-safe wrappers around HIE database queries,
 -- offering enhanced functionality for symbol resolution, type information
 -- extraction, and cross-module reference tracking.
+--
+-- = Architecture
+--
+-- The query system is built around the 'HieQuery' monad:
+--
+-- @
+-- ┌─────────────────────────────────────────────────────────────────┐
+-- │                         HieQuery Monad                          │
+-- │  ┌─────────────┐    ┌──────────────┐    ┌──────────────────┐   │
+-- │  │  HieDb      │────│ QueryContext │────│   QueryCache     │   │
+-- │  │ (SQLite)    │    │              │    │ (Symbol/Type)    │   │
+-- │  └─────────────┘    └──────────────┘    └──────────────────┘   │
+-- └─────────────────────────────────────────────────────────────────┘
+-- @
+--
+-- = Query Categories
+--
+-- * __Symbol Queries__: Find symbols by name, location, or pattern
+-- * __Type Queries__: Extract type information for expressions/bindings
+-- * __Module Queries__: Navigate module dependencies and exports
+-- * __Constraint Queries__: Check type class instances and constraints
+-- * __Batch Queries__: Efficient multi-symbol operations
+--
+-- = HIE File Access
+--
+-- Some queries require direct HIE file reading (e.g., 'findSymbolAt').
+-- These operations use GHC's HIE binary format and AST navigation to
+-- extract precise semantic information.
+--
+-- = Thread Safety
+--
+-- The 'HieQuery' monad is IO-based and not thread-safe. For concurrent
+-- access, use separate database connections via 'withHieQuery'.
+--
+-- = Usage
+--
+-- @
+-- result <- withHieQuery ".hiedb" $ do
+--   sym <- findSymbol "myFunction" (Just "MyModule")
+--   case sym of
+--     Just s  -> getSymbolType (hsName s) (Just $ hsModule s)
+--     Nothing -> pure Nothing
+-- @
+--
+-- @since 1.0.0
 module Argus.HIE.Query
   ( -- * Query Context
     HieQuery
@@ -118,14 +167,14 @@ type HieQuery a = ReaderT QueryContext IO a
 -- | Context for running HIE queries
 data QueryContext = QueryContext
   { qcDb        :: HieDb
-  , qcCache     :: QueryCache
+  , _qcCache    :: QueryCache
   }
 
 -- | Cache for expensive queries
 data QueryCache = QueryCache
-  { cacheSymbols :: Map.Map Text [HieSymbol]
-  , cacheTypes   :: Map.Map Text TypeInfo
-  , cacheModules :: Map.Map Text ModuleSymbols
+  { _cacheSymbols :: Map.Map Text [HieSymbol]
+  , _cacheTypes   :: Map.Map Text TypeInfo
+  , _cacheModules :: Map.Map Text ModuleSymbols
   }
 
 -- | Empty query cache
@@ -638,8 +687,8 @@ batchGetTypes queries = do
 --------------------------------------------------------------------------------
 
 -- | Measure query time
-timed :: MonadIO m => m a -> m (a, Double)
-timed action = do
+_timed :: MonadIO m => m a -> m (a, Double)
+_timed action = do
   start <- liftIO getCPUTime
   result <- action
   end <- liftIO getCPUTime

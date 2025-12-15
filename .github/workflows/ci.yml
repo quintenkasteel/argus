@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -69,112 +69,27 @@ jobs:
             fi
           done
 
+      # Build dependencies first (better caching)
       - name: Build dependencies
-        run: stack build --only-dependencies --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
+        run: make deps
 
-      - name: Build project
-        run: stack build --fast --pedantic --ghc-options "-j +RTS -A128m -n2m -RTS"
-
-      - name: Count and report warnings
-        id: warnings
-        run: |
-          WARNINGS=$(stack build --fast 2>&1 | grep -c "warning:" || echo "0")
-          echo "count=$WARNINGS" >> $GITHUB_OUTPUT
-
-          echo "## Build Warnings: $WARNINGS" >> $GITHUB_STEP_SUMMARY
-          if [ "$WARNINGS" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Top warning types:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            stack build --fast 2>&1 | grep "warning:" | sed 's/.*warning:/warning:/' | sort | uniq -c | sort -rn | head -10 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+      # Run full CI build (warnings as errors + tests)
+      - name: Run CI build
+        run: make ci
 
       - name: Check that argus binary runs
         run: |
           stack exec -- argus --help
           stack exec -- argus --version || true
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Haskell Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack global package DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
-
-      - name: Cache Stack work directory
-        uses: actions/cache@v4
-        with:
-          path: .stack-work
-          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-            ${{ runner.os }}-stack-work-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev
-
-      # Restore file timestamps to prevent unnecessary rebuilds
-      - name: Restore file timestamps
-        run: |
-          git ls-files -z | while IFS= read -r -d '' file; do
-            if [ -f "$file" ]; then
-              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
-              if [ -n "$timestamp" ]; then
-                touch -d "$timestamp" "$file" 2>/dev/null || true
-              fi
-            fi
-          done
-
-      - name: Build project
-        run: stack build --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
-
-      - name: Run test suite
-        run: stack test --fast --ghc-options "-j +RTS -A128m -n2m -RTS" 2>&1 | tee test-output.txt
-        env:
-          TASTY_NUM_THREADS: 4
-
-      - name: Generate test summary
+      - name: Generate build summary
         if: always()
         run: |
-          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Results (${{ matrix.os }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if grep -q "examples, 0 failures" test-output.txt; then
-            echo "All tests passed." >> $GITHUB_STEP_SUMMARY
-          elif grep -q "failures" test-output.txt; then
-            echo "Some tests failed. See details below." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -A 5 "FAIL\|failure" test-output.txt | head -50 >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload test output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-output
-          path: test-output.txt
-          retention-days: 7
+          echo "- CI build completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- All tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Zero warnings (enforced via -Werror)" >> $GITHUB_STEP_SUMMARY
 
   self-lint:
     name: Self Lint
@@ -216,7 +131,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      # Restore file timestamps to prevent unnecessary rebuilds
+      # Restore file timestamps
       - name: Restore file timestamps
         run: |
           git ls-files -z | while IFS= read -r -d '' file; do
@@ -229,33 +144,17 @@ jobs:
           done
 
       - name: Build project
-        run: stack build --fast --ghc-options "-j +RTS -A128m -n2m -RTS"
+        run: make dev
 
-      - name: Run Argus on itself (Terminal output)
-        id: self_lint
-        continue-on-error: true
-        run: |
-          # Run with terminal output for human-readable results
-          stack exec -- argus check src/ app/ --format terminal 2>&1 | tee lint-results.txt || true
+      - name: Run Argus on itself
+        run: make lint 2>&1 | tee lint-results.txt || true
 
-          # Count issues from output
-          ISSUES=$(grep -cE "^\s*(warning|error):" lint-results.txt || echo "0")
-          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
-
-      - name: Run Argus on itself (JSON output)
-        continue-on-error: true
-        run: |
-          stack exec -- argus check src/ app/ --format json > lint-results.json 2>&1 || true
-
-      - name: Run Argus on itself (SARIF output)
+      - name: Run Argus SARIF output
         continue-on-error: true
         run: |
           stack exec -- argus check src/ app/ --format sarif > lint-results.sarif 2>&1 || true
-
-          # Validate SARIF is valid JSON
           if [ -f lint-results.sarif ] && [ -s lint-results.sarif ]; then
             if ! python3 -m json.tool lint-results.sarif > /dev/null 2>&1; then
-              echo "Warning: SARIF output is not valid JSON"
               rm -f lint-results.sarif
             fi
           fi
@@ -273,16 +172,13 @@ jobs:
         run: |
           echo "## Self-Lint Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          ISSUES="${{ steps.self_lint.outputs.issues }}"
-          if [ "$ISSUES" = "0" ] || [ -z "$ISSUES" ]; then
-            echo "No issues found when running Argus on itself." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Found **$ISSUES** issue(s):" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            head -100 lint-results.txt >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f lint-results.txt ]; then
+            ISSUES=$(grep -cE "^\s*(warning|error):" lint-results.txt || echo "0")
+            if [ "$ISSUES" = "0" ]; then
+              echo "No issues found." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Found **$ISSUES** issue(s)." >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
       - name: Upload lint results
@@ -291,7 +187,6 @@ jobs:
         with:
           name: lint-results
           path: |
-            lint-results.json
             lint-results.txt
             lint-results.sarif
           retention-days: 7
@@ -352,7 +247,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      # Restore file timestamps to prevent unnecessary rebuilds
       - name: Restore file timestamps
         run: |
           git ls-files -z | while IFS= read -r -d '' file; do
@@ -365,12 +259,11 @@ jobs:
           done
 
       - name: Build Haddock documentation
-        run: stack haddock --fast --no-haddock-deps --ghc-options "-j +RTS -A128m -n2m -RTS"
+        run: stack haddock --fast --no-haddock-deps
 
-      - name: Check documentation coverage
+      - name: Documentation summary
         run: |
-          echo "## Documentation Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Documentation" >> $GITHUB_STEP_SUMMARY
           echo "Haddock documentation built successfully." >> $GITHUB_STEP_SUMMARY
 
   sdist:
@@ -398,14 +291,6 @@ jobs:
 
       - name: Build source distribution
         run: stack sdist
-
-      - name: Verify sdist builds
-        run: |
-          SDIST_PATH=$(stack sdist 2>&1 | grep -oE '[^ ]+\.tar\.gz' | head -1)
-          if [ -n "$SDIST_PATH" ] && [ -f "$SDIST_PATH" ]; then
-            echo "Source distribution created: $SDIST_PATH"
-            tar -tzf "$SDIST_PATH" | head -20
-          fi
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4

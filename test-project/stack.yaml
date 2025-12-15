@@ -1,4 +1,14 @@
-resolver: lts-24.21
+# Test different GHC versions - LTS 22.43 uses GHC 9.6.6
+# This tests that Argus handles HIE files from different GHC versions
+resolver: lts-22.43
 
 packages:
   - .
+
+# Extra dependencies for hiedb tool
+extra-deps:
+  - hie-compat-0.3.1.2
+
+# HIE file configuration
+ghc-options:
+  "$locals": -fwrite-ide-info -hiedir=.hie

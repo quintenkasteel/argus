@@ -39,7 +39,7 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Maybe (mapMaybe)
+import Data.Maybe ()
 import GHC.Generics (Generic)
 import Data.Aeson (ToJSON, FromJSON)
 
@@ -376,8 +376,8 @@ suggestImport :: Text -> [ImportSuggestion]
 suggestImport symbol = lookupSymbol symbol defaultImportDB
 
 -- | Generate a fix for adding an import
-generateImportFix :: ImportSuggestion -> FilePath -> Text -> Fix
-generateImportFix ImportSuggestion{..} _path _content = Fix
+_generateImportFix :: ImportSuggestion -> FilePath -> Text -> Fix
+_generateImportFix ImportSuggestion{..} _path _content = Fix
   { fixTitle = "Import " <> isSymbol <> " from " <> isModuleName
   , fixEdits = []  -- Would need to find import section
   , fixIsPreferred = isPreferred

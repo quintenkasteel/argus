@@ -67,7 +67,6 @@ import System.Directory (doesDirectoryExist)
 import Text.Regex.TDFA (Regex, makeRegexM)
 
 import Argus.Config
-import Argus.Analysis.Architecture (ArchitectureConfig(..), LayerConfig(..))
 import Argus.Rules.Types qualified as RT
 
 --------------------------------------------------------------------------------
@@ -618,7 +617,7 @@ validateArchitectureConfig ArchitectureConfig{..} =
           , veMessage = "Layer has no module patterns - will not match any modules"
           , veSuggestion = Just "Add patterns like \"Module.*\" or \"*.Types\""
           }]
-      | otherwise = concatMap validatePattern (zip [0..] patterns)
+      | otherwise = concatMap validatePattern (zip ([0..] :: [Int]) patterns)
       where
         validatePattern (pidx, pat)
           | T.null (T.strip pat) = [ValidationError
@@ -639,7 +638,7 @@ validateArchitectureConfig ArchitectureConfig{..} =
 
     validateLayerCanImport :: Text -> [Text] -> [Text] -> [ValidationError]
     validateLayerCanImport field allLayerNames canImport =
-      concatMap validateImportRef (zip [0..] canImport)
+      concatMap validateImportRef (zip ([0..] :: [Int]) canImport)
       where
         validateImportRef (iidx, importName)
           | T.null (T.strip importName) = [ValidationError

@@ -2,7 +2,7 @@
 
 module OWASPExamples where
 
-import qualified Data.Text as T
+import Data.Text (Text)
 import qualified Data.Text as T
 import System.Process (system, callCommand)
 import Database.SQLite.Simple (query, Query(..))
