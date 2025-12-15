@@ -42,6 +42,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-perf-baselines-
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
       - name: Build with optimizations
         run: stack build --fast
 
@@ -204,6 +209,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-benchmark-
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
       - name: Build with optimizations
         run: stack build --bench --no-run-benchmarks
 
@@ -258,6 +268,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-prof-
             ${{ runner.os }}-stack-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
 
       - name: Build with profiling
         run: stack build --profile --fast

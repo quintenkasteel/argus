@@ -30,6 +30,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
       - name: Build with coverage
         run: stack build --coverage --fast
 
@@ -102,6 +107,11 @@ jobs:
             ${{ runner.os }}-stack-golden-
             ${{ runner.os }}-stack-
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
       - name: Build
         run: stack build --fast
 
@@ -143,6 +153,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-property-
             ${{ runner.os }}-stack-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
 
       - name: Build
         run: stack build --fast
