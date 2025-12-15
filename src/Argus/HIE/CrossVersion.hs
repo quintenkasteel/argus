@@ -60,23 +60,23 @@ module Argus.HIE.CrossVersion
   , OccNamespace (..)
   ) where
 
-import Control.Exception (try, SomeException, throwIO, Exception)
-import Control.Monad (when, unless)
+import Control.Exception (try, SomeException, Exception)
+import Control.Monad (when)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, mapMaybe, catMaybes)
+import Data.Maybe (catMaybes)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.List (sortBy, maximumBy)
+import Data.List (maximumBy)
 import Data.Ord (comparing)
-import System.Directory (doesFileExist, getModificationTime)
+import System.Directory (doesFileExist)
 import System.Exit (ExitCode(..))
 import System.FilePath ((</>), takeBaseName)
 import System.Process (readProcessWithExitCode)
 
 import Database.SQLite.Simple
 
-import Argus.Types (SrcSpan, QualifiedName(..), Symbol(..), SymbolKind(..), mkSrcSpanRaw, noSrcSpan)
+import Argus.Types (SrcSpan, QualifiedName(..), Symbol(..), SymbolKind(..), mkSrcSpanRaw)
 import Argus.Analysis.DepGraph (DepGraph, buildGraph, EdgeKind(..))
 
 --------------------------------------------------------------------------------
