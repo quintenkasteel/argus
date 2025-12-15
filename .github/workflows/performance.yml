@@ -17,23 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-perf-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-perf-
-            ${{ runner.os }}-stack-
-
       - name: Cache performance baselines
         uses: actions/cache@v4
         with:
@@ -47,8 +30,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Build with optimizations
-        run: stack build --fast
+      - name: Build project
+        uses: freckle/stack-action@v5
+        with:
+          test: false
+          stack-build-arguments: --fast
 
       - name: Run performance regression tests
         id: perf_tests
@@ -107,18 +93,18 @@ jobs:
 
           if [ "${{ steps.metrics.outputs.regressions }}" != "0" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ⚠️ Performance Regressions Detected" >> $GITHUB_STEP_SUMMARY
+            echo "### Performance Regressions Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Performance has degraded by more than 20% in one or more tests." >> $GITHUB_STEP_SUMMARY
             echo "Please review the test output above for details." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.metrics.outputs.baselines }}" != "0" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ✅ New Baselines Recorded" >> $GITHUB_STEP_SUMMARY
+            echo "### New Baselines Recorded" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "New performance baselines have been established for tracking future regressions." >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "### All Tests Passed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "No performance regressions detected. All tests within acceptable thresholds." >> $GITHUB_STEP_SUMMARY
           fi
@@ -133,6 +119,7 @@ jobs:
             metrics.txt
             test/data/performance-baselines.json
           retention-days: 90
+          if-no-files-found: ignore
 
       - name: Comment on PR with performance results
         if: github.event_name == 'pull_request'
@@ -143,17 +130,17 @@ jobs:
             const regressions = ${{ steps.metrics.outputs.regressions }};
             const baselines = ${{ steps.metrics.outputs.baselines }};
 
-            let comment = '## 🚀 Performance Test Results\n\n';
+            let comment = '## Performance Test Results\n\n';
 
             if (regressions > 0) {
-              comment += '### ⚠️ Performance Regressions Detected\n\n';
+              comment += '### Performance Regressions Detected\n\n';
               comment += `**${regressions}** test(s) showed performance degradation > 20%.\n\n`;
               comment += 'Please review the test output in the workflow logs.\n\n';
             } else if (baselines > 0) {
-              comment += '### ✅ New Baselines Recorded\n\n';
+              comment += '### New Baselines Recorded\n\n';
               comment += `**${baselines}** new performance baseline(s) established.\n\n`;
             } else {
-              comment += '### ✅ All Tests Passed\n\n';
+              comment += '### All Tests Passed\n\n';
               comment += 'No performance regressions detected.\n\n';
             }
 
@@ -190,23 +177,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-bench-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-bench-
-            ${{ runner.os }}-stack-
-
       - name: Cache benchmark results
         uses: actions/cache@v4
         with:
@@ -220,8 +190,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Build with optimizations
-        run: stack build --bench --no-run-benchmarks
+      - name: Build for benchmarks
+        uses: freckle/stack-action@v5
+        with:
+          test: false
+          stack-build-arguments: --bench --no-run-benchmarks
 
       - name: Run benchmarks
         run: |
@@ -235,11 +208,12 @@ jobs:
           name: benchmark-results
           path: .benchmark-results/
           retention-days: 90
+          if-no-files-found: ignore
 
       - name: Compare with previous benchmarks
         if: github.event_name == 'pull_request'
         run: |
-          echo "## 📊 Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f .benchmark-results/bench-${{ github.sha }}.csv ]; then
@@ -258,30 +232,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-prof-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-prof-
-            ${{ runner.os }}-stack-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
       - name: Build with profiling
-        run: stack build --profile --fast
+        uses: freckle/stack-action@v5
+        with:
+          test: false
+          stack-build-arguments: --profile --fast
 
       - name: Run memory profiling
         run: |
@@ -312,7 +272,7 @@ jobs:
 
       - name: Check for space leaks
         run: |
-          echo "## 🔍 Memory Profile" >> $GITHUB_STEP_SUMMARY
+          echo "## Memory Profile" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f .profile-results/time-profile.txt ]; then

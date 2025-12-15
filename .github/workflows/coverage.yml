@@ -14,32 +14,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Build with coverage
-        run: stack build --coverage --fast
-
-      - name: Run tests with coverage
-        run: stack test --coverage --fast
+      - name: Build and test with coverage
+        uses: freckle/stack-action@v5
+        with:
+          stack-build-arguments: --coverage --fast
 
       - name: Generate coverage report
         run: |
@@ -90,33 +73,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-golden-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-golden-
-            ${{ runner.os }}-stack-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Build
-        run: stack build --fast
-
-      - name: Run golden tests
-        run: stack test --ta '-m "DetectionFixGolden"' --fast
+      - name: Build and run golden tests
+        uses: freckle/stack-action@v5
+        with:
+          stack-build-arguments: --fast
+          stack-build-arguments-test: --ta '-m "DetectionFixGolden"'
 
       - name: Verify detection + fix idempotency
         run: |
@@ -137,45 +103,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-property-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-property-
-            ${{ runner.os }}-stack-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Build
-        run: stack build --fast
-
-      - name: Run property tests with reproducible seed
-        env:
-          # Use commit SHA as seed for reproducibility
-          QUICKCHECK_SEED: ${{ github.sha }}
+      - name: Calculate reproducible seed
+        id: seed
         run: |
-          # Convert SHA to numeric seed (use first 8 hex chars as decimal)
-          SEED=$(printf "%d" 0x$(echo "$QUICKCHECK_SEED" | cut -c1-8))
-          echo "Using seed: $SEED (from commit $QUICKCHECK_SEED)"
+          SEED=$(printf "%d" 0x$(echo "${{ github.sha }}" | cut -c1-8))
+          echo "seed=$SEED" >> $GITHUB_OUTPUT
+          echo "Using seed: $SEED (from commit ${{ github.sha }})"
 
-          # Run property tests with seed
-          stack test --ta '-m "Property" --seed '"$SEED" --fast
+      - name: Build and run property tests
+        uses: freckle/stack-action@v5
+        with:
+          stack-build-arguments: --fast
+          stack-build-arguments-test: --ta '-m "Property" --seed ${{ steps.seed.outputs.seed }}'
 
-          # Also run rule engine property tests
-          stack test --ta '-m "RuleEngineProperty" --seed '"$SEED" --fast
+      - name: Run rule engine property tests
+        run: |
+          stack test --ta '-m "RuleEngineProperty" --seed ${{ steps.seed.outputs.seed }}' --fast
 
       - name: Report property test results
         run: |
@@ -185,6 +133,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "To reproduce failures locally:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          SEED=$(printf "%d" 0x$(echo "${{ github.sha }}" | cut -c1-8))
-          echo "stack test --ta '-m \"Property\" --seed $SEED'" >> $GITHUB_STEP_SUMMARY
+          echo "stack test --ta '-m \"Property\" --seed ${{ steps.seed.outputs.seed }}'" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

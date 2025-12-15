@@ -23,29 +23,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Haskell Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack global package DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
-
-      - name: Cache Stack work directory
-        uses: actions/cache@v4
-        with:
-          path: .stack-work
-          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-            ${{ runner.os }}-stack-work-
-
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -57,31 +34,14 @@ jobs:
         run: |
           brew install sqlite3
 
-      # Restore file timestamps to prevent unnecessary rebuilds
-      - name: Restore file timestamps
-        run: |
-          git ls-files -z | while IFS= read -r -d '' file; do
-            if [ -f "$file" ]; then
-              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
-              if [ -n "$timestamp" ]; then
-                touch -d "$timestamp" "$file" 2>/dev/null || true
-              fi
-            fi
-          done
-
-      # Build dependencies first (better caching)
-      # Retry on macOS due to occasional Hackage index issues
-      - name: Build dependencies
-        run: |
-          for i in 1 2 3; do
-            make deps && break
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          done
-
-      # Run full CI build (warnings as errors + tests)
-      - name: Run CI build
-        run: make ci
+      # Use freckle/stack-action for automatic caching and best practices
+      # See: https://github.com/freckle/stack-action
+      - name: Build and Test
+        uses: freckle/stack-action@v5
+        with:
+          stack-build-arguments: >-
+            --ghc-options "-Werror -j +RTS -A128m -n2m -RTS"
+          cache-save-always: true
 
       - name: Check that argus binary runs
         run: |
@@ -109,51 +69,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Haskell Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack global package DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
-
-      - name: Cache Stack work directory
-        uses: actions/cache@v4
-        with:
-          path: .stack-work
-          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-            ${{ runner.os }}-stack-work-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      # Restore file timestamps
-      - name: Restore file timestamps
-        run: |
-          git ls-files -z | while IFS= read -r -d '' file; do
-            if [ -f "$file" ]; then
-              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
-              if [ -n "$timestamp" ]; then
-                touch -d "$timestamp" "$file" 2>/dev/null || true
-              fi
-            fi
-          done
-
       - name: Build project
-        run: make dev
+        uses: freckle/stack-action@v5
+        with:
+          test: false
+          stack-build-arguments: --fast
 
       - name: Run Argus on itself
-        run: make lint 2>&1 | tee lint-results.txt || true
+        run: stack exec -- argus check src/ app/ 2>&1 | tee lint-results.txt || true
 
       - name: Run Argus SARIF output
         continue-on-error: true
@@ -206,44 +134,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Haskell Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack global package DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
-
-      - name: Cache Stack work directory
-        uses: actions/cache@v4
-        with:
-          path: .stack-work
-          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-            ${{ runner.os }}-stack-work-
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Restore file timestamps
-        run: |
-          git ls-files -z | while IFS= read -r -d '' file; do
-            if [ -f "$file" ]; then
-              timestamp=$(git log -1 --format='%ci' -- "$file" 2>/dev/null || echo "")
-              if [ -n "$timestamp" ]; then
-                touch -d "$timestamp" "$file" 2>/dev/null || true
-              fi
-            fi
-          done
+      - name: Build with freckle/stack-action
+        uses: freckle/stack-action@v5
+        with:
+          test: false
+          stack-build-arguments: --fast --no-run-tests
 
       - name: Build Haddock documentation
         run: stack haddock --fast --no-haddock-deps
@@ -262,19 +162,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Haskell Stack
-        uses: haskell-actions/setup@v2
+      - name: Setup Stack
+        uses: freckle/stack-action@v5
         with:
-          enable-stack: true
-          stack-version: 'latest'
-
-      - name: Cache Stack global package DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
+          test: false
+          stack-build-arguments: --fast --no-run-tests
 
       - name: Build source distribution
         run: stack sdist
