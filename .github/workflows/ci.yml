@@ -58,10 +58,12 @@ jobs:
           brew install sqlite3
 
       # Clear Stack's Hackage cache on macOS to avoid verification errors
-      - name: Clear Hackage cache (macOS)
+      # Also clean .stack-work to avoid case-sensitivity issues with cached paths
+      - name: Clear caches (macOS)
         if: runner.os == 'macOS'
         run: |
           rm -rf ~/.stack/pantry/hackage || true
+          rm -rf .stack-work || true
 
       # Restore file timestamps to prevent unnecessary rebuilds
       - name: Restore file timestamps
