@@ -50,7 +50,7 @@
 --
 -- = Enhanced Rename Features
 --
--- The 'renameWithQualified' function handles complex rename scenarios:
+-- The @renameWithQualified@ function handles complex rename scenarios:
 --
 -- * Qualified references (e.g., @M.foo@ → @M.bar@)
 -- * Re-exported symbols across module boundaries
@@ -59,7 +59,7 @@
 --
 -- = Thread Safety
 --
--- 'CrossModuleContext' contains immutable data after construction and
+-- @CrossModuleContext@ contains immutable data after construction and
 -- is safe for concurrent reads. Building a new context requires IO.
 --
 -- @since 1.0.0

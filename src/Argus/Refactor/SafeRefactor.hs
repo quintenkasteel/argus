@@ -401,7 +401,7 @@ commit tx = do
 --
 -- ==== Returns
 --
--- A 'SafeRefactorResult' containing:
+-- A @SafeRefactorResult@ containing:
 --
 -- * Which fixes were successfully applied
 -- * Which fixes were skipped and why

@@ -26,10 +26,10 @@
 --
 -- = Key Types
 --
--- * 'HieSymbol': Complete information about a symbol
--- * 'TypeInfo': Type information for expressions/bindings
--- * 'TypeConstraint': Type class constraint information
--- * 'ReplaceSafety': Safety analysis for symbol replacement
+-- * @HieSymbol@: Complete information about a symbol
+-- * @TypeInfo@: Type information for expressions/bindings
+-- * @TypeConstraint@: Type class constraint information
+-- * @ReplaceSafety@: Safety analysis for symbol replacement
 --
 -- = Thread Safety
 --

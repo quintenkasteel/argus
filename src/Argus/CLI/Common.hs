@@ -796,8 +796,8 @@ parseRuleOptions = do
 
 -- | Parse analysis mode from string.
 --
--- Converts mode string from CLI to 'AnalysisMode' enum.
--- Defaults to 'QuickMode' for unrecognized inputs.
+-- Converts mode string from CLI to @AnalysisMode@ enum.
+-- Defaults to @QuickMode@ for unrecognized inputs.
 --
 -- @since 1.0.0
 parseMode :: Text -> AnalysisMode

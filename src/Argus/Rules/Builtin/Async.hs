@@ -271,10 +271,10 @@ stmRetry =
     & message "STM retry - will block until transaction can succeed"
     & safetyLevel ManualReview
 
--- | orElse in STM.
+-- | @orElse@ in STM.
 --
 -- @
--- action1 `orElse` action2  -- Try alternatives
+-- action1 \`orElse\` action2  -- Try alternatives
 -- @
 stmOrElse :: Rule
 stmOrElse =
@@ -585,7 +585,7 @@ parallelRules =
 -- | par for parallel evaluation.
 --
 -- @
--- x `par` y `pseq` (x + y)  -- Parallel evaluation
+-- x \`par\` y \`pseq\` (x + y)  -- Parallel evaluation
 -- @
 parEval :: Rule
 parEval =

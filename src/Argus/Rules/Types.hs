@@ -23,22 +23,22 @@
 --
 -- The unified type system eliminates the previous fragmentation across modules:
 --
--- * One 'Category' enum (replaces DSL.Category, RuleTypes.RuleCategory, Types.FixCategory)
--- * One 'SafetyLevel' enum (replaces DSL.SafetyLevel, RuleTypes.FixSafety, Types.FixSafety)
--- * One 'SideCondition' type (replaces DSL.SideCondition, ASTMatch.SideCondition)
--- * One 'Pattern' type (replaces DSL.Pattern, Rules\/Types.Pattern)
--- * One 'ImportSpec' type (replaces DSL.ImportSpec, Types.FixImport)
--- * One 'Rule' type (replaces DSL.Rule, Rules\/Types.Rule, ASTMatch.ASTRule)
+-- * One @Category@ enum (replaces DSL.Category, RuleTypes.RuleCategory, Types.FixCategory)
+-- * One @SafetyLevel@ enum (replaces DSL.SafetyLevel, RuleTypes.FixSafety, Types.FixSafety)
+-- * One @SideCondition@ type (replaces DSL.SideCondition, ASTMatch.SideCondition)
+-- * One @Pattern@ type (replaces DSL.Pattern, Rules\/Types.Pattern)
+-- * One @ImportSpec@ type (replaces DSL.ImportSpec, Types.FixImport)
+-- * One @Rule@ type (replaces DSL.Rule, Rules\/Types.Rule, ASTMatch.ASTRule)
 --
 -- = Rule Lifecycle
 --
 -- 1. __Definition__: Rules are defined in TOML config or Haskell DSL
--- 2. __Parsing__: TOML is parsed into 'Rule' values; DSL produces 'Rule' directly
+-- 2. __Parsing__: TOML is parsed into "Argus.Rules.Types.Rule" values; DSL produces "Argus.Rules.Types.Rule" directly
 -- 3. __Registration__: Rules are registered in the engine's rule registry
--- 4. __Matching__: Engine evaluates 'rulePattern' against source code
--- 5. __Conditions__: Side conditions ('ruleConditions') are checked
--- 6. __Diagnosis__: Matching rules produce 'Diagnostic' values
--- 7. __Fixing__: If 'ruleReplacement' is set, a 'Fix' is generated
+-- 4. __Matching__: Engine evaluates @rulePattern@ against source code
+-- 5. __Conditions__: Side conditions (@ruleConditions@) are checked
+-- 6. __Diagnosis__: Matching rules produce "Argus.Types.Diagnostic" values
+-- 7. __Fixing__: If @ruleReplacement@ is set, a "Argus.Types.Fix" is generated
 --
 -- = Usage
 --
@@ -470,15 +470,15 @@ data CommentType
 -- __Evaluation__:
 --
 -- Side conditions are evaluated in order. Evaluation short-circuits on
--- the first failure (for 'And') or success (for 'Or').
+-- the first failure (for @And@) or success (for @Or@).
 --
 -- __HIE Dependency__:
 --
 -- Some conditions require HIE (Haskell Interface Extended) data for accurate
--- evaluation. In 'QuickMode', these conditions are evaluated conservatively:
+-- evaluation. In @QuickMode@, these conditions are evaluated conservatively:
 --
--- * Type conditions ('HasType', 'HasTypeClass', 'IsMonad') → assumed true
--- * Location conditions ('NotInComment', 'InFunctionBody') → evaluated from source
+-- * Type conditions (@HasType@, @HasTypeClass@, @IsMonad@) → assumed true
+-- * Location conditions (@NotInComment@, @InFunctionBody@) → evaluated from source
 --
 -- __Example Usage__:
 --
@@ -662,10 +662,10 @@ mkImportSpec modName symbols = ImportSpec
 --
 -- __Invariants__:
 --
--- * 'ruleId' must be unique across all rules
--- * 'ruleId' should follow the pattern @\"category\/name\"@ (e.g., @\"performance\/length-null\"@)
--- * 'rulePattern' must be parseable by the pattern engine
--- * If 'ruleReplacement' is set, metavariables must match those in 'rulePattern'
+-- * @ruleId@ must be unique across all rules
+-- * @ruleId@ should follow the pattern @\"category\/name\"@ (e.g., @\"performance\/length-null\"@)
+-- * @rulePattern@ must be parseable by the pattern engine
+-- * If @ruleReplacement@ is set, metavariables must match those in @rulePattern@
 --
 -- __Lifecycle__:
 --
@@ -673,11 +673,11 @@ mkImportSpec modName symbols = ImportSpec
 -- 2. Validated for pattern syntax and condition consistency
 -- 3. Registered in the rule engine
 -- 4. Evaluated against source files during analysis
--- 5. Produces 'Diagnostic' values when matched
+-- 5. Produces "Argus.Types.Diagnostic" values when matched
 --
 -- __Construction__:
 --
--- Use 'defaultRule' as a starting point and override fields:
+-- Use @defaultRule@ as a starting point and override fields:
 --
 -- @
 -- myRule :: Rule
@@ -800,11 +800,11 @@ data Rule = Rule
 --
 -- __Default Values__:
 --
--- * 'ruleCategory': 'Style'
--- * 'ruleSeverity': 'Warning'
--- * 'ruleSafety': 'Safe'
--- * 'ruleEnabled': 'True'
--- * 'ruleTarget': 'Nothing' (inferred from category)
+-- * @ruleCategory@: @Style@
+-- * @ruleSeverity@: @Warning@
+-- * @ruleSafety@: @Safe@
+-- * @ruleEnabled@: @True@
+-- * @ruleTarget@: @Nothing@ (inferred from category)
 --
 -- @since 1.0.0
 defaultRule :: Rule

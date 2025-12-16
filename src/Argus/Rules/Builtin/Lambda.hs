@@ -522,10 +522,10 @@ flipCompose =
     & message "Complex composition - consider named binding"
     & safetyLevel ManualReview
 
--- | Use 'on' combinator.
+-- | Use @on@ combinator.
 --
 -- @
--- \\x y -> f (g x) (g y)  ==>  f `on` g
+-- \\x y -> f (g x) (g y)  ==>  f \`on\` g
 -- @
 onCompose :: Rule
 onCompose =
@@ -533,7 +533,7 @@ onCompose =
     match ("\\x y -> _f (_g x) (_g y)" ==> "_f `on` _g")
     & category Style
     & severity Suggestion
-    & message "Use 'on' combinator from Data.Function"
+    & message "Use @on@ combinator from Data.Function"
     & note "on f g x y = f (g x) (g y)"
 
 -- | Apply in composition.

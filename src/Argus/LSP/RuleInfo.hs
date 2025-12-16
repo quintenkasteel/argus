@@ -315,7 +315,7 @@ avoidHeadInfo = RuleInfo
   , riCategory = Safety
   , riShortDesc = "Avoid using 'head' - it fails on empty lists"
   , riLongDesc = "'head' is a partial function that throws an exception when called on an empty list. This can cause runtime crashes that are difficult to debug."
-  , riRationale = "Partial functions violate type safety by hiding failure cases. Using total alternatives like 'headMay' from the 'safe' package makes errors explicit in the type system, catching bugs at compile time instead of runtime."
+  , riRationale = "Partial functions violate type safety by hiding failure cases. Using total alternatives like \"headMay\" from the \"safe\" package makes errors explicit in the type system, catching bugs at compile time instead of runtime."
   , riExamples =
       [ RuleExample BadExample "firstElement xs = head xs  -- Crashes on empty list!" Nothing
       , RuleExample GoodExample "firstElement xs = headMay xs  -- Returns Nothing on empty list" (Just "Import from Data.Maybe.Safe or use pattern matching")
@@ -1393,9 +1393,9 @@ useTraverseUnderscoreInfo = RuleInfo
   { riRuleId = "use-traverse-underscore"
   , riRuleCode = Just "STYLE-042"
   , riCategory = Modernization
-  , riShortDesc = "Use 'traverse_' instead of 'mapM_'"
-  , riLongDesc = "'traverse_' is the modern, more general version of 'mapM_'."
-  , riRationale = "'traverse_' works for any Traversable, not just lists."
+  , riShortDesc = "Use @traverse_@ instead of @mapM_@"
+  , riLongDesc = "@traverse_@ is the modern, more general version of @mapM_@."
+  , riRationale = "@traverse_@ works for any Traversable, not just lists."
   , riExamples =
       [ RuleExample BadExample "mapM_ print items" Nothing
       , RuleExample GoodExample "traverse_ print items" Nothing

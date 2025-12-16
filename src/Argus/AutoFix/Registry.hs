@@ -27,7 +27,7 @@
 --
 -- = Architecture
 --
--- The 'FixRegistry' is the central hub for all fix operations. It maintains
+-- The @FixRegistry@ is the central hub for all fix operations. It maintains
 -- a collection of engines wrapped in existential types, allowing heterogeneous
 -- engine types to coexist.
 --
@@ -46,7 +46,7 @@
 --
 -- = Thread Safety
 --
--- The registry uses 'TVar' for thread-safe engine management and statistics
+-- The registry uses @TVar@ for thread-safe engine management and statistics
 -- tracking. Multiple threads can safely:
 --
 -- * Register and unregister engines
@@ -203,7 +203,7 @@ data ConflictStrategy
 --
 -- ==== Returns
 --
--- A new empty 'FixRegistry' ready for engine registration.
+-- A new empty @FixRegistry@ ready for engine registration.
 --
 -- ==== Example
 --
@@ -224,7 +224,7 @@ newFixRegistry = newFixRegistryWith defaultRegistryConfig
 --
 -- ==== Returns
 --
--- A new empty 'FixRegistry' configured according to the provided settings.
+-- A new empty @FixRegistry@ configured according to the provided settings.
 --
 -- ==== Example
 --
@@ -258,7 +258,7 @@ newFixRegistryWith config = do
 -- ==== Parameters
 --
 -- * @registry@: The registry to register with
--- * @engine@: The engine to register (must implement 'FixEngine')
+-- * @engine@: The engine to register (must implement @FixEngine@)
 --
 -- ==== Returns
 --
@@ -357,7 +357,7 @@ hasEngine registry name = do
 --
 -- ==== Returns
 --
--- List of all 'EnrichedFix' values from all engines.
+-- List of all @EnrichedFix@ values from all engines.
 --
 -- ==== Example
 --

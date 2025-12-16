@@ -347,7 +347,7 @@ redundantComment =
 -- | Over-generalized code that's only used once.
 --
 -- @
--- -- Type parameter 'a' but only ever used with Int
+-- -- Type parameter \'a\' but only ever used with Int
 -- foo :: forall a. Num a => a -> a
 -- foo x = x + 1  -- Only called as foo (1 :: Int)
 -- @

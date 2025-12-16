@@ -47,7 +47,7 @@
 --
 -- = Thread Safety
 --
--- 'FixGraph' is immutable after construction and safe for concurrent reads.
+-- @FixGraph@ is immutable after construction and safe for concurrent reads.
 --
 -- @since 1.0.0
 module Argus.Refactor.FixGraph

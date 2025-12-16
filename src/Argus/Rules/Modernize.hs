@@ -195,7 +195,7 @@ checkApplicativeLine path (lineNum, line)
         , mfSpan = mkSpan path lineNum "ap" line
         , mfCode = T.strip line
         , mfReplacement = "(<*>)"
-        , mfExplanation = "'(<*>)' is the Applicative operator equivalent of 'ap'"
+        , mfExplanation = "'(<*>)' is the Applicative operator equivalent of @ap@"
         , mfSeverity = Suggestion
         , mfAutoFix = []  -- Hard to auto-fix due to operator syntax
         }
@@ -448,7 +448,7 @@ checkTraversableLine path (lineNum, line)
         , mfSpan = mkSpan path lineNum "mapM_" line
         , mfCode = T.strip line
         , mfReplacement = fixed
-        , mfExplanation = "'traverse_' is more general than 'mapM_'"
+        , mfExplanation = "@traverse_@ is more general than @mapM_@"
         , mfSeverity = Info
         , mfAutoFix = [mkModernizeFix "Use traverse_" [FixEdit lineSpan fixed] True]
         }
@@ -464,7 +464,7 @@ checkTraversableLine path (lineNum, line)
         , mfSpan = mkSpan path lineNum "forM" line
         , mfCode = T.strip line
         , mfReplacement = fixed
-        , mfExplanation = "'for' is more general than 'forM'"
+        , mfExplanation = "@for@ is more general than @forM@"
         , mfSeverity = Info
         , mfAutoFix = [mkModernizeFix "Use for" [FixEdit lineSpan fixed] True]
         }
@@ -480,7 +480,7 @@ checkTraversableLine path (lineNum, line)
         , mfSpan = mkSpan path lineNum "forM_" line
         , mfCode = T.strip line
         , mfReplacement = fixed
-        , mfExplanation = "'for_' is more general than 'forM_'"
+        , mfExplanation = "@for_@ is more general than @forM_@"
         , mfSeverity = Info
         , mfAutoFix = [mkModernizeFix "Use for_" [FixEdit lineSpan fixed] True]
         }

@@ -27,7 +27,7 @@
 --
 -- = Architecture
 --
--- A 'FixPipeline' is a sequence of 'PipelineStage's, each of which can
+-- A @FixPipeline@ is a sequence of @PipelineStage@s, each of which can
 -- filter, transform, or validate fixes. The pipeline executes stages
 -- in order, passing fixes through each stage.
 --
@@ -55,13 +55,13 @@
 --
 -- = Stage Types
 --
--- * 'FilterStage': Remove fixes that don't match a predicate
--- * 'TransformStage': Modify individual fixes
--- * 'TransformAllStage': Modify the entire fix list
--- * 'ValidateStage': Validate fixes and remove invalid ones
--- * 'SortStage': Reorder fixes
--- * 'LimitStage': Limit the number of fixes
--- * 'DeduplicateStage': Remove duplicate fixes
+-- * @FilterStage@: Remove fixes that don't match a predicate
+-- * @TransformStage@: Modify individual fixes
+-- * @TransformAllStage@: Modify the entire fix list
+-- * @ValidateStage@: Validate fixes and remove invalid ones
+-- * @SortStage@: Reorder fixes
+-- * @LimitStage@: Limit the number of fixes
+-- * @DeduplicateStage@: Remove duplicate fixes
 --
 -- = Thread Safety
 --
@@ -282,7 +282,7 @@ emptyPipeline = FixPipeline
 --
 -- ==== Returns
 --
--- A 'FixPipeline' ready for execution.
+-- A @FixPipeline@ ready for execution.
 --
 -- ==== Example
 --
@@ -529,11 +529,11 @@ executePipeline pipeline fixes content = do
 --
 -- ==== Returns
 --
--- A 'PipelineResult' containing:
+-- A @PipelineResult@ containing:
 --
--- * 'prFixes': Remaining fixes after all stages
--- * 'prStats': Aggregate statistics (input/output counts, duration)
--- * 'prStageResults': Per-stage input/output counts
+-- * @prFixes@: Remaining fixes after all stages
+-- * @prStats@: Aggregate statistics (input/output counts, duration)
+-- * @prStageResults@: Per-stage input/output counts
 --
 -- ==== Example
 --

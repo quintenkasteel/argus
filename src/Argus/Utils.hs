@@ -130,7 +130,7 @@ initMay (x:xs) = (x:) <$> initMay xs
 --------------------------------------------------------------------------------
 
 -- | Replace text respecting word boundaries
--- Only replaces when 'from' appears as a complete identifier
+-- Only replaces when @from@ appears as a complete identifier
 replaceWordBoundary :: Text -> Text -> Text -> Text
 replaceWordBoundary from to text =
   T.pack $ go Nothing (T.unpack text) (T.unpack from) (T.unpack to)
@@ -195,7 +195,7 @@ matchesAtWordBoundary pat text = go Nothing (T.unpack text) (T.unpack pat)
 data ParseContext
   = Normal           -- ^ Normal code
   | InString         -- ^ Inside a string literal "..."
-  | InChar           -- ^ Inside a character literal '...'
+  | InChar           -- ^ Inside a character literal @\'...\'@
   | InLineComment    -- ^ Inside a line comment --
   | InBlockComment   -- ^ Inside a block comment {- -}
   deriving stock (Eq, Show)

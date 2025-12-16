@@ -28,21 +28,21 @@
 --
 -- = Key Types
 --
--- * 'FixEngine': Typeclass for implementing fix engines
--- * 'EnrichedFix': Fixes with comprehensive metadata
--- * 'FixId': Type-safe fix identification
--- * 'FixValidation': Fix validation results
--- * 'FixConflict': Conflict detection between fixes
--- * 'FixDependency': Dependency management between fixes
+-- * @FixEngine@: Typeclass for implementing fix engines
+-- * @EnrichedFix@: Fixes with comprehensive metadata
+-- * @FixId@: Type-safe fix identification
+-- * @FixValidation@: Fix validation results
+-- * @FixConflict@: Conflict detection between fixes
+-- * @FixDependency@: Dependency management between fixes
 --
 -- = Architecture
 --
 -- The auto-fix system is built around three core concepts:
 --
--- 1. __Fix Engines__: Implementations of 'FixEngine' that can find and apply
+-- 1. __Fix Engines__: Implementations of @FixEngine@ that can find and apply
 --    fixes for specific categories of issues.
 --
--- 2. __Enriched Fixes__: Basic 'Fix' values wrapped with metadata about safety,
+-- 2. __Enriched Fixes__: Basic "Argus.Types.Fix" values wrapped with metadata about safety,
 --    confidence, dependencies, and conflicts.
 --
 -- 3. __Fix Registry__: A central registry (see "Argus.AutoFix.Registry") that
@@ -65,7 +65,7 @@
 --
 -- = Thread Safety
 --
--- Types in this module are immutable and thread-safe. 'FixEngine' implementations
+-- Types in this module are immutable and thread-safe. @FixEngine@ implementations
 -- should document their thread safety guarantees.
 --
 -- = Implementing a Fix Engine
@@ -225,7 +225,7 @@ instance FromJSON FixId where
 --
 -- ==== Returns
 --
--- A 'FixId' combining the engine name and local identifier.
+-- A @FixId@ combining the engine name and local identifier.
 --
 -- ==== Example
 --
@@ -299,7 +299,7 @@ instance Hashable Confidence where
 --
 -- ==== Returns
 --
--- A 'Confidence' value guaranteed to be in the range [0.0, 1.0].
+-- A @Confidence@ value guaranteed to be in the range [0.0, 1.0].
 --
 -- ==== Example
 --
@@ -313,7 +313,7 @@ instance Hashable Confidence where
 mkConfidence :: Double -> Confidence
 mkConfidence x = Confidence $ max 0.0 (min 1.0 x)
 
--- | Extract the underlying 'Double' value from a 'Confidence'.
+-- | Extract the underlying @Double@ value from a @Confidence@.
 --
 -- @since 1.0.0
 unConfidence :: Confidence -> Double
@@ -572,7 +572,7 @@ data FixConflict = FixConflict
 --
 -- ==== Returns
 --
--- List of 'FixConflict' values describing each detected conflict.
+-- List of @FixConflict@ values describing each detected conflict.
 --
 -- ==== Example
 --
@@ -709,7 +709,7 @@ validationWarnings fv =
 
 -- | A fix enriched with comprehensive metadata.
 --
--- This wraps a basic 'Fix' with additional information about:
+-- This wraps a basic "Argus.Types.Fix" with additional information about:
 -- * Unique identification
 -- * Confidence and safety levels
 -- * Dependencies on other fixes
@@ -734,7 +734,7 @@ data EnrichedFix = EnrichedFix
 
 -- | Create an enriched fix from a basic fix.
 --
--- Creates a new 'EnrichedFix' with default metadata. The resulting fix has:
+-- Creates a new @EnrichedFix@ with default metadata. The resulting fix has:
 --
 -- * High confidence (0.95)
 -- * Safe safety level
@@ -749,7 +749,7 @@ data EnrichedFix = EnrichedFix
 --
 -- ==== Returns
 --
--- A new 'EnrichedFix' with default metadata settings.
+-- A new @EnrichedFix@ with default metadata settings.
 --
 -- ==== Example
 --

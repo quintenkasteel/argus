@@ -239,11 +239,11 @@ preferApplicative = rule "style/prefer-applicative" $
   & category Style
   & safetyLevel Safe
 
--- | Prefer 'traverse_' over 'mapM_' for consistency.
+-- | Prefer @traverse_@ over @mapM_@ for consistency.
 --
 -- == Rationale
 --
--- 'traverse_' is the Applicative version, making it clear
+-- @traverse_@ is the Applicative version, making it clear
 -- that we only need Applicative, not full Monad power.
 preferTraverse_ :: Rule
 preferTraverse_ = rule "style/prefer-traverse_" $
@@ -255,7 +255,7 @@ preferTraverse_ = rule "style/prefer-traverse_" $
   & category Style
   & safetyLevel Safe
 
--- | Prefer 'for_' over 'forM_' for consistency.
+-- | Prefer @for_@ over @forM_@ for consistency.
 preferFor_ :: Rule
 preferFor_ = rule "style/prefer-for_" $
   match ("forM_ $XS $F" ==> "for_ $XS $F"

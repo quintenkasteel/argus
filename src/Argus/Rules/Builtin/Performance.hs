@@ -158,11 +158,11 @@ efficiencyRules =
 -- Algorithmic Improvements
 --------------------------------------------------------------------------------
 
--- | Detect O(n²) 'nub' and suggest O(n log n) alternative.
+-- | Detect O(n²) @nub@ and suggest O(n log n) alternative.
 --
 -- == Problem
 --
--- The standard 'nub' function has O(n²) complexity because it compares
+-- The standard @nub@ function has O(n²) complexity because it compares
 -- each element with all previously seen elements:
 --
 -- @
@@ -171,7 +171,7 @@ efficiencyRules =
 --
 -- == Solution
 --
--- Use 'ordNub' from @containers@ which requires 'Ord' but runs in O(n log n):
+-- Use @ordNub@ from @containers@ which requires @Ord@ but runs in O(n log n):
 --
 -- @
 -- import Data.Containers.ListUtils (nubOrd)
@@ -181,8 +181,8 @@ efficiencyRules =
 --
 -- == Trade-offs
 --
--- * Requires 'Ord' instance (not just 'Eq')
--- * May change order of elements (use 'nubOrdOn fst' to preserve)
+-- * Requires @Ord@ instance (not just @Eq@)
+-- * May change order of elements (use @nubOrdOn fst@ to preserve)
 -- * For very small lists, the overhead may not be worth it
 --
 -- == Metadata
@@ -214,7 +214,7 @@ avoidNub = rule "performance/avoid-nub" $
 --
 -- == Solution
 --
--- Use 'ordNub' directly, or 'sort' followed by adjacent duplicate removal:
+-- Use @ordNub@ directly, or @sort@ followed by adjacent duplicate removal:
 --
 -- @
 -- -- Best: ordNub already sorts internally
@@ -241,7 +241,7 @@ avoidSortNub = rule "performance/avoid-sort-nub" $
 --
 -- == Solution
 --
--- 'IntMap' uses a specialized representation with better constant factors
+-- @IntMap@ uses a specialized representation with better constant factors
 -- and cache locality.
 preferIntMap :: Rule
 preferIntMap = rule "performance/prefer-IntMap" $
@@ -272,7 +272,7 @@ preferIntSet = rule "performance/prefer-IntSet" $
 --
 -- == Solution
 --
--- 'HashMap' provides expected O(1) lookups with good hash functions:
+-- @HashMap@ provides expected O(1) lookups with good hash functions:
 --
 -- @
 -- import Data.HashMap.Strict (HashMap)
@@ -344,7 +344,7 @@ preferFoldl' = rule "performance/prefer-foldl'" $
 --
 -- == Problem
 --
--- The lazy 'State' monad can accumulate thunks in the state:
+-- The lazy @State@ monad can accumulate thunks in the state:
 --
 -- @
 -- import Control.Monad.State
@@ -373,11 +373,11 @@ strictState = rule "performance/strict-State" $
 --
 -- == Problem
 --
--- The lazy 'Writer' monad accumulates thunks in the log.
+-- The lazy @Writer@ monad accumulates thunks in the log.
 --
 -- == Solution
 --
--- Use 'Control.Monad.Writer.Strict', or better yet, 'Accum' or 'WriterT'.
+-- Use @Control.Monad.Writer.Strict@, or better yet, @Accum@ or @WriterT@.
 strictWriter :: Rule
 strictWriter = rule "performance/strict-Writer" $
   match ("import Control.Monad.Writer " ==> "import Control.Monad.Writer.Strict")

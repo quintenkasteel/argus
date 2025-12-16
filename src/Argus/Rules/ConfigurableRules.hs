@@ -2684,7 +2684,7 @@ categoryToSeverity = \case
 -- | Parse side conditions from a ConfigPattern's 'where' field
 -- The where field can contain one or more conditions separated by semicolons or commas.
 -- Each condition is parsed using the ASTMatch side condition parser.
--- Multiple conditions are combined with 'And'.
+-- Multiple conditions are combined with @And@.
 --
 -- Example 'where' values:
 --   "isLiteral $X"

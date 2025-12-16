@@ -273,7 +273,7 @@ library
       TypeFamilies
       TypeOperators
       ViewPatterns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -optP-Wno-nonportable-include-path
   build-depends:
       Diff >=0.4
     , aeson >=2.1
@@ -361,7 +361,7 @@ executable argus
       TypeFamilies
       TypeOperators
       ViewPatterns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       argus
     , base >=4.17 && <5
@@ -524,7 +524,7 @@ test-suite argus-test
       TypeFamilies
       TypeOperators
       ViewPatterns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N -Wno-incomplete-uni-patterns -Wno-incomplete-patterns -Wno-x-partial -Wno-type-defaults -Wno-unused-imports -Wno-unused-top-binds -Wno-unused-matches -Wno-unused-local-binds -Wno-name-shadowing -Wno-orphans
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N -Wno-incomplete-uni-patterns -Wno-incomplete-patterns -Wno-x-partial -Wno-type-defaults -Wno-unused-imports -Wno-unused-top-binds -Wno-unused-matches -Wno-unused-local-binds -Wno-name-shadowing -Wno-orphans
   build-depends:
       QuickCheck >=2.14
     , aeson >=2.1
@@ -590,7 +590,7 @@ benchmark argus-bench
       TypeFamilies
       TypeOperators
       ViewPatterns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N -O2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wpartial-fields -Wredundant-constraints -Wunused-packages -fwrite-ide-info -hiedir=.hie -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       argus
     , base >=4.17 && <5

@@ -282,7 +282,7 @@ monadAssociativityLaw =
 -- instance Monad Foo where
 --   return = ...
 --   (>>=) = ...
---   -- Should ensure (<*>) = ap for consistency
+--   -- Should ensure (\<*\>) = ap for consistency
 -- @
 monadApConsistency :: Rule
 monadApConsistency =

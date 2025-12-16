@@ -160,7 +160,7 @@ parseSideConditionText text =
 
 -- | Parse multiple side conditions separated by semicolons or commas
 --
--- Multiple conditions are combined with 'And'.
+-- Multiple conditions are combined with @And@.
 parseSideConditions :: Text -> Maybe SideCondition
 parseSideConditions text =
   let trimmed = T.strip text

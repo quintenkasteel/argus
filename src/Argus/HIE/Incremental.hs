@@ -62,7 +62,7 @@
 --
 -- = Thread Safety
 --
--- 'HIEIncrementalState' is immutable; modifications return new states.
+-- @HIEIncrementalState@ is immutable; modifications return new states.
 -- File system watching uses IORef internally and should be used from
 -- a single thread.
 --

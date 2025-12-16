@@ -507,7 +507,7 @@ data FixSpec = FixSpec
 --
 -- ==== Returns
 --
--- A complete 'FixSpec' ready for compilation or registration.
+-- A complete @FixSpec@ ready for compilation or registration.
 --
 -- ==== Example
 --

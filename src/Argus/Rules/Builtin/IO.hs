@@ -268,7 +268,7 @@ bracketOnError =
 -- | Use finally for cleanup.
 --
 -- @
--- action `finally` cleanup
+-- action \`finally\` cleanup
 -- @
 finallyPattern :: Rule
 finallyPattern =

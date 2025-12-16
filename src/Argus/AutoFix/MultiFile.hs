@@ -26,7 +26,7 @@
 --
 -- == Architecture
 --
--- Multi-file fixes are organized as 'FixTransaction's that group related
+-- Multi-file fixes are organized as @FixTransaction@s that group related
 -- changes across files. The transaction system ensures:
 --
 -- * Atomic application (all or nothing)

@@ -20,7 +20,7 @@
 -- Rules are defined with a declarative syntax similar to HLint, making it easy
 -- to express code transformations and constraints.
 --
--- The DSL produces unified 'Rule' values from "Argus.Rules.Types", ensuring
+-- The DSL produces unified "Argus.Rules.Types.Rule" values from "Argus.Rules.Types", ensuring
 -- consistency between DSL-defined and TOML-defined rules.
 --
 -- = Architecture
@@ -37,10 +37,10 @@
 --
 -- = Key Types
 --
--- * 'MatchExpr': Pattern and replacement with conditions
--- * 'RuleBuilder': Intermediate builder for rule construction
--- * 'DSLSideCondition': Constraints on when rules apply
--- * 'DSLImportSpec': Import management for fixes
+-- * @MatchExpr@: Pattern and replacement with conditions
+-- * @RuleBuilder@: Intermediate builder for rule construction
+-- * @DSLSideCondition@: Constraints on when rules apply
+-- * @DSLImportSpec@: Import management for fixes
 --
 -- = Pattern Syntax
 --
@@ -54,7 +54,7 @@
 --
 -- = Thread Safety
 --
--- All DSL functions are pure and thread-safe. The resulting 'Rule' values
+-- All DSL functions are pure and thread-safe. The resulting "Argus.Rules.Types.Rule" values
 -- are immutable and can be shared across threads.
 --
 -- == Basic Usage
@@ -289,8 +289,8 @@ pattern ManualReview = NeedsReview
 
 -- | A DSL pattern for matching code.
 --
--- Used during rule building, then converted to 'RulePattern' for evaluation.
--- Most rules use 'PatternText' for simple patterns with metavariables.
+-- Used during rule building, then converted to "Argus.Rules.Types.RulePattern" for evaluation.
+-- Most rules use @PatternText@ for simple patterns with metavariables.
 --
 -- __Example__:
 --
@@ -331,7 +331,7 @@ data PatternExpr
 -- | DSL side conditions for constraining when a rule matches.
 --
 -- Side conditions are evaluated after a pattern matches to determine
--- if the rule should fire. They're converted to unified 'SideCondition'
+-- if the rule should fire. They're converted to unified "Argus.Rules.Types.SideCondition"
 -- from "Argus.Rules.Types" during rule compilation.
 --
 -- __Condition Types__:
@@ -561,7 +561,7 @@ where_ me cond = me { meConditions = cond : meConditions me }
 infixl 3 `where_`
 
 -- | Add a negated side condition to a match expression
--- Usage: "head $X" ==> "headMay $X" `unless` isLiteral "$X"
+-- Usage: @"head $X" ==> "headMay $X" \`unless\` isLiteral "$X"@
 unless :: MatchExpr -> SideCondition -> MatchExpr
 unless me cond = me { meConditions = NotCondition cond : meConditions me }
 
@@ -578,7 +578,7 @@ infixl 3 `when_`
 --------------------------------------------------------------------------------
 
 -- | Combine two conditions with AND
--- Usage: hasClass "$X" "Ord" .&& notFreeIn "$Y" "$X"
+-- Usage: @hasClass "$X" "Ord" .&& notFreeIn "$Y" "$X"@
 (.&&) :: SideCondition -> SideCondition -> SideCondition
 (.&&) = AndCondition
 
@@ -597,7 +597,7 @@ neg :: SideCondition -> SideCondition
 neg = NotCondition
 
 -- | Add multiple conditions to a MatchExpr (all must be true)
--- Usage: "nub $X" ==> "ordNub $X" `require` [hasClass "$X" "Ord", notFreeIn "$Y" "$X"]
+-- Usage: @"nub $X" ==> "ordNub $X" \`require\` [hasClass "$X" "Ord", notFreeIn "$Y" "$X"]@
 require :: MatchExpr -> [SideCondition] -> MatchExpr
 require me conds = me { meConditions = conds ++ meConditions me }
 
@@ -650,8 +650,8 @@ infixl 3 `removeImports`
 
 -- | Builder for constructing rules (intermediate DSL type).
 --
--- 'RuleBuilder' accumulates rule configuration through modifier functions.
--- Create with 'match' or 'matchText', modify with '&', finalize with 'rule'.
+-- @RuleBuilder@ accumulates rule configuration through modifier functions.
+-- Create with @match@ or @matchText@, modify with @&@, finalize with @rule@.
 --
 -- __Construction Pattern__:
 --
@@ -716,16 +716,16 @@ data RuleBuilder = RuleBuilder
 -- | Create a rule from a name and builder.
 --
 -- This is the primary entry point for defining rules. It converts the
--- DSL-specific 'RuleBuilder' into a unified 'Rule' from "Argus.Rules.Types".
+-- DSL-specific @RuleBuilder@ into a unified "Argus.Rules.Types.Rule" from "Argus.Rules.Types".
 --
 -- __Parameters__:
 --
 -- * @name@: Unique rule identifier (e.g., @\"avoid-head\"@, @\"prefer-foldl\'\"@)
--- * @builder@: Configured rule builder from 'match' and modifiers
+-- * @builder@: Configured rule builder from @match@ and modifiers
 --
 -- __Returns__:
 --
--- A unified 'Rule' ready for use in the engine.
+-- A unified "Argus.Rules.Types.Rule" ready for use in the engine.
 --
 -- __Example__:
 --
@@ -765,9 +765,9 @@ rule name builder = Rule
   , ruleTarget = rbTarget builder  -- Nothing = infer from category
   }
 
--- | Convert a 'MatchExpr' to a 'RuleBuilder'.
+-- | Convert a @MatchExpr@ to a @RuleBuilder@.
 --
--- This is the standard way to start building a rule. The 'MatchExpr'
+-- This is the standard way to start building a rule. The @MatchExpr@
 -- contains the pattern, optional replacement, and any side conditions.
 --
 -- __Usage Patterns__:
@@ -1488,20 +1488,20 @@ defaultRuleSet =
   [ rule "avoid-head" $
       match ("head" ==> "headMay")
       & severity Warning
-      & message "Use headMay instead of partial head function"
+      & message "Use \"headMay\" instead of partial head function"
       & category Safety
       & safetyLevel Safe
 
   , rule "avoid-tail" $
       match ("tail" ==> "tailMay")
       & severity Warning
-      & message "Use tailMay instead of partial tail function"
+      & message "Use \"tailMay\" instead of partial tail function"
       & category Safety
 
   , rule "avoid-fromJust" $
       match (pat "fromJust")
       & severity Warning
-      & message "fromJust is partial - use pattern matching or fromMaybe"
+      & message "\"fromJust\" is partial - use pattern matching or \"fromMaybe\""
       & category Safety
 
   , rule "prefer-pure" $

@@ -47,7 +47,7 @@
 --
 -- = Re-detection Mode
 --
--- With 'RedetectionConfig', the fixer can re-run analysis after each fix
+-- With @RedetectionConfig@, the fixer can re-run analysis after each fix
 -- to discover new issues or verify that fixes didn't introduce regressions.
 --
 -- = Thread Safety

@@ -31,16 +31,16 @@
 --
 -- = Command Structure
 --
--- Each command is represented as a constructor of the 'Command' type,
--- carrying both 'GlobalOptions' and command-specific options:
+-- Each command is represented as a constructor of the @Command@ type,
+-- carrying both @GlobalOptions@ and command-specific options:
 --
--- * 'CmdCheck' - Static analysis with configurable output formats
--- * 'CmdFix' - Auto-fix issues with validation and conflict resolution
--- * 'CmdIndex' - Build HIE database for semantic analysis
--- * 'CmdWatch' - Watch mode for continuous analysis
--- * 'CmdDaemon' - Background service mode
--- * 'CmdLsp' - Language Server Protocol server
--- * 'CmdArchitecture' - Dependency and architecture analysis
+-- * @CmdCheck@ - Static analysis with configurable output formats
+-- * @CmdFix@ - Auto-fix issues with validation and conflict resolution
+-- * @CmdIndex@ - Build HIE database for semantic analysis
+-- * @CmdWatch@ - Watch mode for continuous analysis
+-- * @CmdDaemon@ - Background service mode
+-- * @CmdLsp@ - Language Server Protocol server
+-- * @CmdArchitecture@ - Dependency and architecture analysis
 --
 -- = Usage
 --
@@ -610,7 +610,7 @@ data RuleOptions = RuleOptions
 
 -- | Top-level command type.
 --
--- Each constructor represents a CLI subcommand, pairing 'GlobalOptions'
+-- Each constructor represents a CLI subcommand, pairing @GlobalOptions@
 -- with command-specific options. This is the type returned by the
 -- command-line parser and dispatched to the appropriate handler.
 --

@@ -372,10 +372,10 @@ hspecRules =
   , parallelSpec
   ]
 
--- | shouldBe with Bool.
+-- | @shouldBe@ with Bool.
 --
 -- @
--- x `shouldBe` True  ==>  x `shouldBe` True
+-- x \`shouldBe\` True  ==>  x \`shouldBe\` True
 -- @
 shouldBeBool :: Rule
 shouldBeBool =
@@ -385,10 +385,10 @@ shouldBeBool =
     & severity Suggestion
     & message "Consider shouldSatisfy for boolean checks"
 
--- | shouldBe with Just.
+-- | @shouldBe@ with Just.
 --
 -- @
--- x `shouldBe` Just v  -- Consider shouldSatisfy isJust
+-- x \`shouldBe\` Just v  -- Consider shouldSatisfy isJust
 -- @
 shouldBeJust :: Rule
 shouldBeJust =
@@ -399,10 +399,10 @@ shouldBeJust =
     & message "shouldBe Just - ensure exact value matters"
     & safetyLevel ManualReview
 
--- | shouldBe Nothing.
+-- | @shouldBe@ Nothing.
 --
 -- @
--- x `shouldBe` Nothing  -- Check for Nothing
+-- x \`shouldBe\` Nothing  -- Check for Nothing
 -- @
 shouldBeNothing :: Rule
 shouldBeNothing =
@@ -413,10 +413,10 @@ shouldBeNothing =
     & message "Consider shouldSatisfy isNothing for clearer intent"
     & safetyLevel ManualReview
 
--- | shouldSatisfy with predicate.
+-- | @shouldSatisfy@ with predicate.
 --
 -- @
--- x `shouldSatisfy` pred  -- Predicate must be clear
+-- x \`shouldSatisfy\` pred  -- Predicate must be clear
 -- @
 shouldSatisfyPred :: Rule
 shouldSatisfyPred =

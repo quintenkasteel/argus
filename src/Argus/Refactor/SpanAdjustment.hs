@@ -27,7 +27,7 @@
 --
 -- = The Solution
 --
--- After each fix is applied, compute a 'SpanDelta' that describes:
+-- After each fix is applied, compute a @SpanDelta@ that describes:
 --
 -- * Where the edit occurred
 -- * How many lines were added\/removed
@@ -50,7 +50,7 @@
 --
 -- = Thread Safety
 --
--- All functions are pure and thread-safe. 'DeltaAccumulator' is mutable
+-- All functions are pure and thread-safe. @DeltaAccumulator@ is mutable
 -- but should be used single-threaded within a fix application session.
 --
 -- = Usage

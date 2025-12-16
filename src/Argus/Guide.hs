@@ -69,15 +69,15 @@
 -- === Step 2: Define the Rule
 --
 -- @
--- myRule :: 'Rule'
--- myRule = 'defaultRule'
---   { 'ruleId'       = "my-category/my-rule"
---   , 'ruleName'     = "My Custom Rule"
---   , 'ruleSeverity' = 'Warning'
---   , 'ruleCategory' = 'Custom' "my-category"
---   , 'rulePattern'  = 'TextPatternSpec' "unsafeFunction"
---   , 'ruleMessage'  = "Consider using safeFunction instead"
---   , 'ruleEnabled'  = True
+-- myRule :: Rule
+-- myRule = defaultRule
+--   { ruleId       = "my-category/my-rule"
+--   , ruleName     = "My Custom Rule"
+--   , ruleSeverity = Warning
+--   , ruleCategory = Custom "my-category"
+--   , rulePattern  = TextPatternSpec "unsafeFunction"
+--   , ruleMessage  = "Consider using safeFunction instead"
+--   , ruleEnabled  = True
 --   }
 -- @
 --
@@ -86,25 +86,25 @@
 -- Side conditions restrict where the rule matches:
 --
 -- @
--- ruleWithConditions :: 'Rule'
+-- ruleWithConditions :: Rule
 -- ruleWithConditions = myRule
---   { 'ruleSideConditions' = ['NotInComment', 'NotInString', 'NotInImport']
+--   { ruleSideConditions = [NotInComment, NotInString, NotInImport]
 --   }
 -- @
 --
 -- === Step 4: Provide a Fix
 --
 -- @
--- ruleWithFix :: 'Rule'
+-- ruleWithFix :: Rule
 -- ruleWithFix = ruleWithConditions
---   { 'ruleFix' = Just $ 'Fix'
---       { 'fixTitle'         = "Replace with safe alternative"
---       , 'fixEdits'         = []  -- Will be generated from pattern
---       , 'fixIsPreferred'   = True
---       , 'fixAddImports'    = []
---       , 'fixRemoveImports' = []
---       , 'fixCategory'      = 'FCSafety'
---       , 'fixSafety'        = 'FSAlways'
+--   { ruleFix = Just $ Fix
+--       { fixTitle         = "Replace with safe alternative"
+--       , fixEdits         = []  -- Will be generated from pattern
+--       , fixIsPreferred   = True
+--       , fixAddImports    = []
+--       , fixRemoveImports = []
+--       , fixCategory      = FCSafety
+--       , fixSafety        = FSAlways
 --       }
 --   }
 -- @
@@ -117,7 +117,7 @@
 -- -- In Argus.Rules.Builtin.MyCategory
 -- module Argus.Rules.Builtin.MyCategory (rules) where
 --
--- rules :: ['Rule']
+-- rules :: [Rule]
 -- rules = [myRule, otherRule]
 -- @
 --
@@ -128,11 +128,11 @@
 -- @
 -- -- Match: map f (map g xs)
 -- -- Suggest: map (f . g) xs
--- mapMapFusion :: 'Rule'
--- mapMapFusion = 'defaultRule'
---   { 'ruleId'      = "performance/map-map"
---   , 'rulePattern' = 'ASTPatternSpec' "map $f (map $g $xs)"
---   , 'ruleMessage' = "Fuse consecutive maps: map ($f . $g) $xs"
+-- mapMapFusion :: Rule
+-- mapMapFusion = defaultRule
+--   { ruleId      = "performance/map-map"
+--   , rulePattern = ASTPatternSpec "map $f (map $g $xs)"
+--   , ruleMessage = "Fuse consecutive maps: map ($f . $g) $xs"
 --   }
 -- @
 --
@@ -207,7 +207,7 @@
 -- All output formatters implement a common interface:
 --
 -- @
--- renderMyFormat :: 'OutputOptions' -> 'AnalysisResult' -> 'Output'
+-- renderMyFormat :: OutputOptions -> AnalysisResult -> Output
 -- renderMyFormat opts result = Output
 --   { outText = ...
 --   , outSummary = ...
@@ -223,7 +223,7 @@
 -- import Argus.Refactor.Engine
 --
 -- -- Apply fixes with validation
--- result <- 'refactorSafely' 'defaultEngineOptions' diagnostics content
+-- result <- refactorSafely defaultEngineOptions diagnostics content
 -- case result of
 --   EngineSuccess newContent changes -> ...
 --   EngineFailure errors -> ...
@@ -432,7 +432,7 @@ expressionConditions = standardConditions
 -- | Test that a rule matches the given code
 --
 -- @
--- testRuleMatches myRule "head xs" `shouldBe` True
+-- testRuleMatches myRule \"head xs\" \`shouldBe\` True
 -- @
 testRuleMatches :: Rule -> Text -> Bool
 testRuleMatches rule code =
@@ -445,7 +445,7 @@ testRuleDoesNotMatch rule code = not $ testRuleMatches rule code
 -- | Assert the exact number of diagnostics
 --
 -- @
--- assertDiagnosticCount myRule "head a + head b" 2 `shouldBe` True
+-- assertDiagnosticCount myRule \"head a + head b\" 2 \`shouldBe\` True
 -- @
 assertDiagnosticCount :: Rule -> Text -> Int -> Bool
 assertDiagnosticCount rule code expectedCount =
@@ -459,7 +459,7 @@ assertDiagnosticCount rule code expectedCount =
 --
 -- @
 -- -- Matches: head xs
--- -- Message: Use 'headMay' instead of partial 'head'
+-- -- Message: Use "headMay" instead of partial "head"
 -- @
 examplePartialHeadRule :: Rule
 examplePartialHeadRule = defaultRule
@@ -467,7 +467,7 @@ examplePartialHeadRule = defaultRule
   , ruleSeverity = Warning
   , ruleCategory = Safety
   , rulePattern = TextPatternSpec "head"
-  , ruleMessage = "Use 'headMay' from Data.Maybe or pattern match instead of partial 'head'"
+  , ruleMessage = "Use \"headMay\" from Data.Maybe or pattern match instead of partial \"head\""
   , ruleEnabled = True
   , ruleConditions = standardConditions
   , ruleReplacement = Just "headMay"

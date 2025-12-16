@@ -27,9 +27,9 @@
 --
 -- = Architecture
 --
--- The 'FixAction' type represents atomic fix operations. These can be
--- combined using 'FixSequence' for sequential operations or 'FixChoice'
--- for alternatives. The 'compileAction' function transforms actions
+-- The @FixAction@ type represents atomic fix operations. These can be
+-- combined using @FixSequence@ for sequential operations or @FixChoice@
+-- for alternatives. The @compileAction@ function transforms actions
 -- into executable text transformations.
 --
 -- @

@@ -18,24 +18,24 @@
 --
 -- The types in this module are organized into several categories:
 --
--- * __Source Locations__: 'SrcSpan', 'SrcLoc', 'Line', 'Column' for precise
+-- * __Source Locations__: "Argus.Types.SrcSpan", "Argus.Types.SrcLoc", "Argus.Types.Line", "Argus.Types.Column" for precise
 --   source code positioning
--- * __Diagnostics__: 'Diagnostic', 'Severity', 'DiagnosticKind' for reporting issues
--- * __Fixes__: 'Fix', 'FixEdit', 'FixImport' for auto-fix functionality
--- * __Symbols__: 'Symbol', 'QualifiedName', 'SymbolKind' for code navigation
--- * __Results__: 'AnalysisResult', 'FileResult' for aggregating analysis output
--- * __Configuration__: 'ArgusOptions', 'AnalysisMode' for runtime configuration
+-- * __Diagnostics__: "Argus.Types.Diagnostic", "Argus.Types.Severity", "Argus.Types.DiagnosticKind" for reporting issues
+-- * __Fixes__: "Argus.Types.Fix", "Argus.Types.FixEdit", "Argus.Types.FixImport" for auto-fix functionality
+-- * __Symbols__: "Argus.Types.Symbol", "Argus.Types.QualifiedName", "Argus.Types.SymbolKind" for code navigation
+-- * __Results__: "Argus.Types.AnalysisResult", "Argus.Types.FileResult" for aggregating analysis output
+-- * __Configuration__: "Argus.Types.ArgusOptions", "Argus.Types.AnalysisMode" for runtime configuration
 --
 -- = Key Invariants
 --
 -- * All line and column numbers are __1-indexed__ (matching editor conventions)
--- * 'SrcSpan' ranges are __inclusive__ on the start and __exclusive__ on the end
--- * Empty 'SrcSpan' values should use 'noSrcSpan', not arbitrary values
--- * 'Fix' edits should never be empty; use 'mkFixSafe' for safe construction
+-- * @SrcSpan@ ranges are __inclusive__ on the start and __exclusive__ on the end
+-- * Empty @SrcSpan@ values should use @noSrcSpan@, not arbitrary values
+-- * @Fix@ edits should never be empty; use @mkFixSafe@ for safe construction
 --
 -- = Serialization
 --
--- All exported types support JSON serialization via 'ToJSON' and 'FromJSON'
+-- All exported types support JSON serialization via @ToJSON@ and @FromJSON@
 -- instances, making them suitable for:
 --
 -- * SARIF output
@@ -46,7 +46,7 @@
 -- = Thread Safety
 --
 -- All types are immutable and safe for concurrent access. Strict fields
--- ('StrictData' pragma) ensure predictable memory usage.
+-- (@StrictData@ pragma) ensure predictable memory usage.
 --
 -- = Example
 --
@@ -143,13 +143,13 @@ import Numeric.Natural (Natural)
 -- __Invariant__: Line numbers are 1-indexed, matching editor conventions.
 -- Line 1 is the first line of the file.
 --
--- Use 'Line 0' only for synthetic/generated code that has no source location.
+-- Use @Line 0@ only for synthetic/generated code that has no source location.
 --
 -- @since 1.0.0
 newtype Line = Line
   { unLine :: Int
     -- ^ Extract the raw line number. Prefer pattern matching or using
-    -- 'srcSpanStartLineRaw' when interacting with external APIs.
+    -- @srcSpanStartLineRaw@ when interacting with external APIs.
   }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (Num, Enum, ToJSON, FromJSON, Hashable, NFData)
@@ -166,7 +166,7 @@ newtype Line = Line
 newtype Column = Column
   { unColumn :: Int
     -- ^ Extract the raw column number. Prefer pattern matching or using
-    -- 'srcSpanStartColRaw' when interacting with external APIs.
+    -- @srcSpanStartColRaw@ when interacting with external APIs.
   }
   deriving stock (Eq, Ord, Show, Generic)
   deriving newtype (Num, Enum, ToJSON, FromJSON, Hashable, NFData)
@@ -202,12 +202,12 @@ newtype Milliseconds = Milliseconds
 
 -- | A single position in a source file.
 --
--- Represents a point (not a range) in source code. For ranges, use 'SrcSpan'.
+-- Represents a point (not a range) in source code. For ranges, use @SrcSpan@.
 --
 -- __Invariants__:
 --
--- * 'srcLocLine' and 'srcLocColumn' are 1-indexed
--- * 'srcLocFile' should be an absolute path when possible for reliable comparisons
+-- * @srcLocLine@ and @srcLocColumn@ are 1-indexed
+-- * @srcLocFile@ should be an absolute path when possible for reliable comparisons
 --
 -- @since 1.0.0
 data SrcLoc = SrcLoc
@@ -235,11 +235,11 @@ data SrcLoc = SrcLoc
 --
 -- __Construction__:
 --
--- * Use 'mkSrcSpan' when you have 'SrcLoc' values
--- * Use 'mkSrcSpanRaw' when you have raw 'Int' values (e.g., from GHC API)
--- * Use 'noSrcSpan' for generated code without source location
+-- * Use @mkSrcSpan@ when you have @SrcLoc@ values
+-- * Use @mkSrcSpanRaw@ when you have raw @Int@ values (e.g., from GHC API)
+-- * Use @noSrcSpan@ for generated code without source location
 --
--- __Ordering__: 'SrcSpan' values are ordered first by file, then by start line,
+-- __Ordering__: @SrcSpan@ values are ordered first by file, then by start line,
 -- then by start column, then by end line, then by end column. This provides
 -- a stable sort order for diagnostics.
 --
@@ -261,7 +261,7 @@ data SrcSpan = SrcSpan
 
 -- | Extract the start location from a span.
 --
--- __Postcondition__: The returned 'SrcLoc' will have the same file and
+-- __Postcondition__: The returned @SrcLoc@ will have the same file and
 -- the start line\/column of the span.
 --
 -- @since 1.0.0
@@ -270,7 +270,7 @@ srcSpanStart SrcSpan{..} = SrcLoc srcSpanFile srcSpanStartLine srcSpanStartCol
 
 -- | Extract the end location from a span.
 --
--- __Postcondition__: The returned 'SrcLoc' will have the same file and
+-- __Postcondition__: The returned @SrcLoc@ will have the same file and
 -- the end line\/column of the span.
 --
 -- @since 1.0.0
@@ -303,20 +303,20 @@ mkSrcSpan start end = SrcSpan
 -- * Diagnostics about the project as a whole (not specific code)
 -- * Placeholder values before real spans are computed
 --
--- __Note__: Code should check for 'noSrcSpan' before displaying locations
+-- __Note__: Code should check for @noSrcSpan@ before displaying locations
 -- to users, as "line 0, column 0" is confusing.
 --
 -- @since 1.0.0
 noSrcSpan :: SrcSpan
 noSrcSpan = SrcSpan "" (Line 0) (Column 0) (Line 0) (Column 0)
 
--- | Create a 'SrcSpan' from raw 'Int' values.
+-- | Create a @SrcSpan@ from raw @Int@ values.
 --
 -- This is the preferred constructor when interfacing with the GHC API
 -- or other systems that use raw integers for positions.
 --
 -- __Precondition__: All values should be positive (1-indexed).
--- Zero or negative values should only be used for 'noSrcSpan'-like sentinels.
+-- Zero or negative values should only be used for @noSrcSpan@-like sentinels.
 --
 -- @since 1.0.0
 mkSrcSpanRaw :: FilePath  -- ^ Source file path
@@ -327,7 +327,7 @@ mkSrcSpanRaw :: FilePath  -- ^ Source file path
              -> SrcSpan
 mkSrcSpanRaw file sl sc el ec = SrcSpan file (Line sl) (Column sc) (Line el) (Column ec)
 
--- | Extract start line as raw 'Int'.
+-- | Extract start line as raw @Int@.
 --
 -- Use when interfacing with APIs that require plain integers.
 --
@@ -335,7 +335,7 @@ mkSrcSpanRaw file sl sc el ec = SrcSpan file (Line sl) (Column sc) (Line el) (Co
 srcSpanStartLineRaw :: SrcSpan -> Int
 srcSpanStartLineRaw = unLine . srcSpanStartLine
 
--- | Extract start column as raw 'Int'.
+-- | Extract start column as raw @Int@.
 --
 -- Use when interfacing with APIs that require plain integers.
 --
@@ -343,7 +343,7 @@ srcSpanStartLineRaw = unLine . srcSpanStartLine
 srcSpanStartColRaw :: SrcSpan -> Int
 srcSpanStartColRaw = unColumn . srcSpanStartCol
 
--- | Extract end line as raw 'Int'.
+-- | Extract end line as raw @Int@.
 --
 -- Use when interfacing with APIs that require plain integers.
 --
@@ -351,7 +351,7 @@ srcSpanStartColRaw = unColumn . srcSpanStartCol
 srcSpanEndLineRaw :: SrcSpan -> Int
 srcSpanEndLineRaw = unLine . srcSpanEndLine
 
--- | Extract end column as raw 'Int'.
+-- | Extract end column as raw @Int@.
 --
 -- Use when interfacing with APIs that require plain integers.
 --
@@ -365,12 +365,12 @@ srcSpanEndColRaw = unColumn . srcSpanEndCol
 
 -- | Severity level of a diagnostic.
 --
--- Severity levels are ordered from most severe ('Error') to least severe ('Info').
--- The 'Ord' instance reflects this ordering, with @'Error' < 'Warning' < 'Suggestion' < 'Info'@.
+-- Severity levels are ordered from most severe (@Error@) to least severe (@Info@).
+-- The @Ord@ instance reflects this ordering, with @Error < Warning < Suggestion < Info@.
 --
 -- __CI Integration__:
 --
--- * Exit code 1: If any 'Error' diagnostics are present
+-- * Exit code 1: If any @Error@ diagnostics are present
 -- * Exit code 0: Otherwise (warnings and below are advisory)
 --
 -- __Filtering__: Users can filter diagnostics by minimum severity using
@@ -401,7 +401,7 @@ data Severity
 -- * Grouping related issues in reports
 -- * Applying category-specific suppressions
 --
--- The 'Custom' constructor allows plugins and custom rules to define
+-- The @Custom@ constructor allows plugins and custom rules to define
 -- their own categories.
 --
 -- @since 1.0.0
@@ -435,12 +435,12 @@ data DiagnosticKind
     -- ^ Potential space leak (e.g., lazy accumulator, thunk buildup).
   | PartialFunction
     -- ^ Use of a partial function that can crash at runtime
-    -- (e.g., @head@, @fromJust@).
+    -- (e.g., @head@, \"fromJust\").
   | ComplexityIssue
     -- ^ Excessive code complexity (cyclomatic complexity, nesting depth).
   | Custom Text
     -- ^ User-defined diagnostic kind from plugins or custom rules.
-    -- The 'Text' value is the category name.
+    -- The @Text@ value is the category name.
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Hashable, ToJSON, FromJSON, NFData)
 
@@ -534,7 +534,7 @@ instance FromJSON ImportSymbol where
     isymChildren <- o .:? "children" .!= []
     pure ImportSymbol{..}
 
--- | Create an 'ImportSymbol' with no child items.
+-- | Create an @ImportSymbol@ with no child items.
 --
 -- Use this for simple imports of functions, operators, or types without
 -- explicit constructor\/method lists.
@@ -577,7 +577,7 @@ data FixImport = FixImport
   , fimpQualified :: Maybe Text
     -- ^ Qualifier for qualified imports. @Just "F"@ generates @as F@.
   , fimpHiding    :: Bool
-    -- ^ If 'True', this is a hiding import that excludes the listed symbols.
+    -- ^ If @True@, this is a hiding import that excludes the listed symbols.
   , fimpPackage   :: Maybe Text
     -- ^ Package name for disambiguation when multiple packages export the
     -- same module name. Generates @import "package" Module@.
@@ -605,7 +605,7 @@ instance FromJSON FixImport where
 
 -- | Create a simple unqualified import.
 --
--- For qualified imports or hiding imports, construct 'FixImport' directly.
+-- For qualified imports or hiding imports, construct @FixImport@ directly.
 --
 -- @since 1.0.0
 mkFixImport :: Text           -- ^ Module name
@@ -684,9 +684,9 @@ instance FromJSON FixCategory where
 -- | Safety classification for automatic fix application.
 --
 -- Determines whether a fix can be applied automatically or requires review.
--- The @--safe-only@ flag restricts fixes to 'FSAlways' safety level.
+-- The @--safe-only@ flag restricts fixes to @FSAlways@ safety level.
 --
--- __Ordering__: 'FSAlways' < 'FSMostly' < 'FSReview' < 'FSUnsafe'
+-- __Ordering__: @FSAlways < FSMostly < FSReview < FSUnsafe@
 -- (safest to least safe).
 --
 -- @since 1.0.0
@@ -727,17 +727,17 @@ instance FromJSON FixSafety where
 -- | A single edit to apply to source code.
 --
 -- Represents the atomic unit of code transformation: replacing the text
--- at a specific 'SrcSpan' with new text.
+-- at a specific @SrcSpan@ with new text.
 --
 -- __Invariants__:
 --
--- * 'fixEditSpan' must be a valid span (not 'noSrcSpan' for real edits)
--- * 'fixEditNewText' may be empty to represent deletion
--- * Multiple 'FixEdit's in a single 'Fix' must not have overlapping spans
+-- * @fixEditSpan@ must be a valid span (not @noSrcSpan@ for real edits)
+-- * @fixEditNewText@ may be empty to represent deletion
+-- * Multiple @FixEdit@s in a single @Fix@ must not have overlapping spans
 --
 -- __Construction__:
 --
--- Simply use the 'FixEdit' constructor directly:
+-- Simply use the @FixEdit@ constructor directly:
 --
 -- @
 -- -- Replace "foldl" with "foldl'" at the given span
@@ -752,14 +752,14 @@ instance FromJSON FixSafety where
 --
 -- __Application Order__:
 --
--- When a 'Fix' contains multiple edits, they are applied in reverse order
+-- When a @Fix@ contains multiple edits, they are applied in reverse order
 -- by position (end to start) to preserve span validity during transformation.
 --
 -- @since 1.0.0
 data FixEdit = FixEdit
   { fixEditSpan    :: SrcSpan
     -- ^ The source span to replace. The entire text within this span
-    -- will be replaced with 'fixEditNewText'.
+    -- will be replaced with @fixEditNewText@.
   , fixEditNewText :: Text
     -- ^ The replacement text. May be empty for deletions.
   }
@@ -773,16 +773,16 @@ data FixEdit = FixEdit
 --
 -- __Invariants__:
 --
--- * 'fixEdits' should never be empty (use 'mkFixSafe' to enforce this)
+-- * @fixEdits@ should never be empty (use @mkFixSafe@ to enforce this)
 -- * Edits within a fix must not have overlapping spans
--- * All edits must target the same file (multi-file fixes use 'MultiFileFix')
+-- * All edits must target the same file (multi-file fixes use @MultiFileFix@)
 --
 -- __Lifecycle__:
 --
 -- 1. Created by rule matchers when issues are detected
--- 2. Attached to 'Diagnostic' via 'diagFixes'
+-- 2. Attached to @Diagnostic@ via @diagFixes@
 -- 3. Presented to users for review or auto-application
--- 4. Applied by 'Argus.Refactor.SafeRefactor' with validation
+-- 4. Applied by "Argus.Refactor.SafeRefactor" with validation
 --
 -- __Import Management__:
 --
@@ -803,9 +803,9 @@ data FixEdit = FixEdit
 --
 -- __Construction__:
 --
--- * 'mkFixSafe': Safe constructor returning 'Maybe' for empty edits
--- * 'mkFix': Simple constructor with defaults
--- * 'mkFixWithImports': Full constructor with all fields
+-- * @mkFixSafe@: Safe constructor returning @Maybe@ for empty edits
+-- * @mkFix@: Simple constructor with defaults
+-- * @mkFixWithImports@: Full constructor with all fields
 --
 -- @since 1.0.0
 data Fix = Fix
@@ -813,9 +813,9 @@ data Fix = Fix
     -- ^ Human-readable title displayed to users.
     -- Should be concise and action-oriented (e.g., \"Use foldl'\").
   , fixEdits         :: [FixEdit]
-    -- ^ Edits to apply. Must be non-empty (use 'mkFixSafe' to enforce).
+    -- ^ Edits to apply. Must be non-empty (use @mkFixSafe@ to enforce).
   , fixIsPreferred   :: Bool
-    -- ^ If 'True', this fix is recommended and may be auto-applied.
+    -- ^ If @True@, this fix is recommended and may be auto-applied.
     -- Only one fix per diagnostic should be marked as preferred.
   , fixAddImports    :: [FixImport]
     -- ^ Imports to add when the fix is applied.
@@ -853,17 +853,17 @@ instance FromJSON Fix where
     fixSafety        <- o .:? "fixSafety" .!= FSAlways
     pure Fix{..}
 
--- | Smart constructor for 'Fix' that validates non-empty edits.
+-- | Smart constructor for @Fix@ that validates non-empty edits.
 --
--- Returns 'Nothing' if the edits list is empty, enforcing the invariant
+-- Returns @Nothing@ if the edits list is empty, enforcing the invariant
 -- that fixes must contain at least one edit.
 --
 -- Uses default values for optional fields:
 --
--- * 'fixAddImports': @[]@
--- * 'fixRemoveImports': @[]@
--- * 'fixCategory': 'FCStyle'
--- * 'fixSafety': 'FSAlways'
+-- * @fixAddImports@: @[]@
+-- * @fixRemoveImports@: @[]@
+-- * @fixCategory@: @FCStyle@
+-- * @fixSafety@: @FSAlways@
 --
 -- __Example__:
 --
@@ -877,7 +877,7 @@ instance FromJSON Fix where
 mkFixSafe :: Text      -- ^ Fix title
           -> [FixEdit] -- ^ Edits to apply (must be non-empty)
           -> Bool      -- ^ Is this the preferred fix?
-          -> Maybe Fix -- ^ 'Nothing' if edits is empty
+          -> Maybe Fix -- ^ @Nothing@ if edits is empty
 mkFixSafe _ [] _ = Nothing
 mkFixSafe title edits preferred = Just Fix
   { fixTitle = title
@@ -889,12 +889,12 @@ mkFixSafe title edits preferred = Just Fix
   , fixSafety = FSAlways
   }
 
--- | Simple 'Fix' constructor for common use cases.
+-- | Simple @Fix@ constructor for common use cases.
 --
 -- Creates a fix with empty import management and default safety.
--- Use 'mkFixWithImports' when you need import management or custom categories.
+-- Use @mkFixWithImports@ when you need import management or custom categories.
 --
--- __Note__: Does not validate that edits is non-empty. Use 'mkFixSafe'
+-- __Note__: Does not validate that edits is non-empty. Use @mkFixSafe@
 -- if you need this validation.
 --
 -- __Example__:
@@ -919,7 +919,7 @@ mkFix title edits preferred = Fix
   , fixSafety = FSAlways
   }
 
--- | Full 'Fix' constructor with import management and categorization.
+-- | Full @Fix@ constructor with import management and categorization.
 --
 -- Use this when you need to:
 --
@@ -980,18 +980,18 @@ mkFixWithImports title edits preferred addImps remImps cat safety = Fix
 --
 -- __Invariants__:
 --
--- * 'diagSpan' should be a valid span (not 'noSrcSpan') for real diagnostics
--- * 'diagMessage' should be a complete, grammatically correct sentence
--- * If 'diagFixes' is non-empty, at most one fix should have 'fixIsPreferred'
+-- * @diagSpan@ should be a valid span (not @noSrcSpan@) for real diagnostics
+-- * @diagMessage@ should be a complete, grammatically correct sentence
+-- * If @diagFixes@ is non-empty, at most one fix should have @fixIsPreferred@
 --
 -- __Related Locations__:
 --
--- Use 'diagRelated' to provide context for complex issues:
+-- Use @diagRelated@ to provide context for complex issues:
 --
 -- @
 -- Diagnostic
 --   { diagSpan = usageSpan
---   , diagMessage = "Variable 'x' is used before definition"
+--   , diagMessage = \"Variable \'x\' is used before definition\"
 --   , diagRelated = [(definitionSpan, "Variable is defined here")]
 --   , ...
 --   }
@@ -1091,24 +1091,24 @@ data SymbolKind
 -- QualifiedName Nothing "localHelper"         -- Local definition
 -- @
 --
--- __Ordering__: Lexicographic by module (with 'Nothing' first), then by name.
+-- __Ordering__: Lexicographic by module (with @Nothing@ first), then by name.
 --
 -- @since 1.0.0
 data QualifiedName = QualifiedName
   { qnModule :: Maybe Text
-    -- ^ Module name, or 'Nothing' for local bindings.
+    -- ^ Module name, or @Nothing@ for local bindings.
   , qnName   :: Text
     -- ^ The symbol name itself.
   }
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Hashable, ToJSON, FromJSON)
 
--- | Create a 'QualifiedName'.
+-- | Create a @QualifiedName@.
 --
 -- Simple constructor wrapper for convenience.
 --
 -- @since 1.0.0
-mkQualifiedName :: Maybe Text -- ^ Module name ('Nothing' for local)
+mkQualifiedName :: Maybe Text -- ^ Module name (@Nothing@ for local)
                 -> Text       -- ^ Symbol name
                 -> QualifiedName
 mkQualifiedName = QualifiedName
@@ -1124,7 +1124,7 @@ mkQualifiedName = QualifiedName
 -- 1. Extracted from HIE files during indexing
 -- 2. Stored in the symbol table for lookup
 -- 3. Used for go-to-definition, find-references, unused code detection
--- 4. Aggregated in 'FileResult' and 'AnalysisResult'
+-- 4. Aggregated in @FileResult@ and @AnalysisResult@
 --
 -- __Example__:
 --
@@ -1169,14 +1169,14 @@ instance Ord Symbol where
 -- | Analysis results for a single source file.
 --
 -- Contains all diagnostics, symbols, and metadata extracted from one file.
--- Multiple 'FileResult's are combined into an 'AnalysisResult'.
+-- Multiple @FileResult@s are combined into an @AnalysisResult@.
 --
 -- __Lifecycle__:
 --
 -- 1. Created during file analysis (syntactic or semantic)
 -- 2. Populated with diagnostics from rule matching
--- 3. Enriched with symbol information from HIE (in 'FullMode')
--- 4. Aggregated into 'AnalysisResult' for reporting
+-- 3. Enriched with symbol information from HIE (in @FullMode@)
+-- 4. Aggregated into @AnalysisResult@ for reporting
 --
 -- @since 1.0.0
 data FileResult = FileResult
@@ -1202,13 +1202,13 @@ data FileResult = FileResult
 --
 -- __Construction__:
 --
--- * Start with 'emptyAnalysisResult'
--- * Add file results using 'mergeResults'
--- * Or use 'Argus.Core.analyze' to get a complete result
+-- * Start with @emptyAnalysisResult@
+-- * Add file results using @mergeResults@
+-- * Or use "Argus.Core.analyze" to get a complete result
 --
 -- __Thread Safety__:
 --
--- 'AnalysisResult' is immutable. For parallel analysis, results are
+-- @AnalysisResult@ is immutable. For parallel analysis, results are
 -- merged after each worker completes.
 --
 -- @since 1.0.0
@@ -1250,7 +1250,7 @@ emptyAnalysisResult = AnalysisResult Map.empty Set.empty Map.empty
 --
 -- * Associative: @mergeResults a (mergeResults b c) == mergeResults (mergeResults a b) c@
 -- * Identity: @mergeResults emptyAnalysisResult x == x@
--- * For duplicate file paths, the second result's 'FileResult' wins
+-- * For duplicate file paths, the second result's @FileResult@ wins
 --
 -- @since 1.0.0
 mergeResults :: AnalysisResult -> AnalysisResult -> AnalysisResult
@@ -1274,14 +1274,14 @@ mergeResults r1 r2 = AnalysisResult
 -- +-------------+------------------+---------------------+-------------------+
 -- | Mode        | Prerequisites    | Analysis Depth      | Speed             |
 -- +=============+==================+=====================+===================+
--- | 'QuickMode' | None             | Syntactic patterns  | Fast              |
+-- | @QuickMode@ | None             | Syntactic patterns  | Fast              |
 -- +-------------+------------------+---------------------+-------------------+
--- | 'FullMode'  | HIE files        | Type-aware semantic | Moderate          |
+-- | @FullMode@  | HIE files        | Type-aware semantic | Moderate          |
 -- +-------------+------------------+---------------------+-------------------+
--- | 'PluginMode'| GHC compilation  | Full TH support     | Slow (compiles)   |
+-- | @PluginMode@| GHC compilation  | Full TH support     | Slow (compiles)   |
 -- +-------------+------------------+---------------------+-------------------+
 --
--- __Ordering__: 'QuickMode' < 'FullMode' < 'PluginMode' (by analysis depth).
+-- __Ordering__: @QuickMode < FullMode < PluginMode@ (by analysis depth).
 --
 -- @since 1.0.0
 data AnalysisMode
@@ -1305,12 +1305,12 @@ data AnalysisMode
 --
 -- __Construction__:
 --
--- * Use 'defaultOptions' as a starting point
+-- * Use @defaultOptions@ as a starting point
 -- * Override fields as needed
--- * Or use CLI argument parsing in 'Argus.CLI'
+-- * Or use CLI argument parsing in "Argus.CLI"
 --
--- __Note__: 'optOutputFormat' is 'Text' (not an enum) to avoid circular
--- dependencies with 'Argus.Output.Types'. Valid values are:
+-- __Note__: @optOutputFormat@ is @Text@ (not an enum) to avoid circular
+-- dependencies with "Argus.Output.Types". Valid values are:
 -- @\"terminal\"@, @\"json\"@, @\"sarif\"@, @\"html\"@, @\"plain\"@.
 --
 -- @since 1.0.0
@@ -1319,24 +1319,24 @@ data ArgusOptions = ArgusOptions
     -- ^ Analysis mode (quick, full, or plugin).
   , optConfigFile    :: Maybe FilePath
     -- ^ Path to configuration file (@argus.toml@ or @linter.toml@).
-    -- If 'Nothing', auto-discovery is used.
+    -- If @Nothing@, auto-discovery is used.
   , optTargetPaths   :: [FilePath]
     -- ^ Files or directories to analyze. Defaults to @[\".\"]@.
   , optHieDir        :: Maybe FilePath
-    -- ^ Directory containing @.hie@ files. Required for 'FullMode'.
-    -- If 'Nothing', defaults to @.hie@ in the project root.
+    -- ^ Directory containing @.hie@ files. Required for @FullMode@.
+    -- If @Nothing@, defaults to @.hie@ in the project root.
   , optOutputFormat  :: Text
     -- ^ Output format name. See module note for valid values.
   , optApplyFixes    :: Bool
-    -- ^ If 'True', automatically apply fixes to files.
+    -- ^ If @True@, automatically apply fixes to files.
   , optInteractive   :: Bool
-    -- ^ If 'True', prompt for confirmation before each fix.
+    -- ^ If @True@, prompt for confirmation before each fix.
   , optPreview       :: Bool
-    -- ^ If 'True', show fix previews without applying them.
+    -- ^ If @True@, show fix previews without applying them.
   , optVerbose       :: Bool
-    -- ^ If 'True', enable verbose output (timing, file counts, etc.).
+    -- ^ If @True@, enable verbose output (timing, file counts, etc.).
   , optNoColor       :: Bool
-    -- ^ If 'True', disable ANSI color codes in terminal output.
+    -- ^ If @True@, disable ANSI color codes in terminal output.
   , optParallel      :: Natural
     -- ^ Number of parallel analysis threads. Use 1 for sequential analysis.
   }
@@ -1347,7 +1347,7 @@ data ArgusOptions = ArgusOptions
 --
 -- Provides sensible defaults for quick, non-destructive analysis:
 --
--- * 'QuickMode' analysis (no HIE required)
+-- * @QuickMode@ analysis (no HIE required)
 -- * Current directory as target
 -- * Terminal output with colors
 -- * No automatic fix application

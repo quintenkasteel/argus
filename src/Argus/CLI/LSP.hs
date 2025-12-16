@@ -35,7 +35,7 @@
 -- __Neovim__ (using nvim-lspconfig):
 --
 -- @
--- require('lspconfig').argus.setup{}
+-- require(\"lspconfig\").argus.setup{}
 -- @
 --
 -- @since 1.0.0

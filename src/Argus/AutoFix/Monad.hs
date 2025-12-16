@@ -16,7 +16,7 @@
 -- including:
 --
 -- * return/pure simplifications (return x >>= f → f x)
--- * Applicative improvements (liftM → fmap, ap pattern detection)
+-- * Applicative improvements (liftM → fmap, @ap@ pattern detection)
 -- * Monad law optimizations (associativity, identity)
 -- * do-notation simplifications
 -- * Common monad transformer patterns
@@ -544,7 +544,7 @@ fixLiftM2 path lineNum line config =
          _ -> Nothing
   else Nothing
 
--- | Fix: return f `ap` m → f <$> m
+-- | Fix: @return f \`ap\` m → f \<$\> m@
 fixApPattern :: FilePath -> Int -> Text -> MonadFixConfig -> Maybe MonadFix'
 fixApPattern path lineNum line config =
   if mfcPreferApplicative config

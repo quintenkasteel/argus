@@ -157,7 +157,7 @@ unsafeOperationRules =
 --
 -- == Solution
 --
--- Use 'headMay' from the @safe@ package, pattern matching, or 'listToMaybe':
+-- Use \"headMay\" from the @safe@ package, pattern matching, or @listToMaybe@:
 --
 -- @
 -- import Safe (headMay)
@@ -189,7 +189,7 @@ avoidHead = rule "safety/avoid-head" $
          `addImport` ("Safe", ["headMay"]))
   & severity Warning
   & message "Avoid partial function 'head' - throws exception on empty list"
-  & note "Use 'headMay' from the 'safe' package, or pattern match explicitly"
+  & note "Use \"headMay\" from the \"safe\" package, or pattern match explicitly"
   & category Safety
   & safetyLevel Safe
   & fixDescription "Replace with 'headMay' from Safe package"
@@ -206,7 +206,7 @@ avoidHead = rule "safety/avoid-head" $
 --
 -- == Solution
 --
--- Use 'tailMay' from the @safe@ package or pattern matching:
+-- Use @tailMay@ from the @safe@ package or pattern matching:
 --
 -- @
 -- import Safe (tailMay)
@@ -228,10 +228,10 @@ avoidTail = rule "safety/avoid-tail" $
          `addImport` ("Safe", ["tailMay"]))
   & severity Warning
   & message "Avoid partial function 'tail' - throws exception on empty list"
-  & note "Use 'tailMay' from the 'safe' package, or pattern match explicitly"
+  & note "Use @tailMay@ from the safe package, or pattern match explicitly"
   & category Safety
   & safetyLevel Safe
-  & fixDescription "Replace with 'tailMay' from Safe package"
+  & fixDescription "Replace with @tailMay@ from Safe package"
 
 -- | Detect usage of 'init' on lists.
 --
@@ -245,7 +245,7 @@ avoidTail = rule "safety/avoid-tail" $
 --
 -- == Solution
 --
--- Use 'initMay' from the @safe@ package:
+-- Use @initMay@ from the @safe@ package:
 --
 -- @
 -- import Safe (initMay)
@@ -260,7 +260,7 @@ avoidInit = rule "safety/avoid-init" $
          `addImport` ("Safe", ["initMay"]))
   & severity Warning
   & message "Avoid partial function 'init' - throws exception on empty list"
-  & note "Use 'initMay' from the 'safe' package"
+  & note "Use @initMay@ from the safe package"
   & category Safety
   & safetyLevel Safe
 
@@ -276,7 +276,7 @@ avoidInit = rule "safety/avoid-init" $
 --
 -- == Solution
 --
--- Use 'lastMay' from the @safe@ package:
+-- Use @lastMay@ from the @safe@ package:
 --
 -- @
 -- import Safe (lastMay)
@@ -291,7 +291,7 @@ avoidLast = rule "safety/avoid-last" $
          `addImport` ("Safe", ["lastMay"]))
   & severity Warning
   & message "Avoid partial function 'last' - throws exception on empty list"
-  & note "Use 'lastMay' from the 'safe' package"
+  & note "Use @lastMay@ from the safe package"
   & category Safety
   & safetyLevel Safe
 
@@ -307,7 +307,7 @@ avoidLast = rule "safety/avoid-last" $
 --
 -- == Solution
 --
--- Use 'atMay' from the @safe@ package or '!?' from containers:
+-- Use @atMay@ from the @safe@ package or @!?@ from containers:
 --
 -- @
 -- import Safe (atMay)
@@ -322,7 +322,7 @@ avoidBangBang = rule "safety/avoid-!!" $
          `addImport` ("Safe", ["atMay"]))
   & severity Warning
   & message "Avoid partial operator '!!' - throws exception on invalid index"
-  & note "Use 'atMay' from the 'safe' package for safe indexing"
+  & note "Use @atMay@ from the safe package for safe indexing"
   & category Safety
   & safetyLevel Safe
 
@@ -338,7 +338,7 @@ avoidBangBang = rule "safety/avoid-!!" $
 --
 -- == Solution
 --
--- Use 'maximumMay' from the @safe@ package:
+-- Use @maximumMay@ from the @safe@ package:
 --
 -- @
 -- import Safe (maximumMay)
@@ -353,7 +353,7 @@ avoidMaximum = rule "safety/avoid-maximum" $
          `addImport` ("Safe", ["maximumMay"]))
   & severity Warning
   & message "Avoid partial function 'maximum' - throws exception on empty list"
-  & note "Use 'maximumMay' from the 'safe' package"
+  & note "Use @maximumMay@ from the safe package"
   & category Safety
   & safetyLevel Safe
 
@@ -369,7 +369,7 @@ avoidMaximum = rule "safety/avoid-maximum" $
 --
 -- == Solution
 --
--- Use 'minimumMay' from the @safe@ package:
+-- Use @minimumMay@ from the @safe@ package:
 --
 -- @
 -- import Safe (minimumMay)
@@ -384,7 +384,7 @@ avoidMinimum = rule "safety/avoid-minimum" $
          `addImport` ("Safe", ["minimumMay"]))
   & severity Warning
   & message "Avoid partial function 'minimum' - throws exception on empty list"
-  & note "Use 'minimumMay' from the 'safe' package"
+  & note "Use @minimumMay@ from the safe package"
   & category Safety
   & safetyLevel Safe
 
@@ -400,7 +400,7 @@ avoidMinimum = rule "safety/avoid-minimum" $
 --
 -- == Solution
 --
--- Use 'foldr1May' from the @safe@ package, or use 'foldr' with an initial value:
+-- Use @foldr1May@ from the @safe@ package, or use @foldr@ with an initial value:
 --
 -- @
 -- import Safe (foldr1May)
@@ -418,7 +418,7 @@ avoidFoldr1 = rule "safety/avoid-foldr1" $
          `addImport` ("Safe", ["foldr1May"]))
   & severity Warning
   & message "Avoid partial function 'foldr1' - throws exception on empty list"
-  & note "Use 'foldr1May' from Safe, or 'foldr' with an explicit initial value"
+  & note "Use @foldr1May@ from Safe, or @foldr@ with an explicit initial value"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -430,7 +430,7 @@ avoidFoldr1 = rule "safety/avoid-foldr1" $
 --
 -- == Solution
 --
--- Use 'foldl1May' from the @safe@ package, or use 'foldl'' with an initial value.
+-- Use @foldl1May@ from the @safe@ package, or use @foldl'@ with an initial value.
 avoidFoldl1 :: Rule
 avoidFoldl1 = rule "safety/avoid-foldl1" $
   match ("foldl1 $F $XS" ==> "foldl1May' $F $XS"
@@ -438,7 +438,7 @@ avoidFoldl1 = rule "safety/avoid-foldl1" $
          `addImport` ("Safe", ["foldl1May'"]))
   & severity Warning
   & message "Avoid partial function 'foldl1' - throws exception on empty list"
-  & note "Use 'foldl1May'' from Safe (strict version), or 'foldl'' with initial value"
+  & note "Use @foldl1May'@ from Safe (strict version), or @foldl'@ with initial value"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -446,7 +446,7 @@ avoidFoldl1 = rule "safety/avoid-foldl1" $
 -- Partial Maybe Functions
 --------------------------------------------------------------------------------
 
--- | Detect usage of 'fromJust'.
+-- | Detect usage of @fromJust@.
 --
 -- == Problem
 --
@@ -458,7 +458,7 @@ avoidFoldl1 = rule "safety/avoid-foldl1" $
 --
 -- == Solution
 --
--- Use 'fromMaybe' with a default value, or pattern matching:
+-- Use @fromMaybe@ with a default value, or pattern matching:
 --
 -- @
 -- import Data.Maybe (fromMaybe)
@@ -486,7 +486,7 @@ avoidFromJust = rule "safety/avoid-fromJust" $
          `fromModule` "Data.Maybe")
   & severity Warning
   & message "Avoid partial function 'fromJust' - throws exception on Nothing"
-  & note "Use 'fromMaybe' with a default, pattern matching, or 'maybe'"
+  & note "Use @fromMaybe@ with a default, pattern matching, or @maybe@"
   & category Safety
   & safetyLevel Unsafe
 
@@ -506,7 +506,7 @@ avoidFromJust = rule "safety/avoid-fromJust" $
 --
 -- == Solution
 --
--- Use 'readMay' from the @safe@ package or 'readMaybe' from @Text.Read@:
+-- Use @readMay@ from the @safe@ package or @readMaybe@ from @Text.Read@:
 --
 -- @
 -- import Text.Read (readMaybe)
@@ -521,7 +521,7 @@ avoidRead = rule "safety/avoid-read" $
          `addImport` ("Safe", ["readMay"]))
   & severity Warning
   & message "Avoid partial function 'read' - throws exception on parse failure"
-  & note "Use 'readMay' from Safe, 'readMaybe' from Text.Read, or a proper parser"
+  & note "Use @readMay@ from Safe, @readMaybe@ from Text.Read, or a proper parser"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -597,7 +597,7 @@ avoidUndefined = rule "safety/avoid-undefined" $
   & safetyLevel ManualReview
   & except ["*Test*", "*Spec*", "*Tests*"]
 
--- | Detect usage of 'throw' in pure code.
+-- | Detect usage of @throw@ in pure code.
 --
 -- == Problem
 --
@@ -616,12 +616,12 @@ avoidThrow = rule "safety/avoid-throw" $
   match (pat "throw"
          `fromModule` "Control.Exception")
   & severity Warning
-  & message "Avoid 'throw' in pure code - use Either or ExceptT for errors"
+  & message "Avoid @throw@ in pure code - use Either or ExceptT for errors"
   & note "Use 'throwIO' in IO, or typed errors (Either, ExceptT) in pure code"
   & category Safety
   & safetyLevel ManualReview
 
--- | Detect usage of 'assert' in production code.
+-- | Detect usage of @assert@ in production code.
 --
 -- == Problem
 --
@@ -653,7 +653,7 @@ avoidAssert = rule "safety/avoid-assert" $
   match (pat "assert"
          `fromModule` "Control.Exception")
   & severity Warning
-  & message "Avoid 'assert' - disabled by optimization flags (-O)"
+  & message "Avoid @assert@ - disabled by optimization flags (-O)"
   & note "Use explicit guards, Either, or runtime validation that isn't optimized away"
   & category Safety
   & safetyLevel ManualReview
@@ -676,7 +676,7 @@ avoidAssert = rule "safety/avoid-assert" $
 --
 -- == Solution
 --
--- Use 'succMay' from the @safe@ package or explicit bounds checking:
+-- Use @succMay@ from the @safe@ package or explicit bounds checking:
 --
 -- @
 -- import Safe (succMay)
@@ -697,8 +697,8 @@ avoidSucc = rule "safety/avoid-succ" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["succMay"]))
   & severity Suggestion
-  & message "Consider using 'succMay' - 'succ' throws on maxBound"
-  & note "Use 'succMay' from Safe, or check bounds manually"
+  & message "Consider using @succMay@ - succ throws on maxBound"
+  & note "Use @succMay@ from Safe, or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -715,7 +715,7 @@ avoidSucc = rule "safety/avoid-succ" $
 --
 -- == Solution
 --
--- Use 'predMay' from the @safe@ package or explicit bounds checking:
+-- Use @predMay@ from the @safe@ package or explicit bounds checking:
 --
 -- @
 -- import Safe (predMay)
@@ -730,8 +730,8 @@ avoidPred = rule "safety/avoid-pred" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["predMay"]))
   & severity Suggestion
-  & message "Consider using 'predMay' - 'pred' throws on minBound"
-  & note "Use 'predMay' from Safe, or check bounds manually"
+  & message "Consider using @predMay@ - pred throws on minBound"
+  & note "Use @predMay@ from Safe, or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -749,7 +749,7 @@ avoidPred = rule "safety/avoid-pred" $
 --
 -- == Solution
 --
--- Use 'toEnumMay' from the @safe@ package:
+-- Use @toEnumMay@ from the @safe@ package:
 --
 -- @
 -- import Safe (toEnumMay)
@@ -765,12 +765,12 @@ avoidToEnum = rule "safety/avoid-toEnum" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["toEnumMay"]))
   & severity Suggestion
-  & message "Consider using 'toEnumMay' - 'toEnum' throws on invalid values"
-  & note "Use 'toEnumMay' from Safe to handle out-of-range values safely"
+  & message "Consider using @toEnumMay@ - toEnum throws on invalid values"
+  & note "Use @toEnumMay@ from Safe to handle out-of-range values safely"
   & category Safety
   & safetyLevel MostlySafe
 
--- | Detect usage of 'genericIndex' for list indexing.
+-- | Detect usage of @genericIndex@ for list indexing.
 --
 -- == Problem
 --
@@ -798,8 +798,8 @@ avoidGenericIndex = rule "safety/avoid-genericIndex" $
   match (pat "genericIndex"
          `fromModule` "Data.List")
   & severity Warning
-  & message "Avoid 'genericIndex' - throws on invalid index"
-  & note "Use 'atMay' from Safe with 'fromIntegral', or check bounds manually"
+  & message "Avoid @genericIndex@ - throws on invalid index"
+  & note "Use @atMay@ from Safe with @fromIntegral@, or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 

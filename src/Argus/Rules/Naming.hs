@@ -129,7 +129,7 @@ isNameCorrect name expected =
   name == expected
   || T.stripPrefix "_" name == Just expected  -- _locationK matches locationK
 
--- | Match the 'from' pattern of a variable rule
+-- | Match the @from@ pattern of a variable rule
 matchFromPattern :: Maybe Text -> Text -> Bool
 matchFromPattern Nothing _ = True  -- No from pattern, matches any name
 matchFromPattern (Just "*") _ = True  -- Wildcard matches any name

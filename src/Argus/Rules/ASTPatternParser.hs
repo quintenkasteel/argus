@@ -19,7 +19,7 @@
 --
 -- @
 -- -- Match lambda with unused parameter
--- \\$x -> $body where $x `notFreeIn` $body
+-- \\$x -> $body where $x \`notFreeIn\` $body
 --
 -- -- Match if-then-else returning Bool
 -- if $cond then $t else $f where $t :: Bool && $f :: Bool
@@ -564,7 +564,7 @@ constraintP = choice
   , between (symbol "(") (symbol ")") orConstraintP
   ]
 
--- | Parse `$x notFreeIn $body`
+-- | Parse @$x notFreeIn $body@
 notFreeInP :: Parser PatternConstraint
 notFreeInP = do
   var <- varNameP

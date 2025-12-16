@@ -13,7 +13,7 @@
 --
 -- This module detects common concurrency issues including:
 --
--- * STM anti-patterns (retry without orElse, unbounded retries)
+-- * STM anti-patterns (retry without @orElse@, unbounded retries)
 -- * Async exception handling issues
 -- * Race condition patterns
 -- * Deadlock-prone patterns
@@ -132,8 +132,8 @@ checkSTMLine path (lineNum, line) = catMaybes
       { cfCategory = STMAntiPattern
       , cfSpan = mkSpan path lineNum line "retry"
       , cfCode = T.strip line
-      , cfExplanation = "Using 'retry' without 'orElse' can cause unbounded blocking"
-      , cfSuggestion = Just "Consider using 'retry `orElse` alternative' to provide fallback"
+      , cfExplanation = "Using @retry@ without @orElse@ can cause unbounded blocking"
+      , cfSuggestion = Just "Consider using @retry `orElse` alternative@ to provide fallback"
       , cfSeverity = Warning
       , cfAutoFix = []
       }

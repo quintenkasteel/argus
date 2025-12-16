@@ -27,8 +27,8 @@
 --
 -- = Key Functions
 --
--- * 'applyFix': Apply a single fix to source text
--- * 'applyEdits': Apply multiple edits to source text
+-- * @applyFix@: Apply a single fix to source text
+-- * @applyEdits@: Apply multiple edits to source text
 -- * 'replaceExpr': Replace text at a source span
 -- * 'insertImport': Insert an import statement
 --

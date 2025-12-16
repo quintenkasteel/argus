@@ -52,7 +52,7 @@
 --
 -- = Thread Safety
 --
--- 'SymbolTable' is immutable after construction and safe for concurrent reads.
+-- @SymbolTable@ is immutable after construction and safe for concurrent reads.
 -- Modifications return new tables (functional updates).
 --
 -- = Usage

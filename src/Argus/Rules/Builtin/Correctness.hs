@@ -162,7 +162,7 @@ logicRules =
 -- nearlyEqual 1e-6 (0.1 + 0.2) 0.3  -- True
 -- @
 --
--- Or use exact types like 'Rational' or 'Scientific'.
+-- Or use exact types like @Rational@ or @Scientific@.
 avoidFloatEq :: Rule
 avoidFloatEq = rule "correctness/avoid-float-eq" $
   match (pat "(==) :: Float -> Float -> Bool")

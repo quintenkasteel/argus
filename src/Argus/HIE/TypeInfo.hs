@@ -56,7 +56,7 @@
 --
 -- = Thread Safety
 --
--- The 'HieTypeCache' uses 'IORef' for mutable state and is not thread-safe.
+-- The @HieTypeCache@ uses @IORef@ for mutable state and is not thread-safe.
 -- Use separate cache instances for concurrent operations.
 --
 -- = Implementation Notes

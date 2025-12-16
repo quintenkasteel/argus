@@ -62,7 +62,7 @@
 --
 -- = Thread Safety
 --
--- The 'IncrementalLoader' uses 'TVar' for atomic state updates and is safe for
+-- The @IncrementalLoader@ uses @TVar@ for atomic state updates and is safe for
 -- concurrent queries. Cache updates are performed atomically via STM.
 --
 -- = Usage

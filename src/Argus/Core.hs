@@ -37,9 +37,9 @@
 --
 -- = Analysis Modes
 --
--- * 'QuickMode' - Syntactic analysis only (fastest)
--- * 'FullMode' - Includes HIE-based semantic analysis
--- * 'PluginMode' - Uses GHC plugin for Template Haskell
+-- * @QuickMode@ - Syntactic analysis only (fastest)
+-- * @FullMode@ - Includes HIE-based semantic analysis
+-- * @PluginMode@ - Uses GHC plugin for Template Haskell
 --
 -- = Usage
 --

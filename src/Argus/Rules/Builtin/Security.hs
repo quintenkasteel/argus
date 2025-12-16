@@ -151,11 +151,11 @@ cryptoRules =
 -- Unsafe Operations
 --------------------------------------------------------------------------------
 
--- | Detect use of 'unsafeCoerce'.
+-- | Detect use of @unsafeCoerce@.
 --
 -- == Problem
 --
--- 'unsafeCoerce' bypasses the type system entirely, potentially causing:
+-- @unsafeCoerce@ bypasses the type system entirely, potentially causing:
 --
 -- * Segmentation faults
 -- * Memory corruption
@@ -198,11 +198,11 @@ avoidUnsafeCoerce = rule "security/avoid-unsafeCoerce" $
   & category Security
   & safetyLevel Unsafe
 
--- | Detect use of 'unsafePerformIO'.
+-- | Detect use of @unsafePerformIO@.
 --
 -- == Problem
 --
--- 'unsafePerformIO' breaks referential transparency:
+-- @unsafePerformIO@ breaks referential transparency:
 --
 -- @
 -- import System.IO.Unsafe
@@ -228,7 +228,7 @@ avoidUnsafeCoerce = rule "security/avoid-unsafeCoerce" $
 -- * Global mutable state with NOINLINE pragma
 -- * Pure interface to referentially transparent IO (e.g., memoization)
 --
--- Always use 'unsafePerformIO' with NOINLINE to prevent CSE/inlining issues.
+-- Always use @unsafePerformIO@ with NOINLINE to prevent CSE/inlining issues.
 avoidUnsafePerformIO :: Rule
 avoidUnsafePerformIO = rule "security/avoid-unsafePerformIO" $
   match (pat "unsafePerformIO"
@@ -239,11 +239,11 @@ avoidUnsafePerformIO = rule "security/avoid-unsafePerformIO" $
   & category Security
   & safetyLevel Unsafe
 
--- | Detect use of 'unsafeInterleaveIO'.
+-- | Detect use of @unsafeInterleaveIO@.
 --
 -- == Problem
 --
--- 'unsafeInterleaveIO' defers IO actions lazily, causing:
+-- @unsafeInterleaveIO@ defers IO actions lazily, causing:
 --
 -- * Non-deterministic evaluation order
 -- * Resource leaks (file handles kept open)
@@ -274,11 +274,11 @@ avoidUnsafeInterleaveIO = rule "security/avoid-unsafeInterleaveIO" $
   & category Security
   & safetyLevel Unsafe
 
--- | Detect use of 'unsafeDupablePerformIO'.
+-- | Detect use of @unsafeDupablePerformIO@.
 --
 -- == Problem
 --
--- Even more dangerous than 'unsafePerformIO' - can be duplicated across threads.
+-- Even more dangerous than @unsafePerformIO@ - can be duplicated across threads.
 avoidUnsafeDupablePerformIO :: Rule
 avoidUnsafeDupablePerformIO = rule "security/avoid-unsafeDupablePerformIO" $
   match (pat "unsafeDupablePerformIO"
@@ -340,7 +340,7 @@ avoidUnsafeLocalState = rule "security/avoid-unsafeLocalState" $
 --
 -- == Problem
 --
--- Using 'rawSql' with string concatenation allows SQL injection:
+-- Using @rawSql@ with string concatenation allows SQL injection:
 --
 -- @
 -- -- VULNERABLE!
@@ -385,7 +385,7 @@ avoidStringInterpolationSql = rule "security/avoid-sql-string-concat" $
 --
 -- == Problem
 --
--- 'system' executes shell commands, enabling command injection:
+-- @system@ executes shell commands, enabling command injection:
 --
 -- @
 -- -- VULNERABLE!

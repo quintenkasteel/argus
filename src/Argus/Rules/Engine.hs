@@ -16,12 +16,12 @@
 --
 -- = Overview
 --
--- This module provides the unified rule evaluation engine that evaluates 'Rule'
--- values against source code to produce 'Diagnostic' values.
+-- This module provides the unified rule evaluation engine that evaluates "Argus.Rules.Types.Rule"
+-- values against source code to produce "Argus.Types.Diagnostic" values.
 --
 -- = Architecture
 --
--- The engine works directly with the unified 'Rule' type:
+-- The engine works directly with the unified "Argus.Rules.Types.Rule" type:
 --
 -- @
 -- Rule → evaluateRules → [Diagnostic]
@@ -29,12 +29,12 @@
 --
 -- __Evaluation Pipeline__:
 --
--- 1. Build 'RuleEvalContext' from engine, file path, and content
+-- 1. Build @RuleEvalContext@ from engine, file path, and content
 -- 2. Partition rules into text-based and AST-based
 -- 3. For each text\/regex rule: match pattern against each line
 -- 4. For each AST rule: match pattern against parsed AST
 -- 5. Evaluate side conditions for each match
--- 6. Generate 'Diagnostic' with optional 'Fix' for successful matches
+-- 6. Generate "Argus.Types.Diagnostic" with optional "Argus.Types.Fix" for successful matches
 --
 -- = Matching Strategies
 --
@@ -44,19 +44,19 @@
 --
 -- = Comment Awareness
 --
--- The engine can skip matches inside comments ('reCommentAware'):
+-- The engine can skip matches inside comments (@reCommentAware@):
 --
 -- * Code-targeting rules automatically exclude comments
 -- * Documentation rules target Haddock comments specifically
--- * Rules can specify explicit targets via 'RuleTarget'
+-- * Rules can specify explicit targets via @RuleTarget@
 --
 -- = Parallelism
 --
 -- Multiple parallel strategies are available:
 --
--- * 'ParallelRules': Evaluate rules concurrently (good for many rules)
--- * 'ParallelLines': Evaluate lines concurrently (good for large files)
--- * 'ParallelBoth': Maximum parallelism (both rules and lines)
+-- * @ParallelRules@: Evaluate rules concurrently (good for many rules)
+-- * @ParallelLines@: Evaluate lines concurrently (good for large files)
+-- * @ParallelBoth@: Maximum parallelism (both rules and lines)
 --
 -- = Usage
 --
@@ -241,7 +241,7 @@ data MatchContext = MatchContext
 
 -- | Result of a successful rule match.
 --
--- Contains all information needed to generate a 'Diagnostic':
+-- Contains all information needed to generate a @Diagnostic@:
 -- the matched rule, source location, captured text, and context.
 --
 -- @since 1.0.0
@@ -311,7 +311,7 @@ data RuleEvalContext = RuleEvalContext
     -- Evaluated via AST traversal (requires parsing).
   }
 
--- | Build a 'RuleEvalContext' from engine and file data.
+-- | Build a @RuleEvalContext@ from engine and file data.
 --
 -- Consolidates common setup logic: extracts comments, builds comment index,
 -- filters rules by category\/scope, and partitions into text vs AST rules.
@@ -397,8 +397,8 @@ evaluateTextRulesWithContext ctx =
 --
 -- Applies parallelism according to the specified strategy:
 --
--- * 'SequentialEval': No parallelism (baseline, same as 'evaluateTextRulesWithContext')
--- * 'ParallelRules': Rules evaluated in parallel via 'parMap'
+-- * @SequentialEval@: No parallelism (baseline, same as 'evaluateTextRulesWithContext')
+-- * @ParallelRules@: Rules evaluated in parallel via @parMap@
 -- * 'ParallelLines': Lines evaluated in parallel per rule
 -- * 'ParallelBoth': Both rules and lines in parallel (most aggressive)
 -- * 'ChunkedParallel': Rules processed in chunks
@@ -464,7 +464,7 @@ evaluateTextRulesParallelWithContext strategy ctx =
 --
 -- Side conditions refine rule matches by checking additional constraints
 -- that cannot be expressed in the pattern itself. This pure version uses
--- only syntactic information available in the 'MatchContext'.
+-- only syntactic information available in the @MatchContext@.
 --
 -- __Condition Categories__:
 --
@@ -795,7 +795,7 @@ mkHIEContext = SC.mkHIEContext
 --
 -- __Returns__:
 --
--- A configured 'RuleEngine' ready for evaluation.
+-- A configured @RuleEngine@ ready for evaluation.
 --
 -- __Example__:
 --
@@ -853,7 +853,7 @@ defaultEngine = mkRuleEngine Builtin.allBuiltinRules
 --
 -- __Evaluation Process__:
 --
--- 1. Builds 'RuleEvalContext' (extracts comments, filters rules)
+-- 1. Builds @RuleEvalContext@ (extracts comments, filters rules)
 -- 2. Iterates through source lines
 -- 3. Applies each text\/regex rule pattern
 -- 4. Checks side conditions for matches
@@ -1170,7 +1170,7 @@ escapeForRegex = T.concatMap escape
 -- Diagnostic Generation
 --------------------------------------------------------------------------------
 
--- | Convert a 'RuleMatch' to a 'Diagnostic'.
+-- | Convert a @RuleMatch@ to a @Diagnostic@.
 --
 -- Transforms a successful rule match into a user-facing diagnostic,
 -- applying severity overrides and generating fix suggestions.
@@ -1189,7 +1189,7 @@ escapeForRegex = T.concatMap escape
 --
 -- __Returns__:
 --
--- A 'Diagnostic' ready for output.
+-- A @Diagnostic@ ready for output.
 --
 -- @since 1.0.0
 matchToDiagnostic :: RuleEngine -> RuleMatch -> Diagnostic
@@ -1403,7 +1403,7 @@ evaluateRulesWithAST engine filepath moduleName content hsModule = do
 
 -- | Evaluate rules with a pre-built context and parsed AST.
 --
--- Variant that accepts a 'RuleEvalContext' directly, avoiding redundant
+-- Variant that accepts a @RuleEvalContext@ directly, avoiding redundant
 -- setup when context is already available (e.g., from parallel evaluation).
 --
 -- __Parameters__:
