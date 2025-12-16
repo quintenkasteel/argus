@@ -616,7 +616,7 @@ avoidThrow = rule "safety/avoid-throw" $
   match (pat "throw"
          `fromModule` "Control.Exception")
   & severity Warning
-  & message "Avoid @throw@ in pure code - use Either or ExceptT for errors"
+  & message "Avoid 'throw' in pure code - use Either or ExceptT for errors"
   & note "Use 'throwIO' in IO, or typed errors (Either, ExceptT) in pure code"
   & category Safety
   & safetyLevel ManualReview
@@ -653,7 +653,7 @@ avoidAssert = rule "safety/avoid-assert" $
   match (pat "assert"
          `fromModule` "Control.Exception")
   & severity Warning
-  & message "Avoid @assert@ - disabled by optimization flags (-O)"
+  & message "Avoid 'assert' - disabled by optimization flags (-O)"
   & note "Use explicit guards, Either, or runtime validation that isn't optimized away"
   & category Safety
   & safetyLevel ManualReview
@@ -697,8 +697,8 @@ avoidSucc = rule "safety/avoid-succ" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["succMay"]))
   & severity Suggestion
-  & message "Consider using @succMay@ - succ throws on maxBound"
-  & note "Use @succMay@ from Safe, or check bounds manually"
+  & message "Consider using 'succMay' - succ throws on maxBound"
+  & note "Use 'succMay' from Safe, or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -730,8 +730,8 @@ avoidPred = rule "safety/avoid-pred" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["predMay"]))
   & severity Suggestion
-  & message "Consider using @predMay@ - pred throws on minBound"
-  & note "Use @predMay@ from Safe, or check bounds manually"
+  & message "Consider using 'predMay' - pred throws on minBound"
+  & note "Use 'predMay' from Safe, or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -765,8 +765,8 @@ avoidToEnum = rule "safety/avoid-toEnum" $
          `fromModule` "Prelude"
          `addImport` ("Safe", ["toEnumMay"]))
   & severity Suggestion
-  & message "Consider using @toEnumMay@ - toEnum throws on invalid values"
-  & note "Use @toEnumMay@ from Safe to handle out-of-range values safely"
+  & message "Consider using 'toEnumMay' - toEnum throws on invalid values"
+  & note "Use 'toEnumMay' from Safe to handle out-of-range values safely"
   & category Safety
   & safetyLevel MostlySafe
 
@@ -798,8 +798,8 @@ avoidGenericIndex = rule "safety/avoid-genericIndex" $
   match (pat "genericIndex"
          `fromModule` "Data.List")
   & severity Warning
-  & message "Avoid @genericIndex@ - throws on invalid index"
-  & note "Use @atMay@ from Safe with @fromIntegral@, or check bounds manually"
+  & message "Avoid 'genericIndex' - throws on invalid index"
+  & note "Use 'atMay' from Safe with 'fromIntegral', or check bounds manually"
   & category Safety
   & safetyLevel MostlySafe
 

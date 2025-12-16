@@ -167,7 +167,7 @@ apToApplicative =
     match ("_f `ap` _x" ==> "_f <*> _x")
     & category Modernization
     & severity Suggestion
-    & message "Use '<*>' instead of @ap@"
+    & message "Use '<*>' instead of 'ap'"
 
 -- | Applicative sequence pattern.
 --
@@ -240,7 +240,7 @@ mapM_ToTraverse_ =
     match ("mapM_ _f _xs" ==> "traverse_ _f _xs")
     & category Modernization
     & severity Suggestion
-    & message "Use @traverse_@ instead of @mapM_@"
+    & message "Use 'traverse_' instead of 'mapM_'"
 
 -- | Replace forM with for.
 --
@@ -253,7 +253,7 @@ forMToFor =
     match ("forM _xs _f" ==> "for _xs _f")
     & category Modernization
     & severity Suggestion
-    & message "Use @for@ instead of @forM@"
+    & message "Use 'for' instead of 'forM'"
 
 -- | Replace forM_ with for_.
 --
@@ -266,7 +266,7 @@ forM_ToFor_ =
     match ("forM_ _xs _f" ==> "for_ _xs _f")
     & category Modernization
     & severity Suggestion
-    & message "Use @for_@ instead of @forM_@"
+    & message "Use 'for_' instead of 'forM_'"
 
 -- | Replace sequence with sequenceA.
 --
