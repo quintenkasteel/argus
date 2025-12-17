@@ -78,7 +78,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Options.Applicative
 import Argus.CLI.Types
-import Argus.Types (AnalysisMode(..), Severity(..))
+import Argus.Types (AnalysisMode(..), Severity(..), Verbosity(..), isQuiet)
 import Argus.Output.Types (OutputFormat(..))
 import Argus.Output.Progress qualified as Progress
 import Argus.Refactor.Validation (ValidationLevel(..))
@@ -102,11 +102,7 @@ parseGlobalOptions = do
     <> metavar "FILE"
     <> help "Path to configuration file"
     )
-  goVerbose <- switch
-    ( long "verbose"
-    <> short 'v'
-    <> help "Enable verbose output"
-    )
+  goVerbosity <- parseVerbosity
   goNoColor <- switch
     ( long "no-color"
     <> help "Disable colored output"
@@ -119,6 +115,48 @@ parseGlobalOptions = do
     <> help "Number of parallel jobs (default: 4)"
     )
   pure GlobalOptions{..}
+
+-- | Parse verbosity level from command-line flags.
+--
+-- Supports multiple ways to specify verbosity:
+--
+-- * @-q@, @--quiet@ - Minimal output (errors only)
+-- * (default) - Normal output
+-- * @-v@, @--verbose@ - Detailed progress and summaries
+-- * @-vv@, @--debug@ - Debug tracing (file ops, batches, GC)
+-- * @--log-level LEVEL@ - Explicit level: quiet, normal, verbose, debug
+--
+-- @since 1.0.0
+parseVerbosity :: Parser Verbosity
+parseVerbosity = logLevelOption <|> verbosityFlags
+  where
+    -- Explicit --log-level option takes precedence
+    logLevelOption = option parseLogLevel
+      ( long "log-level"
+      <> metavar "LEVEL"
+      <> help "Log level: quiet, normal, verbose, debug"
+      <> hidden  -- Don't clutter help, flags are preferred
+      )
+
+    -- Flag-based verbosity (more common usage)
+    verbosityFlags = mkVerbosity
+      <$> switch (long "quiet" <> short 'q' <> help "Minimal output (errors only)")
+      <*> (length <$> many (flag' () (short 'v' <> long "verbose" <> help "Increase verbosity (-v verbose, -vv debug)")))
+      <*> switch (long "debug" <> help "Enable debug tracing (same as -vv)")
+
+    mkVerbosity quiet vCount debug
+      | quiet     = Quiet
+      | debug     = Debug
+      | vCount >= 2 = Debug
+      | vCount == 1 = Verbose
+      | otherwise = Normal
+
+    parseLogLevel = eitherReader $ \s -> case s of
+      "quiet"   -> Right Quiet
+      "normal"  -> Right Normal
+      "verbose" -> Right Verbose
+      "debug"   -> Right Debug
+      _         -> Left $ "Unknown log level: " <> s <> ". Use: quiet, normal, verbose, debug"
 
 --------------------------------------------------------------------------------
 -- Command Options Parsers
@@ -845,7 +883,7 @@ parseSeverity t = case T.toLower t of
 -- @since 1.0.0
 mkProgressConfig :: GlobalOptions -> Bool -> Progress.ProgressConfig
 mkProgressConfig global isTerminal = Progress.ProgressConfig
-  { Progress.pcEnabled = not (goNoColor global) && isTerminal
+  { Progress.pcEnabled = not (goNoColor global) && isTerminal && not (isQuiet (goVerbosity global))
   , Progress.pcColor = not (goNoColor global)
   , Progress.pcUnicode = True
   , Progress.pcInteractive = isTerminal

@@ -105,7 +105,7 @@ runCheck global opts = do
         , optApplyFixes = False
         , optInteractive = False
         , optPreview = False
-        , optVerbose = goVerbose global
+        , optVerbosity = goVerbosity global
         , optNoColor = goNoColor global
         , optParallel = fromIntegral (goParallel global)
         }
@@ -129,7 +129,6 @@ runCheck global opts = do
         , ooGroupBy = coGroupBy opts
         , ooShowContext = coShowContext opts
         , ooContextLines = coContextLines opts
-        , ooVerbose = goVerbose global
         , ooSourceCache = Map.empty
         }
 

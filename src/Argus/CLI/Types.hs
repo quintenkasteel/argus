@@ -84,6 +84,7 @@ module Argus.CLI.Types
 import Data.Text (Text)
 import Argus.Refactor.Validation (ValidationLevel(..))
 import Argus.Refactor.FixGraph (ConflictStrategy(..))
+import Argus.Types (Verbosity(..))
 
 --------------------------------------------------------------------------------
 -- Global Options
@@ -100,8 +101,8 @@ import Argus.Refactor.FixGraph (ConflictStrategy(..))
 -- [@goConfigFile@]: Path to argus.toml configuration file. If 'Nothing',
 --   Argus searches for configuration in standard locations.
 --
--- [@goVerbose@]: Enable verbose output including debug information,
---   timing statistics, and detailed progress.
+-- [@goVerbosity@]: Output verbosity level. Supports @-q@ (quiet), default (normal),
+--   @-v@ (verbose), and @-vv@ or @--debug@ (debug mode with detailed tracing).
 --
 -- [@goNoColor@]: Disable ANSI color codes in output. Useful for
 --   CI environments or piping to files.
@@ -113,8 +114,8 @@ import Argus.Refactor.FixGraph (ConflictStrategy(..))
 data GlobalOptions = GlobalOptions
   { goConfigFile :: Maybe FilePath
     -- ^ Path to configuration file (argus.toml)
-  , goVerbose    :: Bool
-    -- ^ Enable verbose output
+  , goVerbosity  :: Verbosity
+    -- ^ Verbosity level: Quiet, Normal, Verbose, or Debug
   , goNoColor    :: Bool
     -- ^ Disable colored output
   , goParallel   :: Int

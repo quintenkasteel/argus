@@ -688,7 +688,7 @@ argusOptionsSpec = describe "ArgusOptions" $ do
             , optApplyFixes = True
             , optInteractive = True
             , optPreview = True
-            , optVerbose = True
+            , optVerbosity = Verbose
             , optNoColor = True
             , optParallel = 8
             }

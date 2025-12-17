@@ -331,7 +331,6 @@ runAnalysis cfg watchCfg state callback files = do
           , ooGroupBy = "file"
           , ooShowContext = True
           , ooContextLines = 2
-          , ooVerbose = wcVerbose watchCfg
           , ooSourceCache = Map.empty
           }
         output = renderTerminal outputOpts result

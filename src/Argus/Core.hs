@@ -89,6 +89,8 @@ module Argus.Core
   , checkFiles
   ) where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Control.Monad (forM, forM_, when)
 import Data.ByteString qualified as BS
 import Data.List (find, isSuffixOf)
@@ -101,6 +103,8 @@ import Data.Text.Encoding qualified as TE
 import System.Directory (listDirectory, doesFileExist, doesDirectoryExist)
 import System.Directory qualified
 import System.FilePath ((</>), takeExtension, splitPath, joinPath)
+import System.IO (hPutStrLn, stderr, hFlush)
+import System.Mem (performGC)
 
 import Argus.Analysis.DepGraph
 import Argus.Analysis.Semantic
@@ -190,28 +194,46 @@ defaultContext cfg opts rules = AnalysisContext
 -- | Run Argus with given options
 runArgus :: ArgusOptions -> IO AnalysisResult
 runArgus opts = do
+  let debug = isDebug (optVerbosity opts)
+
+  debugLog debug "[DEBUG] Loading configuration..."
   -- Load configuration
   config <- loadConfig (optConfigFile opts)
+  debugLog debug "[DEBUG] Configuration loaded"
 
   -- Load rules configuration (layered: default + project + user + explicit)
+  debugLog debug "[DEBUG] Loading rules configuration..."
   rulesConfig <- loadRulesConfig (optConfigFile opts)
+  debugLog debug "[DEBUG] Rules configuration loaded"
 
   -- Find all Haskell files, excluding patterns from config
+  debugLog debug "[DEBUG] Discovering Haskell files..."
   let excludePatterns = map T.unpack $ genExclude (cfgGeneral config)
   allFiles <- findHaskellFiles (optTargetPaths opts)
   let files = filterExcluded excludePatterns allFiles
+  debugLog debug $ "[DEBUG] Found " ++ show (length allFiles) ++ " files, " ++ show (length files) ++ " after exclusions"
 
   -- Create analysis context (with optional HIE loader)
+  debugLog debug $ "[DEBUG] Creating analysis context (mode: " ++ show (optMode opts) ++ ")"
   (ctx, mLoader) <- case optMode opts of
-    QuickMode -> pure (defaultContext config opts rulesConfig, Nothing)
+    QuickMode -> do
+      debugLog debug "[DEBUG] Using QuickMode (no HIE)"
+      pure (defaultContext config opts rulesConfig, Nothing)
     FullMode -> do
       case optHieDir opts of
         Just dir -> do
+          debugLog debug $ "[DEBUG] FullMode with HIE directory: " ++ dir
           -- Load HIE data and build dependency graph
+          debugLog debug "[DEBUG] Loading HIE files..."
           hies <- loadHieFiles dir
+          debugLog debug $ "[DEBUG] Loaded " ++ show (length hies) ++ " HIE files"
+
+          debugLog debug "[DEBUG] Building dependency graph from HIE database..."
           graph <- buildGraphFromHieDb dir
+          debugLog debug "[DEBUG] Dependency graph built"
 
           -- Initialize incremental HIE loader for cached queries
+          debugLog debug "[DEBUG] Initializing incremental HIE loader..."
           let cacheDir = dir </> ".argus-hie-cache"
               loaderConfig = defaultLoaderConfig
                 { lcHieDbPath = Just (dir </> ".hiedb")
@@ -221,6 +243,7 @@ runArgus opts = do
                 , lcVerbose = False
                 }
           loader <- initIncrementalLoader cacheDir loaderConfig
+          debugLog debug "[DEBUG] HIE loader initialized"
 
           let ctx' = AnalysisContext
                 { acConfig = config
@@ -231,15 +254,20 @@ runArgus opts = do
                 , acHieLoader = Just loader
                 }
           pure (ctx', Just loader)
-        Nothing -> pure (defaultContext config opts rulesConfig, Nothing)
+        Nothing -> do
+          debugLog debug "[DEBUG] FullMode but no HIE directory specified, using QuickMode behavior"
+          pure (defaultContext config opts rulesConfig, Nothing)
     PluginMode -> do
       -- Plugin mode runs as a GHC plugin during compilation, not through this CLI.
       -- When invoked directly, fall back to QuickMode for convenience.
       -- Users should use: ghc -fplugin=Linter.Plugin for true plugin mode.
+      debugLog debug "[DEBUG] PluginMode - falling back to QuickMode behavior"
       pure (defaultContext config opts rulesConfig, Nothing)
 
   -- Run analysis
+  debugLog debug "[DEBUG] Starting file analysis..."
   results <- analyzeFiles ctx files
+  debugLog debug "[DEBUG] File analysis complete"
 
   -- Apply fixes if requested
   when (optApplyFixes opts) $ do
@@ -270,11 +298,40 @@ runArgusOnFiles = analyzeFiles
 --------------------------------------------------------------------------------
 
 -- | Analyze multiple files
+-- Uses batched processing to avoid exhausting file handles on large codebases.
+-- Files are processed in chunks of 50, with garbage collection between chunks
+-- to ensure file handles are released.
 analyzeFiles :: AnalysisContext -> [FilePath] -> IO AnalysisResult
 analyzeFiles ctx files = do
-  results <- forM files $ \f -> do
-    fr <- analyzeFile ctx f
-    pure (f, fr)
+  let debug = isDebug (optVerbosity (acOptions ctx))
+      batchSize = 50
+      batches = chunksOf batchSize files
+      totalFiles = length files
+      totalBatches = length batches
+
+  -- Debug: show total files and batch info
+  debugLog debug $ "[DEBUG] Starting analysis of " ++ show totalFiles ++ " files in " ++ show totalBatches ++ " batches (batch size: " ++ show batchSize ++ ")"
+
+  -- Process each batch and collect results
+  results <- fmap concat $ forM (zip [1..] batches) $ \(batchNum, batch) -> do
+    debugLog debug $ "[DEBUG] Processing batch " ++ show batchNum ++ "/" ++ show totalBatches ++ " (" ++ show (length batch) ++ " files)"
+
+    batchResults <- forM (zip [1..] batch) $ \(fileNum, f) -> do
+      debugLog debug $ "[DEBUG]   [" ++ show batchNum ++ "." ++ show fileNum ++ "] Opening: " ++ f
+      fr <- analyzeFile ctx f
+      -- Force evaluation to ensure file handles are released
+      _ <- evaluate (force $ fileResultDiagnostics fr)
+      debugLog debug $ "[DEBUG]   [" ++ show batchNum ++ "." ++ show fileNum ++ "] Done: " ++ f ++ " (" ++ show (length $ fileResultDiagnostics fr) ++ " diagnostics)"
+      pure (f, fr)
+
+    -- Force GC between batches to release file handles
+    debugLog debug $ "[DEBUG] Batch " ++ show batchNum ++ " complete, running GC..."
+    performGC
+    debugLog debug $ "[DEBUG] GC complete for batch " ++ show batchNum
+
+    pure batchResults
+
+  debugLog debug $ "[DEBUG] All batches complete, " ++ show (length results) ++ " files analyzed"
 
   let fileMap = Map.fromList results
 
@@ -365,13 +422,15 @@ data ParsedInput = ParsedInput
   }
 
 -- | Read and parse input based on AnalysisInput type
+-- Note: We read the file only once and pass the content to parseModule
+-- to avoid opening the file twice (which can exhaust file handles on large codebases)
 readAndParse :: AnalysisInput -> IO ParsedInput
 readAndParse (FileInput path) = do
   content <- TE.decodeUtf8 <$> BS.readFile path
-  parseResult <- parseFile path
-  -- For FileInput, use the source from ParseResult if available
-  let source = either (const content) prSource parseResult
-  pure $ ParsedInput path source parseResult
+  -- Use parseModule with the already-read content instead of parseFile
+  -- to avoid reading the file twice
+  parseResult <- parseModule path content
+  pure $ ParsedInput path content parseResult
 readAndParse (SourceInput source path) = do
   parseResult <- parseModule path source
   pure $ ParsedInput path source parseResult
@@ -873,3 +932,21 @@ extractModuleName source =
           -- Take until "where" or "(" (for export list)
           modName = T.takeWhile (\c -> c /= '(' && c /= ' ' && c /= '\t') afterModule
       in T.strip modName
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+-- | Split a list into chunks of the specified size
+-- Used for batched file processing to avoid exhausting file handles
+chunksOf :: Int -> [a] -> [[a]]
+chunksOf _ [] = []
+chunksOf n xs =
+  let (chunk, rest) = splitAt n xs
+  in chunk : chunksOf n rest
+
+-- | Log a debug message to stderr if debug mode is enabled
+debugLog :: Bool -> String -> IO ()
+debugLog debug msg = when debug $ do
+  hPutStrLn stderr msg
+  hFlush stderr

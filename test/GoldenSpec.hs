@@ -179,7 +179,6 @@ goldenOutputOptions = OutputOptions
   , ooGroupBy = "file"
   , ooShowContext = False
   , ooContextLines = 0
-  , ooVerbose = False
   , ooSourceCache = Map.empty
   }
 

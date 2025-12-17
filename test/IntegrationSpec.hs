@@ -511,7 +511,6 @@ defaultOutputOptions = OutputOptions
   , ooGroupBy = "file"
   , ooShowContext = True
   , ooContextLines = 2
-  , ooVerbose = False
   , ooSourceCache = Map.empty
   }
 

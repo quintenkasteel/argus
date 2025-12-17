@@ -21,6 +21,7 @@ import System.Directory (doesDirectoryExist)
 import Argus.CLI.Types
 import Argus.CLI.Common (mkProgressConfig)
 import Argus.Config (loadConfig)
+import Argus.Types (isVerbose)
 import Argus.Output.Progress qualified as Progress
 import Argus.Watch
   ( WatchConfig (..)
@@ -55,11 +56,11 @@ runWatch global opts = do
         , wcDebounceMs = woDebounceMs opts
         , wcClearScreen = woClearScreen opts
         , wcShowTimestamp = woShowTimestamp opts
-        , wcVerbose = goVerbose global
+        , wcVerbose = isVerbose (goVerbosity global)
         }
 
   -- Create callback for handling events
-  let callback = watchCallback (goVerbose global)
+  let callback = watchCallback (isVerbose (goVerbosity global))
 
   -- Run the watch loop
   TIO.putStrLn $ "Watching " <> T.pack (show $ length targets) <> " directories..."

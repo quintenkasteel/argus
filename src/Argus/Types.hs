@@ -116,6 +116,10 @@ module Argus.Types
 
     -- * Mode and options
   , AnalysisMode (..)
+  , Verbosity (..)
+  , isQuiet
+  , isVerbose
+  , isDebug
   , ArgusOptions (..)
   , defaultOptions
 
@@ -1298,6 +1302,39 @@ data AnalysisMode
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
+-- | Verbosity level for output and logging.
+--
+-- Controls how much information Argus outputs during analysis.
+-- Use @-v@ for verbose mode, @-vv@ for debug mode, or @--quiet@ for minimal output.
+--
+-- @since 1.0.0
+data Verbosity
+  = Quiet
+    -- ^ Minimal output. Only errors and final results.
+  | Normal
+    -- ^ Default verbosity. Progress indicators and warnings.
+  | Verbose
+    -- ^ Detailed output. Summaries, timing, and additional context.
+  | Debug
+    -- ^ Maximum detail. File operations, batching, GC, and internal tracing.
+    -- Useful for troubleshooting issues like "too many open files".
+  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
+  deriving anyclass (ToJSON, FromJSON, NFData)
+
+-- | Check if verbosity is at quiet level (minimal output).
+isQuiet :: Verbosity -> Bool
+isQuiet Quiet = True
+isQuiet _     = False
+
+-- | Check if verbosity is at least verbose level.
+isVerbose :: Verbosity -> Bool
+isVerbose v = v >= Verbose
+
+-- | Check if verbosity is at debug level (maximum detail).
+isDebug :: Verbosity -> Bool
+isDebug Debug = True
+isDebug _     = False
+
 -- | Runtime configuration for Argus analysis.
 --
 -- Parsed from command-line arguments and configuration files.
@@ -1333,8 +1370,9 @@ data ArgusOptions = ArgusOptions
     -- ^ If @True@, prompt for confirmation before each fix.
   , optPreview       :: Bool
     -- ^ If @True@, show fix previews without applying them.
-  , optVerbose       :: Bool
-    -- ^ If @True@, enable verbose output (timing, file counts, etc.).
+  , optVerbosity     :: Verbosity
+    -- ^ Output verbosity level. Use 'Quiet' for minimal output, 'Normal' for
+    -- default, 'Verbose' for detailed summaries, 'Debug' for troubleshooting.
   , optNoColor       :: Bool
     -- ^ If @True@, disable ANSI color codes in terminal output.
   , optParallel      :: Natural
@@ -1375,7 +1413,7 @@ defaultOptions = ArgusOptions
   , optApplyFixes   = False
   , optInteractive  = False
   , optPreview      = False
-  , optVerbose      = False
+  , optVerbosity    = Normal
   , optNoColor      = False
   , optParallel     = 4
   }

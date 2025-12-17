@@ -16,6 +16,7 @@ import Options.Applicative
 import Options.Applicative.Types (ParserResult(..))
 
 import Argus.CLI
+import Argus.Types (Verbosity(..))
 import Argus.Refactor.Validation (ValidationLevel(..))
 import Argus.Refactor.FixGraph (ConflictStrategy(..))
 
@@ -77,9 +78,9 @@ parseGlobalOptionsSpec = describe "parseGlobalOptions" $ do
         Just (CmdCheck global _) -> goConfigFile global `shouldBe` Nothing
         _ -> expectationFailure "Expected CmdCheck"
 
-    it "has verbose disabled by default" $ do
+    it "has normal verbosity by default" $ do
       case getCommand ["check", "."] of
-        Just (CmdCheck global _) -> goVerbose global `shouldBe` False
+        Just (CmdCheck global _) -> goVerbosity global `shouldBe` Normal
         _ -> expectationFailure "Expected CmdCheck"
 
     it "has color enabled by default" $ do
@@ -105,12 +106,12 @@ parseGlobalOptionsSpec = describe "parseGlobalOptions" $ do
 
     it "enables verbose with -v" $ do
       case getCommand ["check", "-v", "."] of
-        Just (CmdCheck global _) -> goVerbose global `shouldBe` True
+        Just (CmdCheck global _) -> goVerbosity global `shouldBe` Verbose
         _ -> expectationFailure "Expected CmdCheck"
 
     it "enables verbose with --verbose" $ do
       case getCommand ["check", "--verbose", "."] of
-        Just (CmdCheck global _) -> goVerbose global `shouldBe` True
+        Just (CmdCheck global _) -> goVerbosity global `shouldBe` Verbose
         _ -> expectationFailure "Expected CmdCheck"
 
     it "disables color with --no-color" $ do
@@ -754,7 +755,7 @@ parseDaemonOptionsSpec = describe "parseDaemonOptions" $ do
       -- -v before subcommand is captured by global options (daemon has own --verbose
       -- but it must come before subcommand where it conflicts with global -v)
       case getCommand ["daemon", "-v", "start"] of
-        Just (CmdDaemon globalOpts _) -> goVerbose globalOpts `shouldBe` True
+        Just (CmdDaemon globalOpts _) -> goVerbosity globalOpts `shouldBe` Verbose
         _ -> expectationFailure "Expected CmdDaemon"
 
 --------------------------------------------------------------------------------
@@ -958,7 +959,7 @@ parseCommandSpec = describe "parseCommand" $ do
                        "--mode", "full", "--format", "sarif", "--hie-dir", ".hie",
                        "--context", "--context-lines", "5", "src/", "app/"] of
         Just (CmdCheck global opts) -> do
-          goVerbose global `shouldBe` True
+          goVerbosity global `shouldBe` Verbose
           goNoColor global `shouldBe` True
           goParallel global `shouldBe` 8
           goConfigFile global `shouldBe` Just "config.toml"

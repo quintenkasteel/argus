@@ -50,7 +50,7 @@ runUnused global opts = do
         , optApplyFixes = False
         , optInteractive = False
         , optPreview = False
-        , optVerbose = goVerbose global
+        , optVerbosity = goVerbosity global
         , optNoColor = goNoColor global
         , optParallel = fromIntegral (goParallel global)
         }
@@ -64,7 +64,6 @@ runUnused global opts = do
         , ooGroupBy = "file"
         , ooShowContext = uoShowContext opts
         , ooContextLines = uoContextLines opts
-        , ooVerbose = goVerbose global
         , ooSourceCache = Map.empty
         }
 

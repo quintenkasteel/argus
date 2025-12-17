@@ -68,6 +68,7 @@ import System.Process (readProcessWithExitCode, readCreateProcess, createProcess
 import GHC.IO.Handle (hGetContents)
 
 import Argus.CLI.Types
+import Argus.Types (isVerbose)
 
 -- | Detected Haskell project build system.
 --
@@ -94,7 +95,7 @@ data ProjectType
 -- @since 1.0.0
 runIndex :: GlobalOptions -> IndexOptions -> IO ()
 runIndex global opts = do
-  let verbose = goVerbose global
+  let verbose = isVerbose (goVerbosity global)
       projectDir = fromMaybe "." (ixTargetDir opts)
 
   -- Change to project directory

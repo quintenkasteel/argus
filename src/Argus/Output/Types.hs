@@ -59,7 +59,6 @@ data OutputOptions = OutputOptions
   , ooGroupBy      :: Text  -- ^ "file", "rule", "severity"
   , ooShowContext  :: Bool
   , ooContextLines :: Int
-  , ooVerbose      :: Bool
   , ooSourceCache  :: SourceCache  -- ^ Cached source file lines for context display
   }
   deriving stock (Eq, Show)

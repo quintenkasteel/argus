@@ -93,7 +93,7 @@ runFix global opts = do
         , optApplyFixes = False  -- We handle fixes ourselves now
         , optInteractive = False
         , optPreview = False
-        , optVerbose = goVerbose global
+        , optVerbosity = goVerbosity global
         , optNoColor = goNoColor global
         , optParallel = fromIntegral (goParallel global)
         }
@@ -132,12 +132,12 @@ runFix global opts = do
             , eoBackup        = foBackup opts
             , eoConflictStrat = foConflictStrategy opts
             , eoDryRun        = isDryRun
-            , eoVerbose       = foVerbose opts || goVerbose global
+            , eoVerbose       = foVerbose opts || isVerbose (goVerbosity global)
             , eoShowDiff      = foShowDiff opts && not (goNoColor global)
             }
 
       -- Show summary before applying
-      when (foVerbose opts || goVerbose global) $ do
+      when (foVerbose opts || isVerbose (goVerbosity global)) $ do
         TIO.putStrLn $ "Found " <> T.pack (show totalDiags) <> " diagnostics with "
                      <> T.pack (show totalFixes) <> " available fixes across "
                      <> T.pack (show (length filesDiags)) <> " file(s)"
