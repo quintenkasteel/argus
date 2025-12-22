@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Extract version info
         id: version
@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Haskell Stack
         uses: haskell-actions/setup@v2
@@ -62,7 +62,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Cache Stack global package DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
@@ -70,7 +70,7 @@ jobs:
             ${{ runner.os }}-stack-global-
 
       - name: Cache Stack work directory
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .stack-work
           key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
@@ -108,7 +108,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Haskell Stack
         uses: haskell-actions/setup@v2
@@ -117,7 +117,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Cache Stack global package DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.stack
           key: ${{ runner.os }}-${{ runner.arch }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
@@ -125,7 +125,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-stack-global-
 
       - name: Cache Stack work directory
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .stack-work
           key: ${{ runner.os }}-${{ runner.arch }}-stack-work-release-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
@@ -188,7 +188,7 @@ jobs:
           ls -la "${ARCHIVE_NAME}."*
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset_name }}
           path: |
@@ -203,7 +203,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Haskell Stack
         uses: haskell-actions/setup@v2
@@ -212,7 +212,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Cache Stack global package DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
@@ -231,7 +231,7 @@ jobs:
           ls -la sdist/
 
       - name: Upload sdist artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: sdist/*.tar.gz
@@ -245,7 +245,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Haskell Stack
         uses: haskell-actions/setup@v2
@@ -254,7 +254,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Cache Stack global package DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
@@ -262,7 +262,7 @@ jobs:
             ${{ runner.os }}-stack-global-
 
       - name: Download sdist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: sdist
           path: sdist
@@ -317,7 +317,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Haskell Stack
         uses: haskell-actions/setup@v2
@@ -326,7 +326,7 @@ jobs:
           stack-version: 'latest'
 
       - name: Cache Stack global package DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml.lock') }}
@@ -334,7 +334,7 @@ jobs:
             ${{ runner.os }}-stack-global-
 
       - name: Cache Stack work directory
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .stack-work
           key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml.lock', 'package.yaml', '**/*.hs') }}
@@ -403,12 +403,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -466,7 +466,7 @@ jobs:
           cat RELEASE_NOTES.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: Argus v${{ needs.validate.outputs.version }}
           body_path: RELEASE_NOTES.md

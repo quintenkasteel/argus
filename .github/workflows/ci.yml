@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
@@ -67,7 +67,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always() && hashFiles('lint-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         continue-on-error: true
         with:
           sarif_file: lint-results.sarif
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload lint results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lint-results
           path: |
@@ -132,7 +132,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -160,7 +160,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Stack
         uses: freckle/stack-action@v5
@@ -172,7 +172,7 @@ jobs:
         run: stack sdist
 
       - name: Upload sdist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: .stack-work/dist/**/*.tar.gz
